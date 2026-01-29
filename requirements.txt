@@ -1,0 +1,131 @@
+# MedQuery Requirements - Pinned Versions
+# Generated for Python 3.10+
+
+# ============================================
+# Web Framework
+# ============================================
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+pydantic==2.5.2
+pydantic-settings==2.1.0
+# starlette version managed by fastapi
+
+# ============================================
+# Database
+# ============================================
+sqlalchemy==2.0.23
+asyncpg==0.29.0
+alembic==1.13.0
+pgvector==0.2.4
+greenlet==3.0.2
+
+# ============================================
+# Redis & Caching
+# ============================================
+redis==5.0.1
+hiredis==2.3.2
+
+# ============================================
+# Task Queue
+# ============================================
+celery==5.3.4
+kombu==5.3.4
+billiard==4.2.0
+vine==5.1.0
+amqp==5.2.0
+
+# ============================================
+# AI/ML - Embeddings & Retrieval
+# ============================================
+sentence-transformers==2.2.2
+torch==2.1.1
+transformers==4.35.2
+tokenizers==0.15.0
+huggingface-hub==0.19.4
+safetensors==0.4.1
+rank-bm25==0.2.2
+scikit-learn==1.3.2
+scipy==1.11.4
+
+# ============================================
+# LangChain
+# ============================================
+langchain==0.0.350
+langchain-community==0.0.10
+# langchain-core version managed by langchain dependencies
+
+# ============================================
+# Document Processing
+# ============================================
+PyPDF2==3.0.1
+pdfplumber==0.10.3
+# pdfminer.six version managed by pdfplumber
+Pillow==10.1.0
+
+# ============================================
+# LLM Client (for Ollama)
+# ============================================
+httpx==0.25.2
+# httpcore, h11, anyio versions managed by dependencies
+sniffio==1.3.0
+
+# ============================================
+# Security & Authentication
+# ============================================
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.1.1
+cryptography==41.0.7
+
+# ============================================
+# Observability & Monitoring
+# ============================================
+opentelemetry-api==1.21.0
+opentelemetry-sdk==1.21.0
+opentelemetry-semantic-conventions==0.42b0
+opentelemetry-instrumentation==0.42b0
+opentelemetry-instrumentation-fastapi==0.42b0
+opentelemetry-exporter-prometheus==0.42b0
+prometheus-client==0.19.0
+structlog==23.2.0
+
+# ============================================
+# Evaluation & Metrics
+# ============================================
+rouge-score==0.1.2
+numpy==1.26.2
+nltk==3.8.1
+
+# ============================================
+# Utilities
+# ============================================
+python-dotenv==1.0.0
+tenacity==8.2.3
+click==8.1.7
+rich==13.7.0
+pyyaml==6.0.1
+aiofiles==23.2.1
+orjson==3.9.10
+python-dateutil==2.8.2
+
+# ============================================
+# Development Dependencies
+# ============================================
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+faker==21.0.0
+ruff==0.1.6
+black==23.11.0
+mypy==1.7.1
+isort==5.12.0
+pre-commit==3.6.0
+
+# ============================================
+# Type Stubs
+# ============================================
+types-redis==4.6.0.11
+types-passlib==1.7.7.13
+types-python-jose==3.3.4.8

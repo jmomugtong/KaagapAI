@@ -1,0 +1,221 @@
+# ============================================
+# MedQuery Docker Compose Configuration
+# ============================================
+# Production RAG System for Clinical Documentation
+# ============================================
+
+services:
+  # ==========================================
+  # FastAPI Application Server
+  # ==========================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: medquery-api
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=${APP_ENV:-development}
+      - DEBUG=${DEBUG:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-medquery_user}:${DB_PASSWORD:-medquery_password}@postgres:5432/${DB_NAME:-medquery}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-mistral}
+      - SECRET_KEY=${SECRET_KEY:-change_this_to_a_secure_secret_key}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_EXPIRATION_MINUTES=${JWT_EXPIRATION_MINUTES:-60}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-10}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    volumes:
+      - ./src:/app/src:ro
+      - ./uploads:/app/uploads
+      - ./datasets:/app/datasets:ro
+      - model_cache:/app/.cache
+    networks:
+      - medquery-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==========================================
+  # Celery Worker for Async Tasks
+  # ==========================================
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: medquery-celery-worker
+    command: celery -A src.worker worker --loglevel=info --concurrency=2
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-medquery_user}:${DB_PASSWORD:-medquery_password}@postgres:5432/${DB_NAME:-medquery}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - OLLAMA_URL=http://ollama:11434
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+    depends_on:
+      - api
+      - redis
+      - postgres
+    volumes:
+      - ./src:/app/src:ro
+      - ./uploads:/app/uploads
+      - model_cache:/app/.cache
+    networks:
+      - medquery-network
+    restart: unless-stopped
+
+  # ==========================================
+  # PostgreSQL with pgvector Extension
+  # ==========================================
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: medquery-postgres
+    environment:
+      - POSTGRES_DB=${DB_NAME:-medquery}
+      - POSTGRES_USER=${DB_USER:-medquery_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-medquery_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
+    networks:
+      - medquery-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-medquery_user} -d ${DB_NAME:-medquery}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ==========================================
+  # Redis Cache & Message Broker
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: medquery-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - medquery-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # Ollama LLM Server
+  # ==========================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: medquery-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - medquery-network
+    restart: unless-stopped
+    # Uncomment for GPU support (NVIDIA)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+    # ==========================================
+    # Prometheus Metrics Collection
+    # ==========================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: medquery-prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - medquery-network
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  # ==========================================
+  # Grafana Visualization Dashboard
+  # ==========================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: medquery-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - medquery-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  medquery-network:
+    driver: bridge
+    name: medquery-network
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  postgres_data:
+    name: medquery-postgres-data
+  redis_data:
+    name: medquery-redis-data
+  ollama_data:
+    name: medquery-ollama-data
+  prometheus_data:
+    name: medquery-prometheus-data
+  grafana_data:
+    name: medquery-grafana-data
+  model_cache:
+    name: medquery-model-cache
