@@ -68,6 +68,7 @@ app.add_middleware(
 # Health Check Endpoints
 # ============================================
 
+
 @app.get("/health", tags=["Health"])
 async def health_check() -> dict[str, Any]:
     """
@@ -100,7 +101,7 @@ async def readiness_check() -> dict[str, Any]:
             "database": "ok",
             "redis": "ok",
             "ollama": "ok",
-        }
+        },
     }
 
 
@@ -190,6 +191,7 @@ async def evaluation_endpoint() -> dict[str, Any]:
 # Metrics Endpoint
 # ============================================
 
+
 @app.get("/metrics", tags=["Monitoring"])
 async def metrics_endpoint() -> str:
     """
@@ -202,6 +204,7 @@ async def metrics_endpoint() -> str:
 # ============================================
 # Exception Handlers
 # ============================================
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -219,6 +222,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ============================================
 # Main Entry Point
 # ============================================
+
 
 def main():
     """Run the application using uvicorn."""

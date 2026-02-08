@@ -176,15 +176,15 @@ class ClinicalDoc(Base, TimestampMixin):
         nullable=True,
     )
     total_chunks: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    doc_metadata: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB, nullable=True)
+    doc_metadata: Mapped[dict[str, Any] | None] = mapped_column(
+        "metadata", JSONB, nullable=True
+    )
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
     file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     file_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
 
     # Relationships
-    hospital: Mapped["Hospital"] = relationship(
-        "Hospital", back_populates="documents"
-    )
+    hospital: Mapped["Hospital"] = relationship("Hospital", back_populates="documents")
     uploader: Mapped[Optional["User"]] = relationship(
         "User", back_populates="uploaded_documents"
     )
@@ -234,7 +234,9 @@ class EmbeddingsCache(Base):
     )
     chunk_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     section_title: Mapped[str | None] = mapped_column(Text, nullable=True)
-    extra_metadata: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB, nullable=True)
+    extra_metadata: Mapped[dict[str, Any] | None] = mapped_column(
+        "metadata", JSONB, nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -301,9 +303,7 @@ class QueryLog(Base):
     )
 
     # Relationships
-    user: Mapped[Optional["User"]] = relationship(
-        "User", back_populates="query_logs"
-    )
+    user: Mapped[Optional["User"]] = relationship("User", back_populates="query_logs")
     feedback: Mapped[list["UserFeedback"]] = relationship(
         "UserFeedback", back_populates="query_log", lazy="selectin"
     )
@@ -357,9 +357,7 @@ class UserFeedback(Base):
     query_log: Mapped[Optional["QueryLog"]] = relationship(
         "QueryLog", back_populates="feedback"
     )
-    user: Mapped[Optional["User"]] = relationship(
-        "User", back_populates="feedback"
-    )
+    user: Mapped[Optional["User"]] = relationship("User", back_populates="feedback")
 
     # Constraints
     __table_args__ = (

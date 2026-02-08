@@ -52,7 +52,9 @@ class CacheManager:
             ttl_seconds: Cache TTL in seconds. Default is 7 days.
         """
         self.ttl_seconds = ttl_seconds
-        self._redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        self._redis_url = redis_url or os.getenv(
+            "REDIS_URL", "redis://localhost:6379/0"
+        )
         self._redis: object | None = None
 
     async def _get_redis(self) -> object:
@@ -232,7 +234,9 @@ class CacheManager:
             embeddings = generator.generate_batch(texts_batch)
 
             # Store results and cache
-            for idx, _text, embedding in zip(indices, texts_batch, embeddings, strict=False):
+            for idx, _text, embedding in zip(
+                indices, texts_batch, embeddings, strict=False
+            ):
                 results[idx] = embedding
                 text_hash = hashes[idx]
                 await self.set(text_hash, embedding)

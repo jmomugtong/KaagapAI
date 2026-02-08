@@ -28,7 +28,9 @@ POOL_RECYCLE = 1800  # 30 minutes
 POOL_PRE_PING = True
 
 # Default database URL (overridden by environment)
-DEFAULT_DATABASE_URL = "postgresql+asyncpg://medquery_user:medquery_password@localhost:5432/medquery"
+DEFAULT_DATABASE_URL = (
+    "postgresql+asyncpg://medquery_user:medquery_password@localhost:5432/medquery"
+)
 
 
 # ============================================

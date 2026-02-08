@@ -18,6 +18,7 @@ from src.main import app
 # Event Loop Configuration
 # ============================================
 
+
 @pytest.fixture(scope="session")
 def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """Create an event loop for async tests."""
@@ -29,6 +30,7 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 # ============================================
 # Client Fixtures
 # ============================================
+
 
 @pytest.fixture
 def client() -> Generator[TestClient, None, None]:
@@ -47,6 +49,7 @@ async def async_client() -> AsyncGenerator[AsyncClient, None]:
 # ============================================
 # Database Fixtures
 # ============================================
+
 
 @pytest.fixture
 def mock_db_session():
@@ -78,7 +81,7 @@ async def async_session():
 
     database_url = os.environ.get(
         "DATABASE_URL",
-        "postgresql+asyncpg://medquery_user:change_this_password@localhost:5432/medquery"
+        "postgresql+asyncpg://medquery_user:change_this_password@localhost:5432/medquery",
     )
 
     engine = create_async_engine(database_url, echo=False)
@@ -99,6 +102,7 @@ async def async_session():
 # Redis Fixtures
 # ============================================
 
+
 @pytest.fixture
 def mock_redis():
     """Mock Redis client for unit tests."""
@@ -110,6 +114,7 @@ def mock_redis():
 # LLM Fixtures
 # ============================================
 
+
 @pytest.fixture
 def mock_ollama():
     """Mock Ollama client for unit tests."""
@@ -120,6 +125,7 @@ def mock_ollama():
 # ============================================
 # Sample Data Fixtures
 # ============================================
+
 
 @pytest.fixture
 def sample_clinical_query() -> dict:
@@ -141,7 +147,7 @@ def sample_chunk() -> dict:
             "section": "Knee Replacement Procedures",
             "page": 12,
             "chunk_index": 5,
-        }
+        },
     }
 
 
@@ -149,6 +155,7 @@ def sample_chunk() -> dict:
 def sample_embedding() -> list[float]:
     """Sample 384-dimensional embedding vector."""
     import random
+
     random.seed(42)
     return [random.random() for _ in range(384)]
 
@@ -178,6 +185,7 @@ def sample_evaluation_question() -> dict:
 # ============================================
 # Marker Configuration
 # ============================================
+
 
 def pytest_configure(config):
     """Register custom markers."""

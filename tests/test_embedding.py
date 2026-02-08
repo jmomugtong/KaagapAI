@@ -218,9 +218,7 @@ class TestCacheManager:
         assert text_hash in key
 
     @pytest.mark.asyncio
-    async def test_get_returns_none_on_miss(
-        self, mock_redis_client: MagicMock
-    ) -> None:
+    async def test_get_returns_none_on_miss(self, mock_redis_client: MagicMock) -> None:
         """Test cache get returns None on cache miss."""
         from src.rag.cache import CacheManager
 
@@ -336,9 +334,7 @@ class TestEmbeddingCacheIntegration:
     """Integration tests for embedding + cache together."""
 
     @pytest.mark.slow
-    def test_embedding_and_hash_consistency(
-        self, sample_texts: list[str]
-    ) -> None:
+    def test_embedding_and_hash_consistency(self, sample_texts: list[str]) -> None:
         """Test embedding generation is deterministic with hash."""
         from src.rag.embedding import EmbeddingGenerator
 

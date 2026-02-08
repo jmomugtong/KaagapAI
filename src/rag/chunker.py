@@ -45,9 +45,7 @@ class DocumentChunk(BaseModel):
     text: str = Field(..., description="The text content of the chunk")
     chunk_index: int = Field(..., ge=0, description="Zero-based chunk index")
     chunk_hash: str = Field(..., description="SHA256 hash of text content")
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Chunk metadata"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Chunk metadata")
 
 
 # ============================================
@@ -179,9 +177,7 @@ class MetadataExtractor:
 
     # Regex patterns for section headers
     MARKDOWN_HEADER_PATTERN = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
-    NUMBERED_SECTION_PATTERN = re.compile(
-        r"^(\d+(?:\.\d+)*)\s+(.+)$", re.MULTILINE
-    )
+    NUMBERED_SECTION_PATTERN = re.compile(r"^(\d+(?:\.\d+)*)\s+(.+)$", re.MULTILINE)
 
     def __init__(self) -> None:
         """Initialize the metadata extractor."""
@@ -261,14 +257,14 @@ class SmartChunker:
 
     # Section header patterns for splitting
     SECTION_SEPARATORS = [
-        "\n# ",      # H1
-        "\n## ",     # H2
-        "\n### ",    # H3
-        "\n#### ",   # H4
-        "\n\n",      # Double newline (paragraph)
-        "\n",        # Single newline
-        ". ",        # Sentence boundary
-        " ",         # Word boundary
+        "\n# ",  # H1
+        "\n## ",  # H2
+        "\n### ",  # H3
+        "\n#### ",  # H4
+        "\n\n",  # Double newline (paragraph)
+        "\n",  # Single newline
+        ". ",  # Sentence boundary
+        " ",  # Word boundary
     ]
 
     def __init__(

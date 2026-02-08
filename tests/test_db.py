@@ -34,8 +34,6 @@ def mock_database_url() -> str:
     return "postgresql+asyncpg://test:test@localhost:5432/test_db"
 
 
-
-
 @pytest.fixture
 def sample_hospital_data() -> dict:
     """Sample hospital data for testing."""
@@ -458,7 +456,9 @@ class TestPgvectorIntegration:
 class TestHospitalCRUD:
     """Integration tests for Hospital CRUD operations."""
 
-    async def test_create_hospital(self, async_session: AsyncSession, sample_hospital_data: dict):
+    async def test_create_hospital(
+        self, async_session: AsyncSession, sample_hospital_data: dict
+    ):
         """Test creating a hospital record."""
         from src.db.models import Hospital
 
@@ -471,7 +471,9 @@ class TestHospitalCRUD:
         assert result is not None
         assert result.name == sample_hospital_data["name"]
 
-    async def test_read_hospital(self, async_session: AsyncSession, sample_hospital_data: dict):
+    async def test_read_hospital(
+        self, async_session: AsyncSession, sample_hospital_data: dict
+    ):
         """Test reading a hospital record."""
         from src.db.models import Hospital
 
@@ -484,7 +486,9 @@ class TestHospitalCRUD:
         result = await async_session.get(Hospital, sample_hospital_data["id"])
         assert result.code == sample_hospital_data["code"]
 
-    async def test_update_hospital(self, async_session: AsyncSession, sample_hospital_data: dict):
+    async def test_update_hospital(
+        self, async_session: AsyncSession, sample_hospital_data: dict
+    ):
         """Test updating a hospital record."""
         from src.db.models import Hospital
 
@@ -499,7 +503,9 @@ class TestHospitalCRUD:
         result = await async_session.get(Hospital, sample_hospital_data["id"])
         assert result.name == "Updated Hospital Name"
 
-    async def test_delete_hospital(self, async_session: AsyncSession, sample_hospital_data: dict):
+    async def test_delete_hospital(
+        self, async_session: AsyncSession, sample_hospital_data: dict
+    ):
         """Test deleting a hospital record."""
         from src.db.models import Hospital
 
@@ -519,9 +525,7 @@ class TestHospitalCRUD:
 class TestEmbeddingsCacheCRUD:
     """Integration tests for EmbeddingsCache CRUD with vector operations."""
 
-    async def test_create_embedding_with_vector(
-        self, async_session: AsyncSession
-    ):
+    async def test_create_embedding_with_vector(self, async_session: AsyncSession):
         """Test creating an embedding record with 384-dim vector."""
         import uuid
 
@@ -553,12 +557,14 @@ class TestEmbeddingsCacheCRUD:
 
         # Query using cosine similarity
         result = await async_session.execute(
-            text("""
+            text(
+                """
                 SELECT id, chunk_text, embedding <=> :query_vec AS distance
                 FROM embeddings_cache
                 ORDER BY distance
                 LIMIT 5
-            """),
+            """
+            ),
             {"query_vec": str(test_vector)},
         )
 
@@ -631,11 +637,13 @@ class TestDatabaseIndexes:
     async def test_ivfflat_index_exists(self, async_session: AsyncSession):
         """Test that IVFFlat index exists on embeddings table."""
         result = await async_session.execute(
-            text("""
+            text(
+                """
                 SELECT indexname FROM pg_indexes
                 WHERE tablename = 'embeddings_cache'
                 AND indexdef LIKE '%ivfflat%'
-            """)
+            """
+            )
         )
         indexes = result.fetchall()
         assert len(indexes) > 0, "IVFFlat index should exist on embeddings_cache"
@@ -643,11 +651,13 @@ class TestDatabaseIndexes:
     async def test_hospital_id_index_exists(self, async_session: AsyncSession):
         """Test that hospital_id index exists on clinical_docs."""
         result = await async_session.execute(
-            text("""
+            text(
+                """
                 SELECT indexname FROM pg_indexes
                 WHERE tablename = 'clinical_docs'
                 AND indexname LIKE '%hospital_id%'
-            """)
+            """
+            )
         )
         indexes = result.fetchall()
         assert len(indexes) > 0, "hospital_id index should exist on clinical_docs"

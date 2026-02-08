@@ -396,7 +396,8 @@ class TestSmartChunker:
         # At least some chunks should start with headers
         header_patterns = ["#", "##", "###", "1.", "2.", "3."]
         header_chunks = sum(
-            1 for c in chunks
+            1
+            for c in chunks
             if any(c.text.strip().startswith(p) for p in header_patterns)
         )
         # Should have some section-aware splits
