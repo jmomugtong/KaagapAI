@@ -1,4 +1,4 @@
-﻿"""
+"""
 MedQuery Database Layer Tests
 
 Comprehensive pytest tests for PostgreSQL database layer.
