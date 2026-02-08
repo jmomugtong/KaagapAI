@@ -1,7 +1,7 @@
 """
 MedQuery - Production RAG System for Clinical Documentation
 
-A production-grade Retrieval-Augmented Generation (RAG) system designed to 
+A production-grade Retrieval-Augmented Generation (RAG) system designed to
 surface evidence-based clinical answers from medical documentation.
 
 Features:

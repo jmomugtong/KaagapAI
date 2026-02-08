@@ -184,6 +184,15 @@ skip = [".venv", "migrations"]
 [tool.ruff]
 line-length = 88
 target-version = "py310"
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".venv",
+    "migrations",
+]
+
+[tool.ruff.lint]
 select = [
     "E",    # pycodestyle errors
     "W",    # pycodestyle warnings
@@ -200,13 +209,9 @@ ignore = [
     "B008",   # do not perform function calls in argument defaults
     "C901",   # too complex
     "ARG001", # unused function argument
-]
-exclude = [
-    ".git",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".venv",
-    "migrations",
+    "ARG002", # unused method argument (common in test fixtures)
+    "ARG005", # unused lambda argument
+    "B904",   # raise from within except (minor)
 ]
 
 [tool.mypy]

@@ -9,13 +9,12 @@ import hashlib
 import io
 import re
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import pdfplumber
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field
 from PyPDF2 import PdfReader
-
 
 # ============================================
 # Exceptions
@@ -104,7 +103,7 @@ class PDFParser:
 
         raise PDFParseError("Failed to parse PDF with any available method")
 
-    def parse_file(self, file_path: Union[str, Path]) -> str:
+    def parse_file(self, file_path: str | Path) -> str:
         """Parse PDF from file path.
 
         Args:
@@ -126,7 +125,7 @@ class PDFParser:
         except PDFParseError:
             raise
         except Exception as e:
-            raise PDFParseError(f"Failed to read PDF file: {e}")
+            raise PDFParseError(f"Failed to read PDF file: {e}") from e
 
     def _extract_with_pypdf2(self, pdf_bytes: bytes) -> str:
         """Extract text using PyPDF2.
@@ -193,7 +192,7 @@ class MetadataExtractor:
         text: str,
         source: str,
         chunk_index: int,
-        additional_metadata: Optional[dict[str, Any]] = None,
+        additional_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Extract metadata from a text chunk.
 
@@ -302,7 +301,7 @@ class SmartChunker:
         self,
         text: str,
         source: str,
-        additional_metadata: Optional[dict[str, Any]] = None,
+        additional_metadata: dict[str, Any] | None = None,
     ) -> list[DocumentChunk]:
         """Chunk text into document chunks with metadata.
 
@@ -370,8 +369,8 @@ class SmartChunker:
 
 
 def parse_and_chunk_pdf(
-    pdf_source: Union[bytes, str, Path],
-    source_name: Optional[str] = None,
+    pdf_source: bytes | str | Path,
+    source_name: str | None = None,
     max_chunk_size: int = 512,
     overlap_size: int = 100,
 ) -> list[DocumentChunk]:

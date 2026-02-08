@@ -5,7 +5,7 @@ Pytest fixtures and configuration for the test suite.
 """
 
 import asyncio
-from typing import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
@@ -13,7 +13,6 @@ from fastapi.testclient import TestClient
 from httpx import AsyncClient
 
 from src.main import app
-
 
 # ============================================
 # Event Loop Configuration
@@ -70,24 +69,29 @@ async def test_db():
 async def async_session():
     """Create an async database session for integration tests."""
     import os
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-    
+
+    from sqlalchemy.ext.asyncio import (
+        AsyncSession,
+        async_sessionmaker,
+        create_async_engine,
+    )
+
     database_url = os.environ.get(
         "DATABASE_URL",
         "postgresql+asyncpg://medquery_user:change_this_password@localhost:5432/medquery"
     )
-    
+
     engine = create_async_engine(database_url, echo=False)
     async_session_maker = async_sessionmaker(
         bind=engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     async with async_session_maker() as session:
         yield session
         await session.rollback()  # Rollback any changes after test
-    
+
     await engine.dispose()
 
 

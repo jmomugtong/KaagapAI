@@ -5,14 +5,11 @@ Comprehensive pytest tests for embedding generation and caching.
 Tests written FIRST following TDD approach (Phase 2).
 """
 
-import hashlib
-import os
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
-import pytest_asyncio
 
 # ============================================
 # Test Markers

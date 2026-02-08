@@ -27,15 +27,15 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager for startup/shutdown events."""
     # Startup
     logger.info("Starting MedQuery API v%s", __version__)
-    
+
     # TODO: Initialize database connection pool
     # TODO: Initialize Redis connection
     # TODO: Load embedding model
     # TODO: Initialize Ollama client
     # TODO: Setup OpenTelemetry
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down MedQuery API")
     # TODO: Close database connections
@@ -72,7 +72,7 @@ app.add_middleware(
 async def health_check() -> dict[str, Any]:
     """
     Health check endpoint.
-    
+
     Returns the current health status of the API and its dependencies.
     """
     return {
@@ -86,19 +86,19 @@ async def health_check() -> dict[str, Any]:
 async def readiness_check() -> dict[str, Any]:
     """
     Readiness check endpoint.
-    
+
     Returns whether the API is ready to accept traffic.
     Checks database, Redis, and Ollama connectivity.
     """
     # TODO: Check database connection
     # TODO: Check Redis connection
     # TODO: Check Ollama availability
-    
+
     return {
         "ready": True,
         "checks": {
             "database": "ok",
-            "redis": "ok", 
+            "redis": "ok",
             "ollama": "ok",
         }
     }
@@ -117,13 +117,13 @@ async def readiness_check() -> dict[str, Any]:
 async def query_endpoint(request: Request) -> dict[str, Any]:
     """
     Submit a clinical query.
-    
+
     This endpoint accepts a clinical question and returns an answer
     synthesized from relevant clinical documents with citations.
     """
     body = await request.json()
     question = body.get("question", "")
-    
+
     # TODO: Implement full query pipeline
     # 1. Input validation
     # 2. PII redaction
@@ -133,7 +133,7 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
     # 6. Response synthesis
     # 7. Hallucination detection
     # 8. Cache response
-    
+
     return {
         "answer": f"This is a placeholder response for: {question}",
         "confidence": 0.0,
@@ -149,7 +149,7 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
 async def upload_endpoint(request: Request) -> dict[str, Any]:
     """
     Upload a clinical document for indexing.
-    
+
     Accepts PDF files and queues them for async processing.
     """
     # TODO: Implement file upload and processing
@@ -223,7 +223,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 def main():
     """Run the application using uvicorn."""
     import uvicorn
-    
+
     uvicorn.run(
         "src.main:app",
         host="0.0.0.0",

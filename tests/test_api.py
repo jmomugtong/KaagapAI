@@ -13,7 +13,7 @@ class TestHealthEndpoints:
     def test_health_check(self, client):
         """Test the /health endpoint returns healthy status."""
         response = client.get("/health")
-        
+
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["status"] == "healthy"
@@ -23,7 +23,7 @@ class TestHealthEndpoints:
     def test_readiness_check(self, client):
         """Test the /ready endpoint returns ready status."""
         response = client.get("/ready")
-        
+
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["ready"] is True
@@ -37,7 +37,7 @@ class TestQueryEndpoint:
     def test_query_endpoint_placeholder(self, client, sample_clinical_query):
         """Test the query endpoint returns placeholder response."""
         response = client.post("/api/v1/query", json=sample_clinical_query)
-        
+
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert "answer" in data
@@ -52,7 +52,7 @@ class TestUploadEndpoint:
     def test_upload_endpoint_placeholder(self, client):
         """Test the upload endpoint returns placeholder response."""
         response = client.post("/api/v1/upload")
-        
+
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert "status" in data
@@ -65,7 +65,7 @@ class TestJobStatusEndpoint:
     def test_job_status_endpoint(self, client):
         """Test the job status endpoint."""
         response = client.get("/api/v1/jobs/test-job-id")
-        
+
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["job_id"] == "test-job-id"

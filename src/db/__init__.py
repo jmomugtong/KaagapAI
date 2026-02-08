@@ -8,26 +8,26 @@ Database components:
 """
 
 from src.db.models import (
+    EMBEDDING_DIMENSION,
     Base,
-    Hospital,
-    User,
     ClinicalDoc,
     EmbeddingsCache,
+    Hospital,
     QueryLog,
+    User,
     UserFeedback,
-    EMBEDDING_DIMENSION,
 )
 from src.db.postgres import (
+    MAX_OVERFLOW,
+    POOL_RECYCLE,
+    POOL_SIZE,
+    check_database_health,
+    check_pgvector_extension,
+    close_db,
     get_db,
     get_db_session,
     get_engine,
     init_db,
-    close_db,
-    check_database_health,
-    check_pgvector_extension,
-    POOL_SIZE,
-    MAX_OVERFLOW,
-    POOL_RECYCLE,
 )
 
 __all__ = [

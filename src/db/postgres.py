@@ -6,16 +6,16 @@ Includes session handling and health checks.
 """
 
 import os
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
-    AsyncEngine,
 )
-from sqlalchemy import text
 
 # ============================================
 # Configuration Constants
@@ -39,7 +39,7 @@ DEFAULT_DATABASE_URL = "postgresql+asyncpg://medquery_user:medquery_password@loc
 def get_database_url() -> str:
     """
     Get database URL from environment variable.
-    
+
     Returns:
         Database connection URL string.
     """
@@ -54,15 +54,15 @@ def get_database_url() -> str:
 def create_db_engine(database_url: str | None = None) -> AsyncEngine:
     """
     Create async database engine with connection pooling.
-    
+
     Args:
         database_url: Optional database URL. Uses environment if not provided.
-        
+
     Returns:
         AsyncEngine configured with connection pool.
     """
     url = database_url or get_database_url()
-    
+
     return create_async_engine(
         url,
         pool_size=POOL_SIZE,
@@ -80,7 +80,7 @@ _engine: AsyncEngine | None = None
 def get_engine() -> AsyncEngine:
     """
     Get or create the global async engine instance.
-    
+
     Returns:
         AsyncEngine instance.
     """
@@ -90,14 +90,13 @@ def get_engine() -> AsyncEngine:
     return _engine
 
 
-# Expose as 'engine' for backward compatibility
-engine = property(lambda self: get_engine())
+# Use get_engine() directly for engine access
 
 
 def get_async_session_maker() -> async_sessionmaker[AsyncSession]:
     """
     Get async session maker bound to the engine.
-    
+
     Returns:
         Async session maker instance.
     """
@@ -123,12 +122,12 @@ AsyncSessionLocal = get_async_session_maker()
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Async context manager for database sessions.
-    
+
     Automatically commits on success, rolls back on exception.
-    
+
     Yields:
         AsyncSession for database operations.
-        
+
     Example:
         async with get_db_session() as session:
             result = await session.execute(query)
@@ -147,12 +146,12 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency for database session injection.
-    
+
     Use with FastAPI Depends():
         @app.get("/items")
         async def get_items(db: AsyncSession = Depends(get_db)):
             ...
-    
+
     Yields:
         AsyncSession for database operations.
     """
@@ -168,7 +167,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def check_database_health() -> dict:
     """
     Check database connectivity and health.
-    
+
     Returns:
         Dict with status and connection details.
     """
@@ -177,7 +176,7 @@ async def check_database_health() -> dict:
             # Execute simple query to verify connection
             result = await session.execute(text("SELECT 1 AS health_check"))
             row = result.scalar()
-            
+
             if row == 1:
                 return {
                     "status": "healthy",
@@ -190,7 +189,7 @@ async def check_database_health() -> dict:
             "database": "disconnected",
             "error": str(e),
         }
-    
+
     return {
         "status": "unknown",
         "database": "check_failed",
@@ -200,7 +199,7 @@ async def check_database_health() -> dict:
 async def check_pgvector_extension() -> bool:
     """
     Verify pgvector extension is installed.
-    
+
     Returns:
         True if pgvector extension is available.
     """
@@ -223,12 +222,12 @@ async def check_pgvector_extension() -> bool:
 async def init_db() -> None:
     """
     Initialize database connection pool.
-    
+
     Call during application startup.
     """
     global _engine
     _engine = create_db_engine()
-    
+
     # Verify connection
     health = await check_database_health()
     if health["status"] != "healthy":
@@ -238,7 +237,7 @@ async def init_db() -> None:
 async def close_db() -> None:
     """
     Close database connection pool.
-    
+
     Call during application shutdown.
     """
     global _engine

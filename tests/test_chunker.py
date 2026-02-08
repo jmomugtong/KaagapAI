@@ -6,10 +6,8 @@ Tests written FIRST following TDD approach (Phase 2).
 """
 
 import hashlib
-import io
 import os
 import tempfile
-from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -146,11 +144,11 @@ endstream
 endobj
 xref
 0 5
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
-0000000214 00000 n 
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000214 00000 n
 trailer
 << /Size 5 /Root 1 0 R >>
 startxref
@@ -266,7 +264,7 @@ class TestPDFParser:
 
     def test_parse_invalid_pdf_raises_error(self) -> None:
         """Test that invalid PDF data raises appropriate error."""
-        from src.rag.chunker import PDFParser, PDFParseError
+        from src.rag.chunker import PDFParseError, PDFParser
 
         parser = PDFParser()
         invalid_data = b"This is not a PDF"
@@ -276,7 +274,7 @@ class TestPDFParser:
 
     def test_parse_empty_pdf(self) -> None:
         """Test handling of empty PDF bytes."""
-        from src.rag.chunker import PDFParser, PDFParseError
+        from src.rag.chunker import PDFParseError, PDFParser
 
         parser = PDFParser()
 
@@ -304,7 +302,7 @@ class TestPDFParser:
                 mock_pdfplumber.return_value = mock_pdf
 
                 # Create a file-like object
-                result = parser.parse(b"%PDF-1.4 fake content")
+                parser.parse(b"%PDF-1.4 fake content")
                 # Parser should attempt fallback
                 assert mock_pdfplumber.called or mock_pypdf2.called
 
@@ -317,7 +315,7 @@ class TestPDFParser:
         # Mock the extraction to return structured text
         with patch.object(parser, "_extract_with_pypdf2") as mock_extract:
             mock_extract.return_value = "# Heading\n\nParagraph text.\n\n## Subheading"
-            
+
             result = parser.parse(b"%PDF-1.4")
             assert "# Heading" in result or mock_extract.called
 
@@ -457,9 +455,9 @@ class TestSmartChunker:
                 # Allow for section headers and list items
                 valid_endings = (".", ":", "!", "?", "\n", ")")
                 header_pattern = text.startswith(("#", "-", "*", "1", "2", "3", "4"))
-                ends_well = text.endswith(valid_endings) or header_pattern or len(text) < 50
+                text.endswith(valid_endings) or header_pattern or len(text) < 50
                 # This is a soft check - may not always be perfect
-                assert ends_well or True  # Log but don't fail
+                assert True  # Log but don't fail
 
 
 # ============================================
@@ -547,10 +545,10 @@ class TestChunkerIntegration:
 
     def test_full_pipeline_text_to_chunks(self, sample_text: str) -> None:
         """Test complete pipeline from text to chunks."""
-        from src.rag.chunker import SmartChunker, MetadataExtractor
+        from src.rag.chunker import MetadataExtractor, SmartChunker
 
         chunker = SmartChunker()
-        extractor = MetadataExtractor()
+        MetadataExtractor()
 
         chunks = chunker.chunk(sample_text, source="protocol.pdf")
 
@@ -582,7 +580,7 @@ class TestChunkerIntegration:
         chunks2 = chunker.chunk(sample_text, source="doc.pdf")
 
         assert len(chunks1) == len(chunks2)
-        for c1, c2 in zip(chunks1, chunks2):
+        for c1, c2 in zip(chunks1, chunks2, strict=False):
             assert c1.text == c2.text
             assert c1.chunk_hash == c2.chunk_hash
 

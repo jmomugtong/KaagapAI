@@ -7,14 +7,11 @@ Tests written FIRST following TDD approach (Phase 1).
 
 import os
 import uuid
-from datetime import datetime, timezone
-from typing import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-import pytest_asyncio
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # ============================================
 # Test Markers
@@ -139,7 +136,7 @@ class TestDatabaseConnection:
         """Test that DATABASE_URL can be loaded from environment."""
         with patch.dict(os.environ, {"DATABASE_URL": mock_database_url}):
             from src.db.postgres import get_database_url
-            
+
             url = get_database_url()
             assert url == mock_database_url
 
@@ -149,7 +146,7 @@ class TestDatabaseConnection:
             # Remove DATABASE_URL if it exists
             os.environ.pop("DATABASE_URL", None)
             from src.db.postgres import get_database_url
-            
+
             url = get_database_url()
             # Should return a default or raise appropriate error
             assert url is not None or url == ""
@@ -158,17 +155,17 @@ class TestDatabaseConnection:
         """Test async engine is created with proper pool settings."""
         with patch.dict(os.environ, {"DATABASE_URL": mock_database_url}):
             from src.db.postgres import create_db_engine
-            
+
             engine = create_db_engine(mock_database_url)
-            
+
             # Verify pool settings
             assert engine.pool.size() >= 0  # Pool should be initialized
 
     def test_session_maker_returns_async_session(self, mock_database_url: str):
         """Test that session maker creates AsyncSession instances."""
         from src.db.postgres import get_async_session_maker
-        
-        with patch("src.db.postgres.engine") as mock_engine:
+
+        with patch("src.db.postgres.engine"):
             session_maker = get_async_session_maker()
             assert session_maker is not None
 
@@ -178,15 +175,15 @@ class TestDatabasePooling:
 
     def test_pool_size_configuration(self, mock_database_url: str):
         """Test pool size is configured correctly (5 base, 10 overflow)."""
-        from src.db.postgres import POOL_SIZE, MAX_OVERFLOW
-        
+        from src.db.postgres import MAX_OVERFLOW, POOL_SIZE
+
         assert POOL_SIZE == 5
         assert MAX_OVERFLOW == 10
 
     def test_pool_recycle_time(self):
         """Test connection pool recycle time is set."""
         from src.db.postgres import POOL_RECYCLE
-        
+
         # Connections should be recycled after 30 minutes
         assert POOL_RECYCLE == 1800
 
@@ -202,7 +199,7 @@ class TestHospitalModel:
     def test_hospital_model_has_required_fields(self):
         """Test Hospital model has all required fields."""
         from src.db.models import Hospital
-        
+
         # Check columns exist
         assert hasattr(Hospital, "id")
         assert hasattr(Hospital, "name")
@@ -213,19 +210,19 @@ class TestHospitalModel:
     def test_hospital_model_table_name(self):
         """Test Hospital model maps to correct table."""
         from src.db.models import Hospital
-        
+
         assert Hospital.__tablename__ == "hospitals"
 
     def test_hospital_creation(self, sample_hospital_data: dict):
         """Test creating a Hospital instance."""
         from src.db.models import Hospital
-        
+
         hospital = Hospital(
             id=sample_hospital_data["id"],
             name=sample_hospital_data["name"],
             code=sample_hospital_data["code"],
         )
-        
+
         assert hospital.name == "Test General Hospital"
         assert hospital.code.startswith("TGH_")  # Dynamic unique code
 
@@ -236,7 +233,7 @@ class TestUserModel:
     def test_user_model_has_required_fields(self):
         """Test User model has all required fields."""
         from src.db.models import User
-        
+
         assert hasattr(User, "id")
         assert hasattr(User, "email")
         assert hasattr(User, "hashed_password")
@@ -250,19 +247,19 @@ class TestUserModel:
     def test_user_model_table_name(self):
         """Test User model maps to correct table."""
         from src.db.models import User
-        
+
         assert User.__tablename__ == "users"
 
     def test_user_hospital_relationship(self):
         """Test User has relationship to Hospital."""
         from src.db.models import User
-        
+
         assert hasattr(User, "hospital")
 
     def test_user_creation(self, sample_user_data: dict):
         """Test creating a User instance."""
         from src.db.models import User
-        
+
         user = User(
             id=sample_user_data["id"],
             email=sample_user_data["email"],
@@ -272,7 +269,7 @@ class TestUserModel:
             is_active=sample_user_data["is_active"],
             is_superuser=sample_user_data["is_superuser"],
         )
-        
+
         assert user.email == "doctor@hospital.com"
         assert user.is_active is True
 
@@ -283,7 +280,7 @@ class TestClinicalDocModel:
     def test_clinical_doc_model_has_required_fields(self):
         """Test ClinicalDoc model has all required fields."""
         from src.db.models import ClinicalDoc
-        
+
         assert hasattr(ClinicalDoc, "id")
         assert hasattr(ClinicalDoc, "hospital_id")
         assert hasattr(ClinicalDoc, "filename")
@@ -299,19 +296,19 @@ class TestClinicalDocModel:
     def test_clinical_doc_model_table_name(self):
         """Test ClinicalDoc model maps to correct table."""
         from src.db.models import ClinicalDoc
-        
+
         assert ClinicalDoc.__tablename__ == "clinical_docs"
 
     def test_clinical_doc_hospital_relationship(self):
         """Test ClinicalDoc has relationship to Hospital."""
         from src.db.models import ClinicalDoc
-        
+
         assert hasattr(ClinicalDoc, "hospital")
 
     def test_clinical_doc_creation(self, sample_clinical_doc_data: dict):
         """Test creating a ClinicalDoc instance."""
         from src.db.models import ClinicalDoc
-        
+
         doc = ClinicalDoc(
             id=sample_clinical_doc_data["id"],
             hospital_id=sample_clinical_doc_data["hospital_id"],
@@ -320,7 +317,7 @@ class TestClinicalDocModel:
             file_path=sample_clinical_doc_data["file_path"],
             file_hash=sample_clinical_doc_data["file_hash"],
         )
-        
+
         assert doc.filename == "pain_management_protocol.pdf"
         assert doc.document_type == "protocol"
 
@@ -331,7 +328,7 @@ class TestEmbeddingsCacheModel:
     def test_embeddings_cache_model_has_required_fields(self):
         """Test EmbeddingsCache model has all required fields."""
         from src.db.models import EmbeddingsCache
-        
+
         assert hasattr(EmbeddingsCache, "id")
         assert hasattr(EmbeddingsCache, "chunk_hash")
         assert hasattr(EmbeddingsCache, "chunk_text")
@@ -345,14 +342,14 @@ class TestEmbeddingsCacheModel:
     def test_embeddings_cache_model_table_name(self):
         """Test EmbeddingsCache model maps to correct table."""
         from src.db.models import EmbeddingsCache
-        
+
         assert EmbeddingsCache.__tablename__ == "embeddings_cache"
 
     def test_embeddings_cache_vector_dimension(self):
         """Test embedding column is 384-dimensional vector."""
+
         from src.db.models import EmbeddingsCache
-        from pgvector.sqlalchemy import Vector
-        
+
         # Get the embedding column type
         embedding_col = EmbeddingsCache.__table__.c.embedding
         assert embedding_col.type.dim == 384
@@ -360,7 +357,7 @@ class TestEmbeddingsCacheModel:
     def test_embeddings_cache_document_relationship(self):
         """Test EmbeddingsCache has relationship to ClinicalDoc."""
         from src.db.models import EmbeddingsCache
-        
+
         assert hasattr(EmbeddingsCache, "document")
 
 
@@ -370,7 +367,7 @@ class TestQueryLogModel:
     def test_query_log_model_has_required_fields(self):
         """Test QueryLog model has all required fields."""
         from src.db.models import QueryLog
-        
+
         assert hasattr(QueryLog, "id")
         assert hasattr(QueryLog, "user_id")
         assert hasattr(QueryLog, "hospital_id")
@@ -388,7 +385,7 @@ class TestQueryLogModel:
     def test_query_log_model_table_name(self):
         """Test QueryLog model maps to correct table."""
         from src.db.models import QueryLog
-        
+
         assert QueryLog.__tablename__ == "queries_log"
 
 
@@ -398,7 +395,7 @@ class TestUserFeedbackModel:
     def test_user_feedback_model_has_required_fields(self):
         """Test UserFeedback model has all required fields."""
         from src.db.models import UserFeedback
-        
+
         assert hasattr(UserFeedback, "id")
         assert hasattr(UserFeedback, "query_log_id")
         assert hasattr(UserFeedback, "user_id")
@@ -409,13 +406,13 @@ class TestUserFeedbackModel:
     def test_user_feedback_model_table_name(self):
         """Test UserFeedback model maps to correct table."""
         from src.db.models import UserFeedback
-        
+
         assert UserFeedback.__tablename__ == "user_feedback"
 
     def test_user_feedback_rating_constraint(self):
         """Test rating is constrained between 1 and 5."""
         from src.db.models import UserFeedback
-        
+
         # Check that rating column has check constraint
         rating_col = UserFeedback.__table__.c.rating
         # The check constraint should be defined in the model
@@ -433,13 +430,13 @@ class TestPgvectorIntegration:
     def test_vector_type_import(self):
         """Test that pgvector Vector type can be imported."""
         from pgvector.sqlalchemy import Vector
-        
+
         assert Vector is not None
 
     def test_vector_dimension_configuration(self):
         """Test vector dimension is configured as 384."""
         from src.db.models import EMBEDDING_DIMENSION
-        
+
         assert EMBEDDING_DIMENSION == 384
 
     @pytest.mark.requires_db
@@ -464,11 +461,11 @@ class TestHospitalCRUD:
     async def test_create_hospital(self, async_session: AsyncSession, sample_hospital_data: dict):
         """Test creating a hospital record."""
         from src.db.models import Hospital
-        
+
         hospital = Hospital(**sample_hospital_data)
         async_session.add(hospital)
         await async_session.commit()
-        
+
         # Retrieve and verify
         result = await async_session.get(Hospital, sample_hospital_data["id"])
         assert result is not None
@@ -477,12 +474,12 @@ class TestHospitalCRUD:
     async def test_read_hospital(self, async_session: AsyncSession, sample_hospital_data: dict):
         """Test reading a hospital record."""
         from src.db.models import Hospital
-        
+
         # First create
         hospital = Hospital(**sample_hospital_data)
         async_session.add(hospital)
         await async_session.commit()
-        
+
         # Then read
         result = await async_session.get(Hospital, sample_hospital_data["id"])
         assert result.code == sample_hospital_data["code"]
@@ -490,30 +487,30 @@ class TestHospitalCRUD:
     async def test_update_hospital(self, async_session: AsyncSession, sample_hospital_data: dict):
         """Test updating a hospital record."""
         from src.db.models import Hospital
-        
+
         hospital = Hospital(**sample_hospital_data)
         async_session.add(hospital)
         await async_session.commit()
-        
+
         # Update name
         hospital.name = "Updated Hospital Name"
         await async_session.commit()
-        
+
         result = await async_session.get(Hospital, sample_hospital_data["id"])
         assert result.name == "Updated Hospital Name"
 
     async def test_delete_hospital(self, async_session: AsyncSession, sample_hospital_data: dict):
         """Test deleting a hospital record."""
         from src.db.models import Hospital
-        
+
         hospital = Hospital(**sample_hospital_data)
         async_session.add(hospital)
         await async_session.commit()
-        
+
         # Delete
         await async_session.delete(hospital)
         await async_session.commit()
-        
+
         result = await async_session.get(Hospital, sample_hospital_data["id"])
         assert result is None
 
@@ -526,9 +523,10 @@ class TestEmbeddingsCacheCRUD:
         self, async_session: AsyncSession
     ):
         """Test creating an embedding record with 384-dim vector."""
-        from src.db.models import EmbeddingsCache
         import uuid
-        
+
+        from src.db.models import EmbeddingsCache
+
         # Create embedding without FK to avoid needing parent document
         embedding_data = {
             "id": uuid.uuid4(),
@@ -538,22 +536,21 @@ class TestEmbeddingsCacheCRUD:
             "document_id": None,  # No FK reference
             "chunk_index": 0,
         }
-        
+
         embedding = EmbeddingsCache(**embedding_data)
         async_session.add(embedding)
         await async_session.commit()
-        
+
         result = await async_session.get(EmbeddingsCache, embedding_data["id"])
         assert result is not None
         assert len(result.embedding) == 384
 
     async def test_vector_similarity_search(self, async_session: AsyncSession):
         """Test vector similarity search using pgvector."""
-        from src.db.models import EmbeddingsCache
-        
+
         # Create test embeddings
         test_vector = [0.1] * 384
-        
+
         # Query using cosine similarity
         result = await async_session.execute(
             text("""
@@ -564,7 +561,7 @@ class TestEmbeddingsCacheCRUD:
             """),
             {"query_vec": str(test_vector)},
         )
-        
+
         # Should execute without error
         rows = result.fetchall()
         assert isinstance(rows, list)
@@ -581,9 +578,10 @@ class TestMultiTenancy:
 
     async def test_hospital_isolation_for_documents(self, async_session: AsyncSession):
         """Test that documents are isolated by hospital_id."""
-        from src.db.models import Hospital, ClinicalDoc
         import uuid
-        
+
+        from src.db.models import ClinicalDoc, Hospital
+
         # Create two hospitals with unique codes
         unique_a = str(uuid.uuid4())[:8]
         unique_b = str(uuid.uuid4())[:8]
@@ -591,7 +589,7 @@ class TestMultiTenancy:
         hospital_b = Hospital(name="Hospital B", code=f"HOSP_B_{unique_b}")
         async_session.add_all([hospital_a, hospital_b])
         await async_session.commit()
-        
+
         # Create documents for each with unique hashes
         doc_a = ClinicalDoc(
             hospital_id=hospital_a.id,
@@ -609,14 +607,14 @@ class TestMultiTenancy:
         )
         async_session.add_all([doc_a, doc_b])
         await async_session.commit()
-        
+
         # Query documents for Hospital A only
         from sqlalchemy import select
-        
+
         stmt = select(ClinicalDoc).where(ClinicalDoc.hospital_id == hospital_a.id)
         result = await async_session.execute(stmt)
         docs = result.scalars().all()
-        
+
         assert len(docs) == 1
         assert docs[0].filename == "doc_a.pdf"
 
@@ -634,8 +632,8 @@ class TestDatabaseIndexes:
         """Test that IVFFlat index exists on embeddings table."""
         result = await async_session.execute(
             text("""
-                SELECT indexname FROM pg_indexes 
-                WHERE tablename = 'embeddings_cache' 
+                SELECT indexname FROM pg_indexes
+                WHERE tablename = 'embeddings_cache'
                 AND indexdef LIKE '%ivfflat%'
             """)
         )
@@ -646,8 +644,8 @@ class TestDatabaseIndexes:
         """Test that hospital_id index exists on clinical_docs."""
         result = await async_session.execute(
             text("""
-                SELECT indexname FROM pg_indexes 
-                WHERE tablename = 'clinical_docs' 
+                SELECT indexname FROM pg_indexes
+                WHERE tablename = 'clinical_docs'
                 AND indexname LIKE '%hospital_id%'
             """)
         )
@@ -675,14 +673,14 @@ class TestAlembicMigrations:
         """Test that env.py imports all models for autogenerate."""
         # This ensures autogenerate will detect all tables
         from src.db.models import (
-            Hospital,
-            User,
             ClinicalDoc,
             EmbeddingsCache,
+            Hospital,
             QueryLog,
+            User,
             UserFeedback,
         )
-        
+
         assert Hospital is not None
         assert User is not None
         assert ClinicalDoc is not None
@@ -702,7 +700,7 @@ class TestSessionLifecycle:
     def test_get_db_session_is_async_context_manager(self):
         """Test get_db_session returns an async context manager."""
         from src.db.postgres import get_db_session
-        
+
         # get_db_session is decorated with @asynccontextmanager
         # It should be a callable that returns an async context manager
         result = get_db_session()
@@ -731,13 +729,13 @@ class TestDatabaseHealthCheck:
     async def test_health_check_returns_status(self):
         """Test health check returns connection status."""
         from src.db.postgres import check_database_health
-        
+
         with patch("src.db.postgres.engine") as mock_engine:
             mock_connection = AsyncMock()
             mock_engine.connect = AsyncMock(return_value=mock_connection)
             mock_connection.__aenter__ = AsyncMock(return_value=mock_connection)
             mock_connection.__aexit__ = AsyncMock(return_value=None)
             mock_connection.execute = AsyncMock()
-            
+
             result = await check_database_health()
             assert "status" in result

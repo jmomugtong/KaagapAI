@@ -6,10 +6,8 @@ Uses all-MiniLM-L6-v2 model for efficient embedding generation.
 """
 
 import hashlib
-from typing import Optional
 
 import numpy as np
-
 
 # ============================================
 # Constants
@@ -45,7 +43,7 @@ class EmbeddingGenerator:
                 Default is "all-MiniLM-L6-v2" which produces 384-dim vectors.
         """
         self.model_name = model_name
-        self._model: Optional[object] = None
+        self._model: object | None = None
 
     def _get_model(self) -> object:
         """Lazily load the embedding model.
@@ -106,7 +104,7 @@ class EmbeddingGenerator:
         # Build result list with zeros for empty texts
         result: list[list[float]] = [[0.0] * EMBEDDING_DIMENSION for _ in texts]
 
-        for idx, emb in zip(non_empty_indices, embeddings_array):
+        for idx, emb in zip(non_empty_indices, embeddings_array, strict=False):
             if isinstance(emb, np.ndarray):
                 result[idx] = emb.flatten().tolist()
             else:

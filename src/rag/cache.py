@@ -7,7 +7,7 @@ Implements 7-day TTL for Redis cache with content-addressable storage.
 
 import json
 import os
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.rag.embedding import EmbeddingGenerator
@@ -42,7 +42,7 @@ class CacheManager:
 
     def __init__(
         self,
-        redis_url: Optional[str] = None,
+        redis_url: str | None = None,
         ttl_seconds: int = DEFAULT_TTL_SECONDS,
     ) -> None:
         """Initialize the cache manager.
@@ -53,7 +53,7 @@ class CacheManager:
         """
         self.ttl_seconds = ttl_seconds
         self._redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379/0")
-        self._redis: Optional[object] = None
+        self._redis: object | None = None
 
     async def _get_redis(self) -> object:
         """Lazily initialize Redis connection.
@@ -78,7 +78,7 @@ class CacheManager:
         """
         return f"{CACHE_KEY_PREFIX}{text_hash}"
 
-    async def get(self, text_hash: str) -> Optional[list[float]]:
+    async def get(self, text_hash: str) -> list[float] | None:
         """Get embedding from cache.
 
         Args:
@@ -103,7 +103,7 @@ class CacheManager:
         self,
         text_hash: str,
         embedding: list[float],
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
     ) -> bool:
         """Store embedding in cache.
 
@@ -214,10 +214,10 @@ class CacheManager:
         hashes = [generator.compute_hash(text) for text in texts]
 
         # Check cache for all
-        results: list[Optional[list[float]]] = [None] * len(texts)
+        results: list[list[float] | None] = [None] * len(texts)
         texts_to_generate: list[tuple[int, str]] = []
 
-        for idx, (text, text_hash) in enumerate(zip(texts, hashes)):
+        for idx, (text, text_hash) in enumerate(zip(texts, hashes, strict=False)):
             cached = await self.get(text_hash)
             if cached is not None:
                 results[idx] = cached
@@ -232,7 +232,7 @@ class CacheManager:
             embeddings = generator.generate_batch(texts_batch)
 
             # Store results and cache
-            for idx, text, embedding in zip(indices, texts_batch, embeddings):
+            for idx, _text, embedding in zip(indices, texts_batch, embeddings, strict=False):
                 results[idx] = embedding
                 text_hash = hashes[idx]
                 await self.set(text_hash, embedding)
