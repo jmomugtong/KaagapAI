@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MedQuery - Phase 0-2 Test Frontend</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>MedQuery <span class="badge">TEST</span></h1>
+        <p>Production RAG System for Clinical Documentation</p>
+      </header>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="query">Query</button>
+        <button class="tab-btn" data-tab="upload">Upload Document</button>
+      </div>
+
+      <main>
+        <!-- Query Section -->
+        <section id="query" class="tab-content active">
+          <form id="query-form">
+            <div class="form-group">
+              <label for="question">Clinical Question</label>
+              <textarea
+                id="question"
+                name="question"
+                rows="4"
+                placeholder="e.g., What is the post-operative pain protocol for knee replacement?"
+                required
+              ></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="max_results">Max Results</label>
+                <input
+                  type="number"
+                  id="max_results"
+                  name="max_results"
+                  value="5"
+                  min="1"
+                  max="10"
+                />
+              </div>
+              <div class="form-group">
+                <label for="confidence_threshold">Confidence Threshold</label>
+                <input
+                  type="number"
+                  id="confidence_threshold"
+                  name="confidence_threshold"
+                  value="0.7"
+                  step="0.1"
+                  min="0"
+                  max="1"
+                />
+              </div>
+            </div>
+
+            <button type="submit" class="btn primary">Submit Query</button>
+          </form>
+
+          <div id="query-results" class="results-area hidden">
+            <h3>Response</h3>
+            <div id="query-output" class="json-output"></div>
+          </div>
+        </section>
+
+        <!-- Upload Section -->
+        <section id="upload" class="tab-content">
+          <form id="upload-form">
+            <div class="form-group">
+              <label for="file">Select Document (PDF)</label>
+              <input type="file" id="file" name="file" accept=".pdf" required />
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="document_type">Document Type</label>
+                <select id="document_type" name="document_type">
+                  <option value="protocol">Protocol</option>
+                  <option value="guideline">Guideline</option>
+                  <option value="reference">Reference</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="department">Department</label>
+                <input
+                  type="text"
+                  id="department"
+                  name="department"
+                  placeholder="e.g., Orthopedics"
+                />
+              </div>
+            </div>
+
+            <button type="submit" class="btn secondary">Upload Document</button>
+          </form>
+
+          <div id="upload-results" class="results-area hidden">
+            <h3>Upload Status</h3>
+            <div id="upload-output" class="json-output"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

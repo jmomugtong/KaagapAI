@@ -84,7 +84,14 @@ async def async_session():
         "postgresql+asyncpg://medquery_user:change_this_password@localhost:5432/medquery",
     )
 
+    from src.db.models import Base
+
     engine = create_async_engine(database_url, echo=False)
+
+    # Create tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     async_session_maker = async_sessionmaker(
         bind=engine,
         class_=AsyncSession,
@@ -94,6 +101,10 @@ async def async_session():
     async with async_session_maker() as session:
         yield session
         await session.rollback()  # Rollback any changes after test
+
+    # Drop tables after test (optional, but good for cleanup if sharing DB)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
     await engine.dispose()
 
