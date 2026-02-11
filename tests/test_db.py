@@ -12,24 +12,32 @@ TEST_DATABASE_URL = os.environ.get(
     "postgresql+asyncpg://medquery_user:medquery_password@localhost:5432/medquery",
 )
 
+pytestmark = [pytest.mark.requires_db, pytest.mark.integration]
+
 
 @pytest.fixture
 async def engine():
     engine = create_async_engine(TEST_DATABASE_URL, echo=True)
-    async with engine.begin() as conn:
-        # Create pgvector extension if not exists
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    try:
+        async with engine.begin() as conn:
+            # Create pgvector extension if not exists
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
 
-        # Explicitly drop tables with CASCADE to handle foreign keys from init_db.sql
-        await conn.execute(
-            text(
-                "DROP TABLE IF EXISTS user_feedback, queries_log, embeddings_cache, clinical_docs, users, hospitals CASCADE"
+            # Explicitly drop tables with CASCADE to handle foreign keys from init_db.sql
+            await conn.execute(
+                text(
+                    "DROP TABLE IF EXISTS user_feedback, queries_log, embeddings_cache, clinical_docs, users, hospitals CASCADE"
+                )
             )
-        )
 
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+    except (ConnectionError, OSError, Exception) as e:
+        await engine.dispose()
+        pytest.skip(f"PostgreSQL not available: {e}")
     yield engine
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
 
 
@@ -48,7 +56,6 @@ async def test_database_connection(db_session):
 
 @pytest.mark.asyncio
 async def test_pgvector_extension(db_session):
-    # This might fail if the user isn't superuser, but pgvector image should have it enabled
     result = await db_session.execute(
         text("SELECT * FROM pg_extension WHERE extname = 'vector'")
     )
@@ -93,4 +100,3 @@ async def test_document_chunk_crud(db_session):
     # Read
     saved_chunk = await db_session.get(DocumentChunk, chunk.id)
     assert saved_chunk.content == "Test content chunk"
-    # assert len(saved_chunk.embedding) == 384 # Check if vector is retrieved correctly

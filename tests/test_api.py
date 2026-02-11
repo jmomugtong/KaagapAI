@@ -34,8 +34,8 @@ class TestQueryEndpoint:
     """Tests for the query endpoint."""
 
     @pytest.mark.unit
-    def test_query_endpoint_placeholder(self, client, sample_clinical_query):
-        """Test the query endpoint returns placeholder response."""
+    def test_query_endpoint_returns_expected_keys(self, client, sample_clinical_query):
+        """Test the query endpoint returns response with expected keys."""
         response = client.post("/api/v1/query", json=sample_clinical_query)
 
         assert response.status_code == status.HTTP_200_OK
@@ -49,13 +49,11 @@ class TestUploadEndpoint:
     """Tests for the document upload endpoint."""
 
     @pytest.mark.unit
-    def test_upload_endpoint_placeholder(self, client):
-        """Test the upload endpoint returns placeholder response."""
+    def test_upload_endpoint_requires_file(self, client):
+        """Test the upload endpoint returns 422 when no file is provided."""
         response = client.post("/api/v1/upload")
 
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert "status" in data
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
 class TestJobStatusEndpoint:

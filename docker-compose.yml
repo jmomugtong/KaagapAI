@@ -40,8 +40,11 @@ services:
         condition: service_started
     volumes:
       - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+      - ./pyproject.toml:/app/pyproject.toml:ro
       - ./uploads:/app/uploads
       - ./datasets:/app/datasets:ro
+      - ./frontend:/app/frontend:ro
       - model_cache:/app/.cache
     networks:
       - medquery-network
