@@ -366,11 +366,12 @@ class TestHybridRetriever:
         )
 
         with (
+            patch.object(retriever._bm25, "search", return_value=[bm25_result]),
             patch.object(
-                retriever._bm25, "search", return_value=[bm25_result]
-            ),
-            patch.object(
-                retriever._vector, "search", new_callable=AsyncMock, return_value=[vector_result]
+                retriever._vector,
+                "search",
+                new_callable=AsyncMock,
+                return_value=[vector_result],
             ),
         ):
             results = await retriever.search(
@@ -397,33 +398,54 @@ class TestHybridRetriever:
         # Same chunk appears in both BM25 and vector results
         bm25_results = [
             ScoredChunk(
-                chunk_id=1, content="text", document_id=1,
-                chunk_index=0, score=0.7, source="bm25",
+                chunk_id=1,
+                content="text",
+                document_id=1,
+                chunk_index=0,
+                score=0.7,
+                source="bm25",
             ),
             ScoredChunk(
-                chunk_id=2, content="text2", document_id=1,
-                chunk_index=1, score=0.5, source="bm25",
+                chunk_id=2,
+                content="text2",
+                document_id=1,
+                chunk_index=1,
+                score=0.5,
+                source="bm25",
             ),
         ]
         vector_results = [
             ScoredChunk(
-                chunk_id=1, content="text", document_id=1,
-                chunk_index=0, score=0.9, source="vector",
+                chunk_id=1,
+                content="text",
+                document_id=1,
+                chunk_index=0,
+                score=0.9,
+                source="vector",
             ),
             ScoredChunk(
-                chunk_id=3, content="text3", document_id=2,
-                chunk_index=0, score=0.8, source="vector",
+                chunk_id=3,
+                content="text3",
+                document_id=2,
+                chunk_index=0,
+                score=0.8,
+                source="vector",
             ),
         ]
 
         with (
             patch.object(retriever._bm25, "search", return_value=bm25_results),
             patch.object(
-                retriever._vector, "search", new_callable=AsyncMock, return_value=vector_results
+                retriever._vector,
+                "search",
+                new_callable=AsyncMock,
+                return_value=vector_results,
             ),
         ):
             results = await retriever.search(
-                query="test", query_embedding=[0.1] * 384, top_k=5,
+                query="test",
+                query_embedding=[0.1] * 384,
+                top_k=5,
             )
 
         # chunk_id=1 appears in both, should be merged (not duplicated)
@@ -445,25 +467,38 @@ class TestHybridRetriever:
 
         bm25_results = [
             ScoredChunk(
-                chunk_id=1, content="text", document_id=1,
-                chunk_index=0, score=0.8, source="bm25",
+                chunk_id=1,
+                content="text",
+                document_id=1,
+                chunk_index=0,
+                score=0.8,
+                source="bm25",
             ),
         ]
         vector_results = [
             ScoredChunk(
-                chunk_id=1, content="text", document_id=1,
-                chunk_index=0, score=0.9, source="vector",
+                chunk_id=1,
+                content="text",
+                document_id=1,
+                chunk_index=0,
+                score=0.9,
+                source="vector",
             ),
         ]
 
         with (
             patch.object(retriever._bm25, "search", return_value=bm25_results),
             patch.object(
-                retriever._vector, "search", new_callable=AsyncMock, return_value=vector_results
+                retriever._vector,
+                "search",
+                new_callable=AsyncMock,
+                return_value=vector_results,
             ),
         ):
             results = await retriever.search(
-                query="test", query_embedding=[0.1] * 384, top_k=5,
+                query="test",
+                query_embedding=[0.1] * 384,
+                top_k=5,
             )
 
         chunk_1 = next(r for r in results if r.chunk_id == 1)
@@ -482,8 +517,12 @@ class TestHybridRetriever:
 
         bm25_results = [
             ScoredChunk(
-                chunk_id=2, content="text2", document_id=1,
-                chunk_index=1, score=0.6, source="bm25",
+                chunk_id=2,
+                content="text2",
+                document_id=1,
+                chunk_index=1,
+                score=0.6,
+                source="bm25",
             ),
         ]
         vector_results = []
@@ -491,11 +530,16 @@ class TestHybridRetriever:
         with (
             patch.object(retriever._bm25, "search", return_value=bm25_results),
             patch.object(
-                retriever._vector, "search", new_callable=AsyncMock, return_value=vector_results
+                retriever._vector,
+                "search",
+                new_callable=AsyncMock,
+                return_value=vector_results,
             ),
         ):
             results = await retriever.search(
-                query="test", query_embedding=[0.1] * 384, top_k=5,
+                query="test",
+                query_embedding=[0.1] * 384,
+                top_k=5,
             )
 
         chunk_2 = next(r for r in results if r.chunk_id == 2)
@@ -515,19 +559,28 @@ class TestHybridRetriever:
         bm25_results = []
         vector_results = [
             ScoredChunk(
-                chunk_id=3, content="text3", document_id=2,
-                chunk_index=0, score=0.85, source="vector",
+                chunk_id=3,
+                content="text3",
+                document_id=2,
+                chunk_index=0,
+                score=0.85,
+                source="vector",
             ),
         ]
 
         with (
             patch.object(retriever._bm25, "search", return_value=bm25_results),
             patch.object(
-                retriever._vector, "search", new_callable=AsyncMock, return_value=vector_results
+                retriever._vector,
+                "search",
+                new_callable=AsyncMock,
+                return_value=vector_results,
             ),
         ):
             results = await retriever.search(
-                query="test", query_embedding=[0.1] * 384, top_k=5,
+                query="test",
+                query_embedding=[0.1] * 384,
+                top_k=5,
             )
 
         chunk_3 = next(r for r in results if r.chunk_id == 3)
@@ -546,33 +599,54 @@ class TestHybridRetriever:
 
         bm25_results = [
             ScoredChunk(
-                chunk_id=1, content="t1", document_id=1,
-                chunk_index=0, score=0.9, source="bm25",
+                chunk_id=1,
+                content="t1",
+                document_id=1,
+                chunk_index=0,
+                score=0.9,
+                source="bm25",
             ),
             ScoredChunk(
-                chunk_id=2, content="t2", document_id=1,
-                chunk_index=1, score=0.3, source="bm25",
+                chunk_id=2,
+                content="t2",
+                document_id=1,
+                chunk_index=1,
+                score=0.3,
+                source="bm25",
             ),
         ]
         vector_results = [
             ScoredChunk(
-                chunk_id=3, content="t3", document_id=2,
-                chunk_index=0, score=0.95, source="vector",
+                chunk_id=3,
+                content="t3",
+                document_id=2,
+                chunk_index=0,
+                score=0.95,
+                source="vector",
             ),
             ScoredChunk(
-                chunk_id=1, content="t1", document_id=1,
-                chunk_index=0, score=0.5, source="vector",
+                chunk_id=1,
+                content="t1",
+                document_id=1,
+                chunk_index=0,
+                score=0.5,
+                source="vector",
             ),
         ]
 
         with (
             patch.object(retriever._bm25, "search", return_value=bm25_results),
             patch.object(
-                retriever._vector, "search", new_callable=AsyncMock, return_value=vector_results
+                retriever._vector,
+                "search",
+                new_callable=AsyncMock,
+                return_value=vector_results,
             ),
         ):
             results = await retriever.search(
-                query="test", query_embedding=[0.1] * 384, top_k=5,
+                query="test",
+                query_embedding=[0.1] * 384,
+                top_k=5,
             )
 
         for i in range(len(results) - 1):
@@ -632,15 +706,23 @@ class TestHybridRetriever:
         # Create many results from both sources
         bm25_results = [
             ScoredChunk(
-                chunk_id=i, content=f"text{i}", document_id=1,
-                chunk_index=i, score=0.5 + i * 0.05, source="bm25",
+                chunk_id=i,
+                content=f"text{i}",
+                document_id=1,
+                chunk_index=i,
+                score=0.5 + i * 0.05,
+                source="bm25",
             )
             for i in range(1, 8)
         ]
         vector_results = [
             ScoredChunk(
-                chunk_id=i, content=f"text{i}", document_id=1,
-                chunk_index=i, score=0.6 + i * 0.03, source="vector",
+                chunk_id=i,
+                content=f"text{i}",
+                document_id=1,
+                chunk_index=i,
+                score=0.6 + i * 0.03,
+                source="vector",
             )
             for i in range(1, 8)
         ]
@@ -648,11 +730,16 @@ class TestHybridRetriever:
         with (
             patch.object(retriever._bm25, "search", return_value=bm25_results),
             patch.object(
-                retriever._vector, "search", new_callable=AsyncMock, return_value=vector_results
+                retriever._vector,
+                "search",
+                new_callable=AsyncMock,
+                return_value=vector_results,
             ),
         ):
             results = await retriever.search(
-                query="test", query_embedding=[0.1] * 384, top_k=5,
+                query="test",
+                query_embedding=[0.1] * 384,
+                top_k=5,
             )
 
         assert len(results) == 5
@@ -686,11 +773,19 @@ class TestScoredChunk:
     def test_scored_chunk_equality_by_values(self):
         """Two ScoredChunks with same values are equal."""
         c1 = ScoredChunk(
-            chunk_id=1, content="text", document_id=1,
-            chunk_index=0, score=0.9, source="bm25",
+            chunk_id=1,
+            content="text",
+            document_id=1,
+            chunk_index=0,
+            score=0.9,
+            source="bm25",
         )
         c2 = ScoredChunk(
-            chunk_id=1, content="text", document_id=1,
-            chunk_index=0, score=0.9, source="bm25",
+            chunk_id=1,
+            content="text",
+            document_id=1,
+            chunk_index=0,
+            score=0.9,
+            source="bm25",
         )
         assert c1 == c2

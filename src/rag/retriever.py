@@ -43,14 +43,75 @@ MEDICAL_ABBREVIATIONS: dict[str, str] = {
 }
 
 STOP_WORDS: set[str] = {
-    "a", "an", "and", "are", "as", "at", "be", "but", "by", "for",
-    "from", "had", "has", "have", "he", "her", "his", "how", "i",
-    "if", "in", "into", "is", "it", "its", "me", "my", "no", "nor",
-    "not", "of", "on", "or", "our", "out", "own", "she", "so",
-    "than", "that", "the", "their", "them", "then", "there", "these",
-    "they", "this", "to", "too", "up", "us", "very", "was", "we",
-    "were", "what", "when", "where", "which", "while", "who", "whom",
-    "why", "will", "with", "would", "you", "your",
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "but",
+    "by",
+    "for",
+    "from",
+    "had",
+    "has",
+    "have",
+    "he",
+    "her",
+    "his",
+    "how",
+    "i",
+    "if",
+    "in",
+    "into",
+    "is",
+    "it",
+    "its",
+    "me",
+    "my",
+    "no",
+    "nor",
+    "not",
+    "of",
+    "on",
+    "or",
+    "our",
+    "out",
+    "own",
+    "she",
+    "so",
+    "than",
+    "that",
+    "the",
+    "their",
+    "them",
+    "then",
+    "there",
+    "these",
+    "they",
+    "this",
+    "to",
+    "too",
+    "up",
+    "us",
+    "very",
+    "was",
+    "we",
+    "were",
+    "what",
+    "when",
+    "where",
+    "which",
+    "while",
+    "who",
+    "whom",
+    "why",
+    "will",
+    "with",
+    "would",
+    "you",
+    "your",
 }
 
 
@@ -203,7 +264,9 @@ class VectorRetriever:
                 for row in rows
             ]
         except Exception:
-            logger.warning("Vector search failed, returning empty results", exc_info=True)
+            logger.warning(
+                "Vector search failed, returning empty results", exc_info=True
+            )
             return []
 
 
@@ -266,8 +329,7 @@ class HybridRetriever:
         results = []
         for chunk_id, data in merged.items():
             fusion_score = (
-                BM25_WEIGHT * data["bm25_score"]
-                + VECTOR_WEIGHT * data["vector_score"]
+                BM25_WEIGHT * data["bm25_score"] + VECTOR_WEIGHT * data["vector_score"]
             )
             results.append(
                 ScoredChunk(

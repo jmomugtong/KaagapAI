@@ -163,29 +163,53 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
     from src.rag.retriever import HybridRetriever
 
     # Generate query embedding
-    embeddings = await embedding_gen.generate_embeddings([question])
-    query_embedding = embeddings[0]
+    try:
+        embeddings = await embedding_gen.generate_embeddings([question])
+        query_embedding = embeddings[0]
+    except Exception as e:
+        logger.warning("Embedding generation failed: %s", e)
+        elapsed = (time.time() - start_time) * 1000
+        return {
+            "answer": "Embedding generation failed. Please try again later.",
+            "confidence": 0.0,
+            "citations": [],
+            "retrieved_chunks": [],
+            "query_id": "error",
+            "processing_time_ms": round(elapsed, 1),
+        }
 
     # Load all chunks and run hybrid retrieval
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(select(DocumentChunk))
-        chunks = result.scalars().all()
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(select(DocumentChunk))
+            chunks = result.scalars().all()
 
-        if not chunks:
-            elapsed = (time.time() - start_time) * 1000
-            return {
-                "answer": "No documents have been indexed yet. Upload documents first.",
-                "confidence": 0.0,
-                "citations": [],
-                "retrieved_chunks": [],
-                "query_id": "no_docs",
-                "processing_time_ms": round(elapsed, 1),
-            }
+            if not chunks:
+                elapsed = (time.time() - start_time) * 1000
+                return {
+                    "answer": "No documents indexed yet. Upload documents first.",
+                    "confidence": 0.0,
+                    "citations": [],
+                    "retrieved_chunks": [],
+                    "query_id": "no_docs",
+                    "processing_time_ms": round(elapsed, 1),
+                }
 
-        retriever = HybridRetriever(chunks, session)
-        search_results = await retriever.search(
-            question, query_embedding, top_k=max_results
-        )
+            retriever = HybridRetriever(chunks, session)
+            search_results = await retriever.search(
+                question, query_embedding, top_k=max_results
+            )
+    except Exception as e:
+        logger.warning("Database query failed: %s", e)
+        elapsed = (time.time() - start_time) * 1000
+        return {
+            "answer": "Database unavailable. Please try again later.",
+            "confidence": 0.0,
+            "citations": [],
+            "retrieved_chunks": [],
+            "query_id": "error",
+            "processing_time_ms": round(elapsed, 1),
+        }
 
     # Format response
     retrieved_chunks = []
