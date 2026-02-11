@@ -1,6 +1,8 @@
-import pytest
 from unittest.mock import MagicMock, patch
-from src.rag.chunker import PDFParser, SmartChunker, ChunkMetadata
+
+import pytest
+
+from src.rag.chunker import ChunkMetadata, PDFParser, SmartChunker
 
 # Mock PDF content
 MOCK_PDF_TEXT = """
@@ -16,21 +18,21 @@ We used various methods to analyze the data.
 The results were significant. p < 0.05.
 """
 
+
 @pytest.fixture
 def mock_pdf_path(tmp_path):
     p = tmp_path / "test_doc.pdf"
-    p.write_text("dummy content", encoding="utf-8") # Real content not read by mock
+    p.write_text("dummy content", encoding="utf-8")  # Real content not read by mock
     return str(p)
+
 
 def test_chunk_metadata_structure():
     meta = ChunkMetadata(
-        source="test.pdf",
-        page_number=1,
-        chunk_index=0,
-        section_title="Introduction"
+        source="test.pdf", page_number=1, chunk_index=0, section_title="Introduction"
     )
     assert meta.source == "test.pdf"
     assert meta.chunk_index == 0
+
 
 @patch("PyPDF2.PdfReader")
 def test_pdf_parsing_strategy(mock_reader, mock_pdf_path):
@@ -43,25 +45,34 @@ def test_pdf_parsing_strategy(mock_reader, mock_pdf_path):
     text = parser.parse(mock_pdf_path)
     assert text == "Page 1 content"
 
+
 def test_smart_chunking_logic():
     chunker = SmartChunker(chunk_size=100, chunk_overlap=10)
     chunks = chunker.chunk(MOCK_PDF_TEXT)
-    
+
     assert len(chunks) > 0
     # Check that section headers are preserved or respected
     assert any("Introduction" in c.content for c in chunks)
     assert any("Methods" in c.content for c in chunks)
-    
+
     # Check max size constraint (roughly)
     for chunk in chunks:
-        assert len(chunk.content) <= 200 # Allowing some leeway for token estimation vs chars
+        assert (
+            len(chunk.content) <= 200
+        )  # Allowing some leeway for token estimation vs chars
+
 
 def test_chunking_metadata_assignment():
     # Use smaller chunk size to ensure multiple chunks
     chunker = SmartChunker(chunk_size=50, chunk_overlap=10)
 
     # Create text long enough to span multiple chunks
-    long_text = "# Section 1\n" + "This is some content. " * 20 + "\n# Section 2\n" + "More content here. " * 20
+    long_text = (
+        "# Section 1\n"
+        + "This is some content. " * 20
+        + "\n# Section 2\n"
+        + "More content here. " * 20
+    )
     chunks = chunker.chunk(long_text, source="test.pdf")
 
     # Should have at least 2 chunks with this text and chunk size

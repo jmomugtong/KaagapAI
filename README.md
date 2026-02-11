@@ -15,21 +15,21 @@
 
 ---
 
-## 🏥 Overview
+## Overview
 
 MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system designed to surface evidence-based clinical answers from medical documentation. Built 100% with open-source models, achieving sub-2 second response times and 95%+ relevance while maintaining zero external API costs.
 
 ### Key Features
 
-- 🚀 **Fast Responses**: Query latency p95 < 2 seconds, cached queries < 200ms
-- 🎯 **High Accuracy**: ROUGE-L score ≥ 0.60, hallucination rate < 5%
-- 🔒 **HIPAA Compliant**: PII redaction, audit logging, row-level security
-- 💰 **Zero API Cost**: 100% open-source stack (Ollama, sentence-transformers)
-- 📊 **Full Observability**: Prometheus metrics, Grafana dashboards, OpenTelemetry tracing
+- **Fast Responses**: Query latency p95 < 2 seconds, cached queries < 200ms
+- **High Accuracy**: ROUGE-L score >= 0.60, hallucination rate < 5%
+- **HIPAA Compliant**: PII redaction, audit logging, row-level security
+- **Zero API Cost**: 100% open-source stack (Ollama, sentence-transformers)
+- **Full Observability**: Prometheus metrics, Grafana dashboards, OpenTelemetry tracing
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -66,7 +66,7 @@ MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system desig
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -148,7 +148,7 @@ curl http://localhost:8000/health
 
 ---
 
-## 📖 Usage
+## Usage
 
 ### Submit a Query
 
@@ -183,7 +183,7 @@ docker-compose exec api python scripts/check_thresholds.py
 
 ---
 
-## 🛠️ Development
+## Development
 
 ### Local Development Setup
 
@@ -237,7 +237,7 @@ make check
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 medquery/
@@ -280,7 +280,7 @@ medquery/
 
 ---
 
-## 📊 Metrics & Monitoring
+## Metrics & Monitoring
 
 ### Key Metrics
 
@@ -302,7 +302,7 @@ Access Grafana at http://localhost:3000 (default: admin/admin)
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -320,7 +320,7 @@ Key variables:
 
 ---
 
-## 🧪 Evaluation
+## Evaluation
 
 The evaluation framework validates system quality:
 
@@ -329,9 +329,9 @@ The evaluation framework validates system quality:
 python scripts/run_evals.py
 
 # Output:
-# ✅ ROUGE-L: 0.68 (threshold: 0.60)
-# ✅ Hallucination Rate: 2% (threshold: 5%)
-# ✅ Retrieval Recall: 94% (threshold: 90%)
+# [PASS] ROUGE-L: 0.68 (threshold: 0.60)
+# [PASS] Hallucination Rate: 2% (threshold: 5%)
+# [PASS] Retrieval Recall: 94% (threshold: 90%)
 # 
 # PASSED: All metrics within thresholds
 ```
@@ -345,7 +345,7 @@ Located at `datasets/clinical_qa_50.json`:
 
 ---
 
-## 🔒 Security
+## Security
 
 ### HIPAA Compliance
 
@@ -362,7 +362,7 @@ Located at `datasets/clinical_qa_50.json`:
 
 ---
 
-## 📝 API Documentation
+## API Documentation
 
 Full API documentation available at:
 - **Swagger UI**: http://localhost:8000/docs
@@ -381,7 +381,7 @@ Full API documentation available at:
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -393,13 +393,13 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
 - [Ollama](https://ollama.ai/) - Local LLM inference
@@ -411,6 +411,6 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) for deta
 
 <div align="center">
 
-**Built with ❤️ for healthcare professionals**
+**Built for healthcare professionals**
 
 </div>

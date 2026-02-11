@@ -1,9 +1,11 @@
-import pytest
 import json
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import numpy as np
-from unittest.mock import MagicMock, patch, AsyncMock
-from src.rag.embedding import EmbeddingGenerator
+import pytest
+
 from src.rag.cache import CacheManager
+from src.rag.embedding import EmbeddingGenerator
 
 
 @pytest.fixture

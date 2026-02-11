@@ -5,9 +5,9 @@ Provides async Redis caching for embeddings and query responses.
 Uses redis.asyncio for true async operations.
 """
 
-import os
 import json
-from typing import Optional, List
+import os
+
 from redis.asyncio import Redis
 
 
@@ -24,7 +24,7 @@ class CacheManager:
 
     def __init__(self):
         self.redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-        self._redis: Optional[Redis] = None
+        self._redis: Redis | None = None
         self.ttl = int(os.environ.get("EMBEDDING_CACHE_TTL_SECONDS", 604800))
 
     async def _get_redis(self) -> Redis:
@@ -35,7 +35,7 @@ class CacheManager:
             )
         return self._redis
 
-    async def get_embedding(self, key: str) -> Optional[List[float]]:
+    async def get_embedding(self, key: str) -> list[float] | None:
         """
         Retrieve embedding from cache.
 
@@ -51,7 +51,7 @@ class CacheManager:
             return json.loads(val)
         return None
 
-    async def set_embedding(self, key: str, embedding: List[float]) -> None:
+    async def set_embedding(self, key: str, embedding: list[float]) -> None:
         """
         Store embedding in cache.
 

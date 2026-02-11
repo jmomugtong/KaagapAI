@@ -5,9 +5,9 @@ from src.db.models import (
     QueriesLog,
 )
 from src.db.postgres import (
+    engine,
     get_db,
     init_db,
-    engine,
 )
 
 __all__ = [
