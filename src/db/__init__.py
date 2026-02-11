@@ -1,14 +1,5 @@
-from src.db.models import (
-    Base,
-    ClinicalDoc,
-    DocumentChunk,
-    QueriesLog,
-)
-from src.db.postgres import (
-    engine,
-    get_db,
-    init_db,
-)
+from src.db.models import Base, ClinicalDoc, DocumentChunk, QueriesLog
+from src.db.postgres import engine, get_db, init_db
 
 __all__ = [
     # Base
