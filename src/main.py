@@ -13,12 +13,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, Form, Request, UploadFile, status
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from src import __version__
+from src.security.rate_limiter import RateLimitMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -53,6 +54,20 @@ async def lifespan(app: FastAPI):
         logger.warning("Embedding model loading failed: %s", e)
         app.state.embedding_generator = None
 
+    # Initialize Ollama LLM client
+    try:
+        from src.llm.ollama_client import OllamaClient
+
+        app.state.ollama_client = OllamaClient()
+        is_healthy = await app.state.ollama_client.health_check()
+        if is_healthy:
+            logger.info("Ollama client initialized and healthy")
+        else:
+            logger.warning("Ollama client initialized but service is unreachable")
+    except Exception as e:
+        logger.warning("Ollama client initialization failed: %s", e)
+        app.state.ollama_client = None
+
     yield
 
     # Shutdown
@@ -83,6 +98,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rate limiting middleware
+app.add_middleware(RateLimitMiddleware)
+
+
+# No-cache middleware for frontend static files
+@app.middleware("http")
+async def no_cache_frontend(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if path == "/" or path.endswith((".html", ".js", ".css")):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
 
 # ============================================
 # Health Check Endpoints
@@ -91,11 +120,7 @@ app.add_middleware(
 
 @app.get("/health", tags=["Health"])
 async def health_check() -> dict[str, Any]:
-    """
-    Health check endpoint.
-
-    Returns the current health status of the API and its dependencies.
-    """
+    """Health check endpoint."""
     return {
         "status": "healthy",
         "version": __version__,
@@ -105,20 +130,22 @@ async def health_check() -> dict[str, Any]:
 
 @app.get("/ready", tags=["Health"])
 async def readiness_check() -> dict[str, Any]:
-    """
-    Readiness check endpoint.
-
-    Returns whether the API is ready to accept traffic.
-    Checks database, Redis, and Ollama connectivity.
-    """
+    """Readiness check with dependency status."""
     embedding_ready = getattr(app.state, "embedding_generator", None) is not None
+    ollama_client = getattr(app.state, "ollama_client", None)
+    ollama_status = "unavailable"
+    if ollama_client:
+        try:
+            ollama_status = "ok" if await ollama_client.health_check() else "degraded"
+        except Exception:
+            ollama_status = "error"
 
     return {
         "ready": True,
         "checks": {
             "database": "ok",
             "redis": "ok",
-            "ollama": "ok",
+            "ollama": ollama_status,
             "embedding_model": "ok" if embedding_ready else "unavailable",
         },
     }
@@ -134,14 +161,31 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
     """
     Submit a clinical query.
 
-    Accepts a clinical question and returns ranked relevant chunks
-    retrieved via hybrid search (BM25 + vector similarity).
+    Validates input, redacts PII, runs hybrid retrieval + LLM synthesis,
+    redacts PII from output, and returns structured response with citations.
     """
     start_time = time.time()
 
     body = await request.json()
     question = body.get("question", "")
     max_results = body.get("max_results", 5)
+    confidence_threshold = body.get("confidence_threshold", 0.70)
+
+    # Input validation
+    from src.security.input_validation import InputValidator
+
+    validator = InputValidator()
+    if not validator.is_safe(question):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query contains potentially unsafe content",
+        )
+
+    # PII redaction on input
+    from src.security.pii_redaction import PIIRedactor
+
+    redactor = PIIRedactor()
+    question = redactor.redact(question)
 
     # Check embedding model availability
     embedding_gen = getattr(app.state, "embedding_generator", None)
@@ -211,8 +255,9 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
             "processing_time_ms": round(elapsed, 1),
         }
 
-    # Format response
+    # Format retrieved chunks for response and prompt context
     retrieved_chunks = []
+    prompt_chunks = []
     for r in search_results:
         retrieved_chunks.append(
             {
@@ -224,15 +269,95 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
                 "source": r.source,
             }
         )
-
-    confidence = search_results[0].score if search_results else 0.0
-    if search_results:
-        answer = (
-            f"Found {len(search_results)} relevant chunk(s). "
-            "See retrieved_chunks for details. (LLM synthesis not yet enabled)"
+        prompt_chunks.append(
+            {
+                "text": r.content,
+                "metadata": {
+                    "source": r.source,
+                    "chunk_index": r.chunk_index,
+                    "document_id": r.document_id,
+                },
+            }
         )
-    else:
-        answer = "No relevant results found for your query."
+
+    if not search_results:
+        elapsed = (time.time() - start_time) * 1000
+        return {
+            "answer": "No relevant results found for your query.",
+            "confidence": 0.0,
+            "citations": [],
+            "retrieved_chunks": [],
+            "query_id": str(uuid.uuid4())[:8],
+            "processing_time_ms": round(elapsed, 1),
+        }
+
+    # LLM synthesis via Ollama
+    from src.llm.prompt_templates import PromptTemplate
+    from src.llm.response_parser import ResponseParser
+
+    ollama_client = getattr(app.state, "ollama_client", None)
+
+    if ollama_client:
+        try:
+            template = PromptTemplate()
+            prompt = template.build(question=question, chunks=prompt_chunks)
+            raw_response = await ollama_client.generate(prompt)
+
+            if raw_response:
+                parser = ResponseParser()
+                parsed = parser.parse(
+                    raw_response,
+                    retrieved_chunks=[
+                        {"text": c["text"], "source": c["source"]}
+                        for c in retrieved_chunks
+                    ],
+                )
+
+                # Low confidence: return snippets only
+                if parsed.confidence < confidence_threshold:
+                    answer = (
+                        "Confidence too low for synthesis. "
+                        "Relevant snippets are provided in retrieved_chunks."
+                    )
+                else:
+                    answer = parsed.answer
+
+                # PII redaction on LLM output
+                answer = redactor.redact(answer)
+
+                citations = [
+                    {
+                        "document": c.document,
+                        "section": c.section,
+                        "page": c.page,
+                        "relevance_score": round(search_results[0].score, 4),
+                    }
+                    for c in parsed.citations
+                ]
+
+                elapsed = (time.time() - start_time) * 1000
+                return {
+                    "answer": answer,
+                    "confidence": round(parsed.confidence, 4),
+                    "citations": citations,
+                    "retrieved_chunks": retrieved_chunks,
+                    "query_id": str(uuid.uuid4())[:8],
+                    "processing_time_ms": round(elapsed, 1),
+                    "hallucination_flagged": parsed.has_hallucinated_citations,
+                }
+            else:
+                logger.warning(
+                    "Ollama returned empty response, falling back to snippets"
+                )
+        except Exception as e:
+            logger.warning("LLM synthesis failed: %s, falling back to snippets", e)
+
+    # Fallback: return snippets without LLM synthesis
+    confidence = search_results[0].score if search_results else 0.0
+    answer = (
+        f"Found {len(search_results)} relevant chunk(s). "
+        "See retrieved_chunks for details. (LLM synthesis unavailable)"
+    )
 
     elapsed = (time.time() - start_time) * 1000
     return {
@@ -258,17 +383,19 @@ async def upload_endpoint(
     document_type: str = Form("protocol"),
     metadata: str = Form("{}"),
 ) -> dict[str, Any]:
-    """
-    Upload a clinical document for indexing.
-
-    Accepts a PDF file, parses it, chunks the text, generates embeddings,
-    and stores everything in the database for retrieval.
-    """
+    """Upload a clinical document for indexing."""
     start_time = time.time()
 
     from src.db.models import ClinicalDoc, DocumentChunk
     from src.db.postgres import AsyncSessionLocal
     from src.rag.chunker import PDFParser, SmartChunker
+
+    # Validate document type
+    if document_type not in {"protocol", "guideline", "reference"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="document_type must be one of: protocol, guideline, reference",
+        )
 
     # Save uploaded file to disk
     upload_dir = Path(os.environ.get("UPLOAD_DIR", "uploads"))
@@ -339,28 +466,20 @@ async def upload_endpoint(
 
 @app.get("/api/v1/jobs/{job_id}", tags=["Jobs"])
 async def job_status_endpoint(job_id: str) -> dict[str, Any]:
-    """
-    Check the status of an async job.
-    """
-    # TODO: Implement job status checking with Celery
-    return {
-        "job_id": job_id,
-        "status": "not_implemented",
-        "message": "Job status not yet implemented",
-    }
+    """Check the status of an async job."""
+    from src.worker import get_job_status
+
+    return get_job_status(job_id)
 
 
 @app.get("/api/v1/evals", tags=["Evaluation"])
 async def evaluation_endpoint() -> dict[str, Any]:
-    """
-    Run the evaluation suite and return results.
-    """
-    # TODO: Implement evaluation endpoint
-    return {
-        "evaluation_run_id": "placeholder",
-        "status": "not_implemented",
-        "message": "Evaluation not yet implemented",
-    }
+    """Run the evaluation suite and return results."""
+    from src.evaluation.runner import EvaluationRunner
+
+    runner = EvaluationRunner()
+    results = runner.run()
+    return results
 
 
 # ============================================
@@ -369,12 +488,11 @@ async def evaluation_endpoint() -> dict[str, Any]:
 
 
 @app.get("/metrics", tags=["Monitoring"])
-async def metrics_endpoint() -> str:
-    """
-    Prometheus metrics endpoint.
-    """
-    # TODO: Implement Prometheus metrics export
-    return "# Metrics not yet implemented\n"
+async def metrics_endpoint():
+    """Prometheus metrics endpoint."""
+    from src.observability.metrics import get_metrics_text
+
+    return PlainTextResponse(content=get_metrics_text(), media_type="text/plain")
 
 
 # ============================================

@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MedQuery - Phase 0-2 Test Frontend</title>
-    <link rel="stylesheet" href="styles.css" />
+    <title>MedQuery - Clinical RAG System</title>
+    <link rel="stylesheet" href="styles.css?v=3" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
@@ -13,8 +13,12 @@
   <body>
     <div class="container">
       <header>
-        <h1>MedQuery <span class="badge">TEST</span></h1>
-        <p>Production RAG System for Clinical Documentation</p>
+        <h1>MedQuery</h1>
+        <p class="subtitle">Production RAG System for Clinical Documentation</p>
+        <div class="status-bar" id="status-bar">
+          <span class="status-dot"></span>
+          <span id="status-text">Checking services...</span>
+        </div>
       </header>
 
       <div class="tabs">
@@ -31,7 +35,7 @@
               <textarea
                 id="question"
                 name="question"
-                rows="4"
+                rows="3"
                 placeholder="e.g., What is the post-operative pain protocol for knee replacement?"
                 required
               ></textarea>
@@ -56,19 +60,63 @@
                   id="confidence_threshold"
                   name="confidence_threshold"
                   value="0.7"
-                  step="0.1"
+                  step="0.05"
                   min="0"
                   max="1"
                 />
               </div>
             </div>
 
-            <button type="submit" class="btn primary">Submit Query</button>
+            <button type="submit" class="btn primary" id="query-btn">
+              <span class="btn-text">Submit Query</span>
+              <span class="btn-spinner hidden"></span>
+            </button>
           </form>
 
           <div id="query-results" class="results-area hidden">
-            <h3>Response</h3>
-            <div id="query-output" class="json-output"></div>
+            <!-- Answer Section -->
+            <div class="result-section" id="answer-section">
+              <div class="result-header">
+                <h3>Answer</h3>
+                <div class="meta-pills">
+                  <span class="pill" id="query-time-pill"></span>
+                  <span class="pill" id="query-id-pill"></span>
+                </div>
+              </div>
+              <div id="answer-text" class="answer-box"></div>
+              <div id="hallucination-warning" class="warning-box hidden">
+                Hallucination detected: some citations may reference sources not found in the retrieval set.
+              </div>
+            </div>
+
+            <!-- Confidence Section -->
+            <div class="result-section" id="confidence-section">
+              <h3>Confidence</h3>
+              <div class="confidence-bar-container">
+                <div class="confidence-bar" id="confidence-bar">
+                  <span id="confidence-label">0%</span>
+                </div>
+              </div>
+              <span class="confidence-level" id="confidence-level"></span>
+            </div>
+
+            <!-- Citations Section -->
+            <div class="result-section" id="citations-section">
+              <h3>Citations <span class="count-badge" id="citations-count">0</span></h3>
+              <div id="citations-list" class="citations-grid"></div>
+            </div>
+
+            <!-- Retrieved Chunks Section -->
+            <div class="result-section" id="chunks-section">
+              <h3>Retrieved Chunks <span class="count-badge" id="chunks-count">0</span></h3>
+              <div id="chunks-list" class="chunks-list"></div>
+            </div>
+
+            <!-- Raw JSON Toggle -->
+            <div class="result-section">
+              <button class="btn-link" id="toggle-raw">Show Raw JSON</button>
+              <div id="raw-json" class="json-output hidden"></div>
+            </div>
           </div>
         </section>
 
@@ -77,7 +125,17 @@
           <form id="upload-form">
             <div class="form-group">
               <label for="file">Select Document (PDF)</label>
-              <input type="file" id="file" name="file" accept=".pdf" required />
+              <div class="file-drop-zone" id="file-drop-zone">
+                <input type="file" id="file" name="file" accept=".pdf" required />
+                <div class="file-drop-text">
+                  <span class="file-icon">&#128196;</span>
+                  <p>Click to select or drag a PDF file here</p>
+                </div>
+                <div class="file-selected hidden" id="file-selected">
+                  <span class="file-icon">&#9989;</span>
+                  <p id="file-name-display"></p>
+                </div>
+              </div>
             </div>
 
             <div class="form-row">
@@ -100,17 +158,49 @@
               </div>
             </div>
 
-            <button type="submit" class="btn secondary">Upload Document</button>
+            <button type="submit" class="btn secondary" id="upload-btn">
+              <span class="btn-text">Upload Document</span>
+              <span class="btn-spinner hidden"></span>
+            </button>
           </form>
 
           <div id="upload-results" class="results-area hidden">
-            <h3>Upload Status</h3>
-            <div id="upload-output" class="json-output"></div>
+            <div class="upload-success" id="upload-success">
+              <div class="success-icon">&#10003;</div>
+              <h3>Document Uploaded Successfully</h3>
+              <div class="upload-details">
+                <div class="detail-row">
+                  <span class="detail-label">Document ID</span>
+                  <span class="detail-value" id="upload-doc-id"></span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Filename</span>
+                  <span class="detail-value" id="upload-filename"></span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Chunks Created</span>
+                  <span class="detail-value" id="upload-chunks"></span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Processing Time</span>
+                  <span class="detail-value" id="upload-time"></span>
+                </div>
+              </div>
+            </div>
+            <div class="upload-error hidden" id="upload-error">
+              <div class="error-icon">&#10007;</div>
+              <h3>Upload Failed</h3>
+              <p id="upload-error-msg"></p>
+            </div>
           </div>
         </section>
       </main>
+
+      <footer>
+        <p>MedQuery v0.1.0 &middot; Zero-cost clinical RAG &middot; HIPAA-oriented</p>
+      </footer>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=3"></script>
   </body>
 </html>
