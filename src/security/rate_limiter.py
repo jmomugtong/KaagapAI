@@ -79,6 +79,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             "/health",
             "/ready",
             "/metrics",
+            "/api/v1/evals",
             "/docs",
             "/redoc",
             "/openapi.json",
