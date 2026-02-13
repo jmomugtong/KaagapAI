@@ -181,6 +181,10 @@ uploads/
 backups/
 *.pdf
 !datasets/*.pdf
+!datasets/sample_docs/*.pdf
+
+# Downloaded clinical documents (large / not committed)
+datasets/clinical_docs/
 
 # Logs
 logs/

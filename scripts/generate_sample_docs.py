@@ -26,8 +26,8 @@ def create_pdf(filename: str, title: str, sections: list[tuple[str, str]]):
         pdf.multi_cell(0, 6, body)
         pdf.ln(4)
 
-    output_dir = Path(__file__).resolve().parent.parent / "frontend"
-    output_dir.mkdir(exist_ok=True)
+    output_dir = Path(__file__).resolve().parent.parent / "datasets" / "sample_docs"
+    output_dir.mkdir(parents=True, exist_ok=True)
     pdf.output(str(output_dir / filename))
     print(f"Created {output_dir / filename}")
 
@@ -303,4 +303,4 @@ create_pdf(
     ],
 )
 
-print("\nDone! Three sample PDFs created in frontend/")
+print("\nDone! Three sample PDFs created in datasets/sample_docs/")

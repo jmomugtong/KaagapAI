@@ -5,10 +5,14 @@ Provides async Redis caching for embeddings and query responses.
 Uses redis.asyncio for true async operations.
 """
 
+import hashlib
 import json
+import logging
 import os
 
 from redis.asyncio import Redis
+
+logger = logging.getLogger(__name__)
 
 
 class CacheManager:
@@ -26,6 +30,7 @@ class CacheManager:
         self.redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
         self._redis: Redis | None = None
         self.ttl = int(os.environ.get("EMBEDDING_CACHE_TTL_SECONDS", 604800))
+        self.query_ttl = int(os.environ.get("QUERY_CACHE_TTL_SECONDS", 3600))
 
     async def _get_redis(self) -> Redis:
         """Get or create async Redis connection."""
@@ -61,6 +66,48 @@ class CacheManager:
         """
         redis = await self._get_redis()
         await redis.setex(f"embedding:{key}", self.ttl, json.dumps(embedding))
+
+    async def get_query_result(self, query: str) -> dict | None:
+        """
+        Retrieve cached query result.
+
+        Args:
+            query: The user's query string (case-insensitive lookup).
+
+        Returns:
+            Cached response dict or None if not cached.
+        """
+        try:
+            redis = await self._get_redis()
+            key = self._query_cache_key(query)
+            val = await redis.get(key)
+            if val:
+                return json.loads(val)
+        except Exception as e:
+            logger.warning("Query cache read failed: %s", e)
+        return None
+
+    async def set_query_result(self, query: str, result: dict) -> None:
+        """
+        Store query result in cache.
+
+        Args:
+            query: The user's query string.
+            result: Response dict to cache.
+        """
+        try:
+            redis = await self._get_redis()
+            key = self._query_cache_key(query)
+            await redis.setex(key, self.query_ttl, json.dumps(result))
+        except Exception as e:
+            logger.warning("Query cache write failed: %s", e)
+
+    @staticmethod
+    def _query_cache_key(query: str) -> str:
+        """Build a deterministic, case-insensitive cache key for a query."""
+        normalized = query.lower().strip()
+        digest = hashlib.sha256(normalized.encode()).hexdigest()
+        return f"query:{digest}"
 
     async def close(self) -> None:
         """Close Redis connection."""

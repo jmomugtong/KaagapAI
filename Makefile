@@ -46,7 +46,7 @@ help:
 	@echo "  db-downgrade   Rollback last migration"
 	@echo ""
 	@echo "AI/ML:"
-	@echo "  ollama-pull    Download Ollama model (mistral)"
+	@echo "  ollama-pull    Download Ollama model (phi3:mini)"
 	@echo "  eval           Run evaluation suite"
 	@echo ""
 	@echo "Utilities:"
@@ -172,7 +172,7 @@ db-current:
 # ============================================
 
 ollama-pull:
-	docker-compose exec ollama ollama pull mistral
+	docker-compose exec ollama ollama pull phi3:mini
 
 ollama-list:
 	docker-compose exec ollama ollama list

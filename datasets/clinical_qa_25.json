@@ -1,0 +1,206 @@
+{
+  "version": "1.0",
+  "description": "Clinical QA evaluation dataset (25 questions)",
+  "questions": [
+    {
+      "id": "q001",
+      "query": "What is the post-operative pain protocol for knee replacement?",
+      "ground_truth": "Administer acetaminophen 1000mg every 6 hours, combined with oxycodone 5-10mg every 4-6 hours as needed for breakthrough pain. Apply ice packs for 20 minutes every 2 hours.",
+      "expected_sources": ["Post-Op Pain Management Protocol v3.2"],
+      "category": "pain_management",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q002",
+      "query": "What are the guidelines for DVT prophylaxis after hip surgery?",
+      "ground_truth": "Enoxaparin 40mg subcutaneous daily starting 12 hours post-op, continue for 28-35 days. Mechanical prophylaxis with graduated compression stockings.",
+      "expected_sources": ["DVT Prophylaxis Guideline v2.1"],
+      "category": "prophylaxis",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q003",
+      "query": "How should hypertensive crisis be managed in the emergency department?",
+      "ground_truth": "Administer IV labetalol 20mg bolus, may repeat every 10 minutes up to 300mg. Target blood pressure reduction of 25% within first hour. Continuous monitoring required.",
+      "expected_sources": ["Emergency Hypertension Protocol v4.0"],
+      "category": "emergency",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q004",
+      "query": "What is the antibiotic protocol for community-acquired pneumonia?",
+      "ground_truth": "Amoxicillin 500mg three times daily for 5 days for mild cases. For moderate cases, amoxicillin-clavulanate plus azithromycin. Reassess at 48-72 hours.",
+      "expected_sources": ["CAP Treatment Guideline v3.0"],
+      "category": "infectious_disease",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q005",
+      "query": "What are the monitoring requirements for patients on warfarin?",
+      "ground_truth": "INR monitoring weekly until stable, then monthly. Target INR 2.0-3.0 for most indications. Check for drug interactions at each visit.",
+      "expected_sources": ["Anticoagulation Management Protocol v2.5"],
+      "category": "medication_monitoring",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q006",
+      "query": "How is diabetic ketoacidosis managed in adults?",
+      "ground_truth": "IV insulin infusion at 0.1 units/kg/hour. Normal saline bolus 1-2L in first hour. Monitor blood glucose hourly, potassium every 2 hours. Switch to subcutaneous insulin when gap closes.",
+      "expected_sources": ["DKA Management Protocol v3.1"],
+      "category": "endocrine",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q007",
+      "query": "What is the protocol for managing acute myocardial infarction?",
+      "ground_truth": "Aspirin 325mg chewed immediately. Heparin bolus followed by infusion. Emergent PCI within 90 minutes of arrival for STEMI. Morphine for pain if needed.",
+      "expected_sources": ["STEMI Protocol v5.0", "Chest Pain Pathway v2.0"],
+      "category": "cardiology",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q008",
+      "query": "What are the guidelines for blood transfusion thresholds?",
+      "ground_truth": "Restrictive strategy: transfuse when hemoglobin below 7 g/dL for stable patients. Liberal threshold of 9 g/dL for acute coronary syndrome patients.",
+      "expected_sources": ["Blood Transfusion Guideline v3.0"],
+      "category": "hematology",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q009",
+      "query": "How should acute asthma exacerbation be treated?",
+      "ground_truth": "Continuous nebulized albuterol 2.5-5mg every 20 minutes for 3 doses. Ipratropium bromide 0.5mg with first 3 albuterol treatments. Systemic corticosteroids within first hour.",
+      "expected_sources": ["Asthma Exacerbation Protocol v2.8"],
+      "category": "pulmonology",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q010",
+      "query": "What is the sepsis management bundle?",
+      "ground_truth": "Within 1 hour: obtain lactate, blood cultures before antibiotics, broad-spectrum antibiotics, 30 mL/kg crystalloid for hypotension. Reassess volume status and lactate at 4 hours.",
+      "expected_sources": ["Sepsis Bundle Protocol v4.2"],
+      "category": "critical_care",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q011",
+      "query": "What are the guidelines for managing atrial fibrillation?",
+      "ground_truth": "Rate control with beta-blockers or calcium channel blockers. CHA2DS2-VASc score for anticoagulation decision. Consider rhythm control for symptomatic patients.",
+      "expected_sources": ["AFib Management Guideline v3.5"],
+      "category": "cardiology",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q012",
+      "query": "How is acute kidney injury classified and managed?",
+      "ground_truth": "KDIGO staging based on creatinine rise and urine output. Optimize volume status, avoid nephrotoxins, adjust medication doses. Consider renal replacement if severe.",
+      "expected_sources": ["AKI Management Protocol v2.0"],
+      "category": "nephrology",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q013",
+      "query": "What is the protocol for stroke assessment?",
+      "ground_truth": "CT head within 25 minutes of arrival. NIH Stroke Scale assessment. tPA within 4.5 hours of symptom onset if eligible. Monitor neurological status every 15 minutes.",
+      "expected_sources": ["Acute Stroke Protocol v4.0"],
+      "category": "neurology",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q014",
+      "query": "What are the guidelines for perioperative beta-blocker use?",
+      "ground_truth": "Continue beta-blockers in patients already on them. Do not initiate high-dose beta-blockers on the day of surgery. Titrate to heart rate 60-80 bpm.",
+      "expected_sources": ["Perioperative Cardiac Guideline v2.3"],
+      "category": "surgery",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q015",
+      "query": "How should opioid withdrawal be managed?",
+      "ground_truth": "Buprenorphine induction when COWS score >= 8. Start at 2-4mg sublingual, may repeat every 2 hours up to 8mg on day 1. Symptomatic treatment with clonidine and antiemetics.",
+      "expected_sources": ["Opioid Withdrawal Protocol v2.0"],
+      "category": "addiction_medicine",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q016",
+      "query": "What is the ventilator weaning protocol?",
+      "ground_truth": "Daily spontaneous breathing trial if FiO2 <= 40%, PEEP <= 8, adequate cough. T-piece or PSV trial for 30-120 minutes. Extubate if passed with stable vitals.",
+      "expected_sources": ["Ventilator Weaning Protocol v3.0"],
+      "category": "critical_care",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q017",
+      "query": "What are the guidelines for insulin management in hospitalized patients?",
+      "ground_truth": "Basal-bolus insulin preferred over sliding scale alone. Target glucose 140-180 mg/dL for most patients. Adjust doses based on carbohydrate intake and activity.",
+      "expected_sources": ["Inpatient Glycemic Management v3.2"],
+      "category": "endocrine",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q018",
+      "query": "How is congestive heart failure exacerbation treated?",
+      "ground_truth": "IV furosemide 40mg bolus, titrate to urine output. Supplemental oxygen to maintain SpO2 > 94%. Daily weights and strict I&O monitoring. Consider BiPAP if respiratory distress.",
+      "expected_sources": ["CHF Exacerbation Protocol v2.5"],
+      "category": "cardiology",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q019",
+      "query": "What is the protocol for managing anaphylaxis?",
+      "ground_truth": "Epinephrine 0.3-0.5mg IM into lateral thigh immediately. Repeat every 5-15 minutes if needed. IV fluids for hypotension. Observe for minimum 4 hours for biphasic reaction.",
+      "expected_sources": ["Anaphylaxis Protocol v3.0"],
+      "category": "emergency",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q020",
+      "query": "What are the guidelines for surgical site infection prevention?",
+      "ground_truth": "Prophylactic antibiotics within 60 minutes of incision. Cefazolin 2g IV for most procedures. Clip hair, do not shave. Maintain normothermia and glucose control.",
+      "expected_sources": ["Surgical Site Infection Prevention v4.1"],
+      "category": "surgery",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q021",
+      "query": "How is pulmonary embolism diagnosed and treated?",
+      "ground_truth": "CT pulmonary angiography for diagnosis. Start anticoagulation with heparin. Transition to oral anticoagulation. Consider thrombolysis for massive PE with hemodynamic instability.",
+      "expected_sources": ["PE Diagnosis and Treatment v3.0"],
+      "category": "pulmonology",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q022",
+      "query": "What is the protocol for managing hyperkalemia?",
+      "ground_truth": "Calcium gluconate 1g IV for cardiac membrane stabilization if ECG changes. Insulin 10 units with dextrose 50% 25g IV. Sodium bicarbonate if acidotic. Kayexalate or patiromer for ongoing management.",
+      "expected_sources": ["Hyperkalemia Management Protocol v2.0"],
+      "category": "nephrology",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q023",
+      "query": "What are the guidelines for palliative sedation?",
+      "ground_truth": "Only for refractory symptoms at end of life. Requires informed consent and ethics consultation. Start midazolam 0.5-1mg/hour IV titrated to comfort. Document rationale thoroughly.",
+      "expected_sources": ["Palliative Care Guideline v2.5"],
+      "category": "palliative_care",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q024",
+      "query": "How should COPD exacerbation be managed?",
+      "ground_truth": "Short-acting bronchodilators every 4-6 hours. Systemic corticosteroids for 5 days. Antibiotics if increased sputum purulence. Supplemental oxygen targeting SpO2 88-92%.",
+      "expected_sources": ["COPD Exacerbation Protocol v3.0"],
+      "category": "pulmonology",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q025",
+      "query": "What is the protocol for rapid sequence intubation?",
+      "ground_truth": "Preoxygenate for 3-5 minutes. Induction with propofol 1.5-2.5 mg/kg or ketamine 1-2 mg/kg. Paralytic with succinylcholine 1.5 mg/kg or rocuronium 1.2 mg/kg. Confirm placement with ETCO2.",
+      "expected_sources": ["RSI Protocol v4.0"],
+      "category": "emergency",
+      "difficulty": "hard"
+    }
+  ]
+}

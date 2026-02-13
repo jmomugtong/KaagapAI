@@ -170,7 +170,7 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
 
     body = await request.json()
     question = body.get("question", "")
-    max_results = body.get("max_results", 5)
+    max_results = body.get("max_results", 3)
     confidence_threshold = body.get("confidence_threshold", 0.70)
 
     # Input validation
@@ -188,6 +188,20 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
 
     redactor = PIIRedactor()
     question = redactor.redact(question)
+
+    # Check query cache (skip LLM entirely on hit)
+    from src.rag.cache import CacheManager
+
+    cache = CacheManager()
+    try:
+        cached = await cache.get_query_result(question)
+        if cached is not None:
+            elapsed = (time.time() - start_time) * 1000
+            cached["cached"] = True
+            cached["processing_time_ms"] = round(elapsed, 1)
+            return cached
+    except Exception as e:
+        logger.warning("Query cache lookup failed: %s", e)
 
     # Check embedding model availability
     embedding_gen = getattr(app.state, "embedding_generator", None)
@@ -338,7 +352,7 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
                 ]
 
                 elapsed = (time.time() - start_time) * 1000
-                return {
+                response = {
                     "answer": answer,
                     "confidence": round(parsed.confidence, 4),
                     "citations": citations,
@@ -347,6 +361,14 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
                     "processing_time_ms": round(elapsed, 1),
                     "hallucination_flagged": parsed.has_hallucinated_citations,
                 }
+
+                # Cache the successful response
+                try:
+                    await cache.set_query_result(question, response)
+                except Exception as e:
+                    logger.warning("Failed to cache query result: %s", e)
+
+                return response
             else:
                 logger.warning(
                     "Ollama returned empty response, falling back to snippets"
@@ -377,6 +399,112 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
         "query_id": str(uuid.uuid4())[:8],
         "processing_time_ms": round(elapsed, 1),
     }
+
+
+@app.post("/api/v1/query/stream", tags=["Query"])
+async def query_stream_endpoint(request: Request):
+    """
+    Submit a clinical query and stream the LLM response as Server-Sent Events.
+
+    Same pipeline as /api/v1/query up to LLM call, but streams tokens
+    instead of buffering the full response. Falls back to non-streaming
+    on error.
+    """
+    from fastapi.responses import StreamingResponse
+
+    body = await request.json()
+    question = body.get("question", "")
+    max_results = body.get("max_results", 3)
+
+    # Input validation
+    from src.security.input_validation import InputValidator
+
+    validator = InputValidator()
+    if not validator.is_safe(question):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query contains potentially unsafe content",
+        )
+
+    # PII redaction on input
+    from src.security.pii_redaction import PIIRedactor
+
+    redactor = PIIRedactor()
+    question = redactor.redact(question)
+
+    # Check embedding model
+    embedding_gen = getattr(app.state, "embedding_generator", None)
+    if not embedding_gen:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Embedding model not available",
+        )
+
+    ollama_client = getattr(app.state, "ollama_client", None)
+    if not ollama_client:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LLM service not available",
+        )
+
+    # Embedding + retrieval (same as non-streaming endpoint)
+    from sqlalchemy import select
+
+    from src.db.models import DocumentChunk
+    from src.db.postgres import AsyncSessionLocal
+    from src.rag.retriever import HybridRetriever
+
+    embeddings = await embedding_gen.generate_embeddings([question])
+    query_embedding = embeddings[0]
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(DocumentChunk))
+        chunks = result.scalars().all()
+
+        if not chunks:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No documents indexed yet",
+            )
+
+        retriever = HybridRetriever(chunks, session)
+        search_results = await retriever.search(
+            question, query_embedding, top_k=max_results
+        )
+
+    if not search_results:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No relevant results found",
+        )
+
+    prompt_chunks = [
+        {
+            "text": r.content,
+            "metadata": {
+                "source": r.source,
+                "chunk_index": r.chunk_index,
+                "document_id": r.document_id,
+            },
+        }
+        for r in search_results
+    ]
+
+    from src.llm.prompt_templates import PromptTemplate
+
+    template = PromptTemplate()
+    prompt = template.build(question=question, chunks=prompt_chunks)
+
+    async def event_stream():
+        try:
+            async for token in ollama_client.generate_stream(prompt):
+                yield f"data: {json.dumps({'token': token})}\n\n"
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            logger.error("Stream error: %s", e)
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @app.post("/api/v1/upload", tags=["Documents"])

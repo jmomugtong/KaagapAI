@@ -1,0 +1,507 @@
+{
+  "version": "1.0",
+  "description": "Clinical QA evaluation dataset (50 questions) - sourced from MedQuAD (NIH)",
+  "source": "lavita/MedQuAD on HuggingFace (NIH Medical Question-Answer pairs)",
+  "questions": [
+    {
+      "id": "q001",
+      "query": "Do you have information about B Vitamins",
+      "ground_truth": "Summary : The B vitamins are       - B1 (thiamine)    - B2 (riboflavin)    - B3 (niacin)    - B5 (pantothenic acid)    - B6    -  B7 (biotin)    - B12    - Folic acid       These vitamins help the process your body uses to get or make energy from the food you eat. They also help form red blood cells. You can get B vitamins from proteins such as fish, poultry, meat, eggs, and dairy products. Leafy green vegetables, beans, and peas also have B vitamins.",
+      "expected_sources": [
+        "MPlusHealthTopics"
+      ],
+      "category": "general_medicine",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q002",
+      "query": "Who is at risk for Ovarian, Fallopian Tube, and Primary Peritoneal Cancer? ?",
+      "ground_truth": "Different factors increase or decrease the risk of getting ovarian, fallopian tube, and primary peritoneal cancer.\n\t                    \tAnything that increases your chance of getting a disease is called a risk factor. Anything that decreases your chance of getting a disease is called a protective factor.   For information about risk factors and protective factors for ovarian cancer, see the Ovarian, Fallopian Tube, and Primary Peritoneal Cancer Prevention summary.",
+      "expected_sources": [
+        "CancerGov"
+      ],
+      "category": "oncology",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q003",
+      "query": "How to prevent Balance Problems ?",
+      "ground_truth": "Scientists are working to understand the complex interactions between the brain and the part of the inner ear responsible for balance. They are also studying the effectiveness of certain exercises as a treatment option for balance disorders. An NIDCD-supported clinical trial in benign paroxysmal positioning vertigo (BPPV) showed that repositioning maneuvers work well, and offered clinicians a range of choices in selecting the treatment best suited to each individuals unique needs.",
+      "expected_sources": [
+        "NIHSeniorHealth"
+      ],
+      "category": "geriatrics",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q004",
+      "query": "How to prevent Broken Heart Syndrome ?",
+      "ground_truth": "Researchers are still learning about broken heart syndrome, and no treatments have been shown to prevent it. For people who have experienced the condition, the risk of recurrence is low.\n                \nAn emotionally upsetting or serious physical event can trigger broken heart syndrome.",
+      "expected_sources": [
+        "NHLBI"
+      ],
+      "category": "cardiology",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q005",
+      "query": "What are the treatments for Meralgia Paresthetica ?",
+      "ground_truth": "Treatment for meralgia paresthetica is symptomatic and supportive. The majority of cases improve with conservative treatment by wearing looser clothing and losing weight. Medications used to treat neurogenic pain, such as anti-seizure or anti-depressant medications, may alleviate symptoms of pain. In a few cases, in which pain is persistent or severe, surgical intervention may be indicated.",
+      "expected_sources": [
+        "NINDS"
+      ],
+      "category": "neurology",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q006",
+      "query": "What are the treatments for Neuronal Migration Disorders ?",
+      "ground_truth": "Treatment is symptomatic, and may include anti-seizure medication and special or supplemental education consisting of physical, occupational, and speech therapies.",
+      "expected_sources": [
+        "NINDS"
+      ],
+      "category": "neurology",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q007",
+      "query": "What are the symptoms of Fountain syndrome ?",
+      "ground_truth": "What are the signs and symptoms of Fountain syndrome? The Human Phenotype Ontology provides the following list of signs and symptoms for Fountain syndrome. If the information is available, the table below includes how often the symptom is seen in people with this condition. You can use the MedlinePlus Medical Dictionary to look up the definitions for these medical terms.",
+      "expected_sources": [
+        "GARD"
+      ],
+      "category": "rare_diseases",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q008",
+      "query": "Is DOORS syndrome inherited ?",
+      "ground_truth": "This condition is inherited in an autosomal recessive pattern, which means both copies of the gene in each cell have mutations. The parents of an individual with an autosomal recessive condition each carry one copy of the mutated gene, but they typically do not show signs and symptoms of the condition.",
+      "expected_sources": [
+        "GHR"
+      ],
+      "category": "genetics",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q009",
+      "query": "What is (are) Breast Cancer ?",
+      "ground_truth": "Key Points\n                    - Breast cancer is a disease in which malignant (cancer) cells form in the tissues of the breast.    - Breast cancer is the second most common type of cancer in American women.\n                \n                \n                    Breast cancer is a disease in which malignant (cancer) cells form in the tissues of the breast.\n                    The breast is made up of lobes and ducts.",
+      "expected_sources": [
+        "CancerGov"
+      ],
+      "category": "oncology",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q010",
+      "query": "How many people are affected by Hearing Loss ?",
+      "ground_truth": "Approximately 17 percent, or 36 million, of American adults say that they have some degree of hearing loss. Hearing loss is a common condition in older adults. Roughly one-third of Americans 65 to 74 years of age and 47 percent of those 75 and older have hearing loss.",
+      "expected_sources": [
+        "NIHSeniorHealth"
+      ],
+      "category": "geriatrics",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q011",
+      "query": "What are the treatments for Nerve Disease and Bladder Control ?",
+      "ground_truth": "The treatment for a bladder control problem depends on the cause of the nerve damage and the type of voiding dysfunction that results.\n                \nIn the case of overactive bladder, your doctor may suggest a number of strategies, including bladder training, electrical stimulation, drug therapy, and, in severe cases where all other treatments have failed, surgery.\n                \nBladder training.",
+      "expected_sources": [
+        "NIDDK"
+      ],
+      "category": "endocrine",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q012",
+      "query": "What are the complications of Whipple Disease ?",
+      "ground_truth": "People with Whipple disease may have complications caused by malnutrition, which is due to damaged villi in the small intestine. As a result of delayed diagnosis or treatment, people may experience the following complications in other areas of the body:\n                \n- long-lasting nutritional deficiencies  - heart and heart valve damage  - brain damage\n                \nA person with Whipple disease may experience a relapsea return of symptoms.",
+      "expected_sources": [
+        "NIDDK"
+      ],
+      "category": "endocrine",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q013",
+      "query": "What causes Skin Cancer ?",
+      "ground_truth": "Scientists have been able to identify the causes and risk factors for skin cancer. A risk factor is anything that increases your chances of getting a disease. DNA Damage One of the main reasons that skin cancer develops is because DNA is damaged. DNA is the master molecule that controls and directs every cell in the body. Damage to DNA is one of the ways that cells lose control of growth and become cancerous. DNA mutations can also be inherited.",
+      "expected_sources": [
+        "NIHSeniorHealth"
+      ],
+      "category": "geriatrics",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q014",
+      "query": "What is (are) 15q13.3 microdeletion ?",
+      "ground_truth": "15q13.3 microdeletion is a chromosomal change in which a small piece of chromosome 15 is deleted in each cell. The deletion occurs on the long (q) arm of the chromosome at a position designated q13.3. This chromosomal change increases the risk of intellectual disability, seizures, behavioral problems, and psychiatric disorders. However, some people with a 15q13.3 microdeletion do not appear to have any associated features.",
+      "expected_sources": [
+        "GHR"
+      ],
+      "category": "genetics",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q015",
+      "query": "What are the treatments for Prostate Cancer ?",
+      "ground_truth": "Choosing Treatment There are a number of ways to treat prostate cancer, and the doctor will develop a treatment to fit each man's needs. The choice of treatment mostly depends on the stage of the disease and the grade of the tumor. But doctors also consider a man's age, general health, and his feelings about the treatments and their possible side effects. Treatment for prostate cancer may involve watchful waiting, surgery, radiation therapy, or hormonal therapy.",
+      "expected_sources": [
+        "NIHSeniorHealth"
+      ],
+      "category": "geriatrics",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q016",
+      "query": "What are the symptoms of Gastroparesis ?",
+      "ground_truth": "The most common symptoms of gastroparesis are nausea, a feeling of fullness after eating only a small amount of food, and vomiting undigested foodsometimes several hours after a meal. Other symptoms of gastroparesis include\n                \n- gastroesophageal reflux (GER), also called acid reflux or acid regurgitationa condition in which stomach contents flow back up into the esophagus, the organ that connects the mouth to the stomach  - pain in the stomach area  - abdominal bloating  - lack of ...",
+      "expected_sources": [
+        "NIDDK"
+      ],
+      "category": "endocrine",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q017",
+      "query": "What are the genetic changes related to paroxysmal extreme pain disorder ?",
+      "ground_truth": "Mutations in the SCN9A gene cause paroxysmal extreme pain disorder. The SCN9A gene provides instructions for making one part (the alpha subunit) of a sodium channel called NaV1.7. Sodium channels transport positively charged sodium atoms (sodium ions) into cells and play a key role in a cell's ability to generate and transmit electrical signals. NaV1.7 sodium channels are found in nerve cells called nociceptors that transmit pain signals to the spinal cord and brain.",
+      "expected_sources": [
+        "GHR"
+      ],
+      "category": "genetics",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q018",
+      "query": "Who is at risk for Nocardiosis? ?",
+      "ground_truth": "The bacteria that cause nocardiosis are commonly found in soil and water.\n    \nYou could become sick with nocardiosis if:\n    \n     - You inhale (breathe in) the bacteria\n     - Bacteria gets into an open wound or cut\n    \n    \nIn rare cases, infection can occur during surgical procedures.\n    \nFortunately, nocardiosis is not spread person to person, so being around someone who has the disease will not make you sick.",
+      "expected_sources": [
+        "CDC"
+      ],
+      "category": "infectious_disease",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q019",
+      "query": "What is (are) Swallowing Disorders ?",
+      "ground_truth": "If you have a swallowing disorder, you may have difficulty or pain when swallowing. Some people cannot swallow at all. Others may have trouble swallowing liquids, foods, or saliva. This makes it hard to eat. Often, it can be difficult to take in enough calories and fluids to nourish your body.    Anyone can have a swallowing disorder, but it is more likely in the elderly.",
+      "expected_sources": [
+        "MPlusHealthTopics"
+      ],
+      "category": "general_medicine",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q020",
+      "query": "What is (are) Monkeypox Virus Infections ?",
+      "ground_truth": "Monkeypox is a rare viral disease. It occurs mostly in central and western Africa. Wild rodents and squirrels carry it, but it is called monkeypox because scientists saw it first in lab monkeys. In 2003, it was reported in prairie dogs and humans in the U.S.     Centers for Disease Control and Prevention",
+      "expected_sources": [
+        "MPlusHealthTopics"
+      ],
+      "category": "general_medicine",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q021",
+      "query": "Who is at risk for Parasites - Babesiosis? ?",
+      "ground_truth": "People can get infected with Babesia parasites in several ways:\n    \n     - The main way is through the bite of an infected tick—during outdoor activities in areas where babesiosis is found (see below).\n     - A less common way is by getting a transfusion from a blood donor who has a Babesia infection but does not have any symptoms.",
+      "expected_sources": [
+        "CDC"
+      ],
+      "category": "infectious_disease",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q022",
+      "query": "What causes Achalasia ?",
+      "ground_truth": "What causes achalasia? The lower esophageal sphincter, the ring-shaped muscle at the bottom of the esophagus, normally relaxes during swallowing. In people with achalasia, this muscle ring does not relax as well. The reason for this problem is damage to the nerves of the esophagus. In some people, this problem appears to be inherited.",
+      "expected_sources": [
+        "GARD"
+      ],
+      "category": "rare_diseases",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q023",
+      "query": "What are the treatments for Tarlov Cysts ?",
+      "ground_truth": "Tarlov cysts may be drained and shunted to relieve pressure and pain, but relief is often only temporary and fluid build-up in the cysts will recur. Corticosteroid injections may also temporarily relieve pain. Other drugs may be prescribed to treat chronic pain and depression. Injecting the cysts with fibrin glue (a combination of naturally occurring substances based on the clotting factor in blood) may provide temporary relief of pain.",
+      "expected_sources": [
+        "NINDS"
+      ],
+      "category": "neurology",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q024",
+      "query": "What are the symptoms of Creutzfeldt-Jakob disease ?",
+      "ground_truth": "What are the signs and symptoms of Creutzfeldt-Jakob disease? Creutzfeldt-Jakob disease (CJD) is characterized by rapidly progressive dementia. Initially, patients experience problems with muscular coordination; personality changes, including impaired memory, judgment, and thinking; and impaired vision. People with the disease also may experience insomnia, depression, or unusual sensations. CJD does not cause a fever or other flu-like symptoms.",
+      "expected_sources": [
+        "GARD"
+      ],
+      "category": "rare_diseases",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q025",
+      "query": "What is (are) Myositis ?",
+      "ground_truth": "Myositis means inflammation of the muscles that you use to move your body. An injury, infection, or autoimmune disease can cause it. Two specific kinds are polymyositis and dermatomyositis. Polymyositis causes muscle weakness, usually in the muscles closest to the trunk of your body. Dermatomyositis causes muscle weakness, plus a skin rash.",
+      "expected_sources": [
+        "MPlusHealthTopics"
+      ],
+      "category": "general_medicine",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q026",
+      "query": "What are the treatments for Lupus ?",
+      "ground_truth": "How might lupus be treated? For information on the treatment of lupus, you can read the National Institute of Arthritis and Musculoskeletal and Skin Diseases (NIAMS) publication called Handout on Health: Systemic Lupus Erythematosus. NIAMS is the primary NIH organization for research and information on lupus.",
+      "expected_sources": [
+        "GARD"
+      ],
+      "category": "rare_diseases",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q027",
+      "query": "What are the treatments for Parasites - Leishmaniasis ?",
+      "ground_truth": "Before considering treatment, the first step is to make sure the diagnosis is correct.\n    \nTreatment decisions should be individualized. Health care providers may consult CDC staff about the relative merits of various approaches.",
+      "expected_sources": [
+        "CDC"
+      ],
+      "category": "infectious_disease",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q028",
+      "query": "What is (are) Stroke ?",
+      "ground_truth": "Brain plasticity is the brain's ability to learn and change, allowing it to adapt to deficits and injury and to take over the functions of damaged cells. When cells in an area of the brain responsible for a particular function die after a stroke, the patient becomes unable to perform that function. However, the brain's ability torewire the connections between its nerve cells allows it to compensate for lost functions.",
+      "expected_sources": [
+        "NIHSeniorHealth"
+      ],
+      "category": "geriatrics",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q029",
+      "query": "What are the symptoms of Indigestion ?",
+      "ground_truth": "Most people with indigestion experience more than one of the following symptoms:\n                \n- Fullness during a meal. The person feels overly full soon after the meal starts and cannot finish the meal.  - Bothersome fullness after a meal. The person feels overly full after a mealit may feel like the food is staying in the stomach too long.  - Epigastric pain. The epigastric area is between the lower end of the chest bone and the navel.",
+      "expected_sources": [
+        "NIDDK"
+      ],
+      "category": "endocrine",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q030",
+      "query": "Who is at risk for Heart Attack? ?",
+      "ground_truth": "Certain risk factors make it more likely that you'll develop coronary heart disease (CHD) and have a heart attack. You can control many of these risk factors.\n                \nRisk Factors You Can Control\n                \nThe major risk factors for a heart attack that you can control include:\n                \nSmoking\n                \nHigh blood pressure\n                \nHigh blood cholesterol\n                \nOverweight and obesity\n                \nAn unhealthy diet (for example, a diet high in ...",
+      "expected_sources": [
+        "NHLBI"
+      ],
+      "category": "cardiology",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q031",
+      "query": "what research (or clinical trials) is being done for Chronic Myelogenous Leukemia ?",
+      "ground_truth": "New types of treatment are being tested in clinical trials.\n                    Information about clinical trials is available from the NCI website.\n                \n                \n                    Patients may want to think about taking part in a clinical trial.\n                    For some patients, taking part in a clinical trial may be the best treatment choice. Clinical trials are part of the cancer research process.",
+      "expected_sources": [
+        "CancerGov"
+      ],
+      "category": "oncology",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q032",
+      "query": "What is (are) Traumatic Brain Injury ?",
+      "ground_truth": "Traumatic brain injury (TBI) happens when a bump, blow, jolt, or other head injury causes damage to the brain. Every year, millions of people in the U.S. suffer brain injuries. More than half are bad enough that people must go to the hospital. The worst injuries can lead to permanent brain damage or death. Half of all TBIs are from motor vehicle accidents. Military personnel in combat zones are also at risk.    Symptoms of a TBI may not appear until days or weeks following the injury.",
+      "expected_sources": [
+        "MPlusHealthTopics"
+      ],
+      "category": "general_medicine",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q033",
+      "query": "how is hps diagnosed and treated for Hantavirus ?",
+      "ground_truth": "Diagnosing HPS\n  \nDiagnosing HPS in an individual who has only been infected a few days is difficult, because early symptoms such as fever, muscle aches, and fatigue are easily confused with influenza. However, if the individual is experiencing fever and fatigue and has a history of potential rural rodent exposure, together with shortness of breath, would be strongly suggestive of HPS.",
+      "expected_sources": [
+        "CDC"
+      ],
+      "category": "infectious_disease",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q034",
+      "query": "what research (or clinical trials) is being done for Neurofibromatosis ?",
+      "ground_truth": "The mission of the National Institute of Neurological Disorders and Stroke (NINDS) is to seek fundamental knowledge about the brain and nervous system and to use that knowledge to reduce the burden of neurological disease. NINDS researchers are working to identify signaling pathways in the nervous system, with the hope of eventually developing drugs and techniques to help diagnose and treat NF.",
+      "expected_sources": [
+        "NINDS"
+      ],
+      "category": "neurology",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q035",
+      "query": "Who is at risk for Sleep Apnea? ?",
+      "ground_truth": "Obstructive sleep apnea is a common condition. About half of the people who have this condition are overweight.\n                \nMen are more likely than women to have sleep apnea. Although the condition can occur at any age, the risk increases as you get older. A family history of sleep apnea also increases your risk for the condition.\n                \nPeople who have small airways in their noses, throats, or mouths are more likely to have sleep apnea.",
+      "expected_sources": [
+        "NHLBI"
+      ],
+      "category": "cardiology",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q036",
+      "query": "What is (are) Parasites - Zoonotic Hookworm ?",
+      "ground_truth": "There are many different species of hookworms, some are human parasites and some are animal parasites. People can be infected by larvae of animal hookworms, usually dog and cat hookworms. The most common result of animal hookworm infection is a skin condition called cutaneous larva migrans.",
+      "expected_sources": [
+        "CDC"
+      ],
+      "category": "infectious_disease",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q037",
+      "query": "What are the treatments for Parkinson's Disease ?",
+      "ground_truth": "At present, there is no cure for PD, but a variety of medications provide dramatic relief from the symptoms. Usually, affected individuals are given levodopa combined with carbidopa. Carbidopa delays the conversion of levodopa into dopamine until it reaches the brain. Nerve cells can use levodopa to make dopamine and replenish the brain's dwindling supply. Although levodopa helps at least three-quarters of parkinsonian cases, not all symptoms respond equally to the drug.",
+      "expected_sources": [
+        "NINDS"
+      ],
+      "category": "neurology",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q038",
+      "query": "What is (are) Heart Block ?",
+      "ground_truth": "Heart block is a problem that occurs with the heart's electrical system. This system controls the rate and rhythm of heartbeats. (\"Rate\" refers to the number of times your heart beats per minute. \"Rhythm\" refers to the pattern of regular or irregular pulses produced as the heart beats.)\n                \nWith each heartbeat, an electrical signal spreads across the heart from the upper to the lower chambers.",
+      "expected_sources": [
+        "NHLBI"
+      ],
+      "category": "cardiology",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q039",
+      "query": "What is (are) Sciatica ?",
+      "ground_truth": "Sciatica is a symptom of a problem with the sciatic nerve, the largest nerve in the body. It controls muscles in the back of your knee and lower leg and provides feeling to the back of your thigh, part of your lower leg, and the sole of your foot. When you have sciatica, you have pain, weakness, numbness, or tingling. It can start in the lower back and extend down your leg to your calf, foot, or even your toes. It's usually on only one side of your body.",
+      "expected_sources": [
+        "MPlusHealthTopics"
+      ],
+      "category": "general_medicine",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q040",
+      "query": "How to diagnose Hairy Cell Leukemia ?",
+      "ground_truth": "Tests that examine the blood and bone marrow are used to detect (find) and diagnose hairy cell leukemia. The following tests and procedures may be used:         -   Physical exam and history : An exam of the body to check general signs of health, including checking for signs of disease, such as a swollen spleen, lumps, or anything else that seems unusual. A history of the patients health habits and past illnesses and treatments will also be taken.",
+      "expected_sources": [
+        "CancerGov"
+      ],
+      "category": "oncology",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q041",
+      "query": "What is (are) Mitral Valve Prolapse ?",
+      "ground_truth": "Mitral valve prolapse (MVP) is a condition in which the hearts mitral valve doesnt work well. The flaps of the valve are floppy and may not close tightly. These flaps normally help seal or open the valve.\n                \nMuch of the time, MVP doesnt cause any problems. Rarely, blood can leak the wrong way through the floppy valve. This can lead topalpitations, shortness of breath, chest pain, and other symptoms.",
+      "expected_sources": [
+        "NHLBI"
+      ],
+      "category": "cardiology",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q042",
+      "query": "What are the symptoms of Laryngeal cleft ?",
+      "ground_truth": "What are the signs and symptoms of Laryngeal cleft? The symptoms of laryngeal clefts range from mild stridor to significant difficulties with breathing and swallowing.  Severity of symptoms depends on the severity of the cleft.  Swallowing problems, a husky cry and feeding difficulties are common.  Feeding often causes stridor, coughing, choking, gagging, cyanosis, regurgitation, and frequent respiratory infections.  Many individuals with laryngeal clefts develop chronic lung disease.",
+      "expected_sources": [
+        "GARD"
+      ],
+      "category": "rare_diseases",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q043",
+      "query": "What are the stages of Pituitary Tumors ?",
+      "ground_truth": "Key Points\n                    - Once a pituitary tumor has been diagnosed, tests are done to find out if it has spread within the central nervous system (brain and spinal cord) or to other parts of the body.",
+      "expected_sources": [
+        "CancerGov"
+      ],
+      "category": "oncology",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q044",
+      "query": "What are the symptoms of 22q11.2 deletion syndrome ?",
+      "ground_truth": "What are the signs and symptoms of 22q11.2 deletion syndrome? Signs and symptoms of 22q11.2 deletion syndrome vary greatly from person to person, even among affected people in the same family. Symptoms may include: Heart defects (74% of individuals) Palatal abnormalities (69% of individuals) Characteristic facial features (e.g., elongated face, almond-shaped eyes, wide nose, and small ears) Learning difficulties (70-90% of individuals) Immune system problems (75% of individuals) Low levels of ca...",
+      "expected_sources": [
+        "GARD"
+      ],
+      "category": "rare_diseases",
+      "difficulty": "hard"
+    },
+    {
+      "id": "q045",
+      "query": "what research (or clinical trials) is being done for Endometrial Cancer ?",
+      "ground_truth": "Cancer prevention clinical trials are used to study ways to prevent cancer.\n                    Cancer prevention clinical trials are used to study ways to lower the risk of developing certain types of cancer. Some cancer prevention trials are conducted with healthy people who have not had cancer but who have an increased risk for cancer.",
+      "expected_sources": [
+        "CancerGov"
+      ],
+      "category": "oncology",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q046",
+      "query": "What is (are) Stiff-Person Syndrome ?",
+      "ground_truth": "Stiff-person syndrome (SPS) is a rare neurological disorder with features of an autoimmune disease. SPS is characterized by fluctuating muscle rigidity in the trunk and limbs and a heightened sensitivity to stimuli such as noise, touch, and emotional distress, which can set off muscle spasms. Abnormal postures, often hunched over and stiffened, are characteristic of the disorder.",
+      "expected_sources": [
+        "NINDS"
+      ],
+      "category": "neurology",
+      "difficulty": "medium"
+    },
+    {
+      "id": "q047",
+      "query": "What are the treatments for Proctitis ?",
+      "ground_truth": "Proctitis that is not treated or does not respond to treatment may lead to complications, including\n                \n- severe bleeding and anemiaa condition in which red blood cells are fewer or smaller than normal, which means less oxygen is carried to the bodys cells  - abscessespainful, swollen, pus-filled areas caused by infection  - ulcers on the intestinal lining  - fistulasabnormal connections between two parts inside the body",
+      "expected_sources": [
+        "NIDDK"
+      ],
+      "category": "endocrine",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q048",
+      "query": "What are the treatments for Greenberg dysplasia ?",
+      "ground_truth": "These resources address the diagnosis or management of Greenberg dysplasia:  - Genetic Testing Registry: Greenberg dysplasia  - Lurie Children's Hospital of Chicago: Fetal Skeletal Dysplasia   These resources from MedlinePlus offer information about the diagnosis and management of various health conditions:  - Diagnostic Tests  - Drug Therapy  - Surgery and Rehabilitation  - Genetic Counseling   - Palliative Care",
+      "expected_sources": [
+        "GHR"
+      ],
+      "category": "genetics",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q049",
+      "query": "How many people are affected by multiple epiphyseal dysplasia ?",
+      "ground_truth": "The incidence of dominant multiple epiphyseal dysplasia is estimated to be at least 1 in 10,000 newborns. The incidence of recessive multiple epiphyseal dysplasia is unknown. Both forms of this disorder may actually be more common because some people with mild symptoms are never diagnosed.",
+      "expected_sources": [
+        "GHR"
+      ],
+      "category": "genetics",
+      "difficulty": "easy"
+    },
+    {
+      "id": "q050",
+      "query": "How to diagnose Heart Failure ?",
+      "ground_truth": "Once initial tests have been performed, your doctor may decide to send you to a cardiologist, a specialist in diagnosis and treatment of heart disease. A cardiologist will perform a physical exam and may order other tests. There are several tests that can identify the cause of heart failure. These tests include: - An echocardiogram is one of the most useful tests for diagnosing heart failure.",
+      "expected_sources": [
+        "NIHSeniorHealth"
+      ],
+      "category": "geriatrics",
+      "difficulty": "hard"
+    }
+  ]
+}

@@ -5,11 +5,14 @@ Async HTTP client for the Ollama API with:
 - Retry logic with exponential backoff
 - Configurable timeout
 - Health check endpoint
+- Streaming support for low-latency first-token delivery
 - Graceful fallback on failure
 """
 
+import json
 import logging
 import os
+from collections.abc import AsyncIterator
 
 import httpx
 
@@ -18,7 +21,14 @@ logger = logging.getLogger(__name__)
 # Defaults from environment / docker-compose
 DEFAULT_BASE_URL = os.environ.get("OLLAMA_URL", "http://ollama:11434")
 DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "mistral")
-DEFAULT_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT_SECONDS", "120"))
+DEFAULT_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT_SECONDS", "30"))
+
+# LLM generation parameters
+DEFAULT_TEMPERATURE = float(os.environ.get("LLM_TEMPERATURE", "0.1"))
+DEFAULT_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "500"))
+DEFAULT_TOP_P = float(os.environ.get("LLM_TOP_P", "0.9"))
+DEFAULT_NUM_CTX = int(os.environ.get("LLM_NUM_CTX", "2048"))
+DEFAULT_NUM_THREAD = int(os.environ.get("LLM_NUM_THREAD", "0"))
 
 # Retry configuration
 MAX_RETRIES = 3
@@ -33,10 +43,20 @@ class OllamaClient:
         base_url: str = DEFAULT_BASE_URL,
         model: str = DEFAULT_MODEL,
         timeout: int = DEFAULT_TIMEOUT,
+        temperature: float = DEFAULT_TEMPERATURE,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
+        top_p: float = DEFAULT_TOP_P,
+        num_ctx: int = DEFAULT_NUM_CTX,
+        num_thread: int = DEFAULT_NUM_THREAD,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.top_p = top_p
+        self.num_ctx = num_ctx
+        self.num_thread = num_thread
 
     async def generate(self, prompt: str) -> str:
         """
@@ -58,6 +78,7 @@ class OllamaClient:
                             "model": self.model,
                             "prompt": prompt,
                             "stream": False,
+                            "options": self._build_options(),
                         },
                     )
                     response.raise_for_status()
@@ -102,6 +123,56 @@ class OllamaClient:
 
         logger.error("Ollama generation failed after %d attempts", MAX_RETRIES)
         return ""
+
+    def _build_options(self) -> dict:
+        """Build the Ollama options dict from instance configuration."""
+        options: dict = {
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "num_predict": self.max_tokens,
+            "num_ctx": self.num_ctx,
+        }
+        if self.num_thread > 0:
+            options["num_thread"] = self.num_thread
+        return options
+
+    async def generate_stream(self, prompt: str) -> AsyncIterator[str]:
+        """
+        Stream tokens from Ollama as they are generated.
+
+        Yields individual token strings. Falls back to non-streaming
+        generate() on error, yielding the full response as a single chunk.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout)) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.base_url}/api/generate",
+                    json={
+                        "model": self.model,
+                        "prompt": prompt,
+                        "stream": True,
+                        "options": self._build_options(),
+                    },
+                ) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        try:
+                            data = json.loads(line)
+                            token = data.get("response", "")
+                            if token:
+                                yield token
+                            if data.get("done", False):
+                                return
+                        except json.JSONDecodeError:
+                            continue
+        except Exception as e:
+            logger.warning("Streaming failed, falling back to non-streaming: %s", e)
+            full = await self.generate(prompt)
+            if full:
+                yield full
 
     async def health_check(self) -> bool:
         """

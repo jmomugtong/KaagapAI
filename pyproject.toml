@@ -89,6 +89,7 @@ dev = [
     "mypy==1.7.1",
     "pre-commit==3.6.0",
     "isort==5.12.0",
+    "datasets>=2.14.0",
 ]
 
 test = [

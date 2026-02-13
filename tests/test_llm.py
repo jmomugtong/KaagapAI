@@ -7,6 +7,7 @@ Tests for:
 - ResponseParser: answer extraction, confidence scoring, citation parsing
 """
 
+import httpx
 import pytest
 
 from src.llm.ollama_client import OllamaClient
@@ -23,23 +24,38 @@ class TestOllamaClientInit:
 
     @pytest.mark.unit
     def test_default_configuration(self):
-        """Client initializes with sensible defaults."""
+        """Client initializes with sensible defaults including LLM params."""
         client = OllamaClient()
         assert client.base_url == "http://ollama:11434"
         assert client.model == "mistral"
         assert client.timeout > 0
+        assert client.temperature == 0.1
+        assert client.max_tokens == 500
+        assert client.top_p == 0.9
+        assert client.num_ctx == 2048
+        assert client.num_thread == 0
 
     @pytest.mark.unit
     def test_custom_configuration(self):
-        """Client accepts custom base_url, model, and timeout."""
+        """Client accepts custom base_url, model, timeout, and LLM params."""
         client = OllamaClient(
             base_url="http://localhost:11434",
             model="llama2",
             timeout=60,
+            temperature=0.5,
+            max_tokens=256,
+            top_p=0.8,
+            num_ctx=4096,
+            num_thread=4,
         )
         assert client.base_url == "http://localhost:11434"
         assert client.model == "llama2"
         assert client.timeout == 60
+        assert client.temperature == 0.5
+        assert client.max_tokens == 256
+        assert client.top_p == 0.8
+        assert client.num_ctx == 4096
+        assert client.num_thread == 4
 
     @pytest.mark.unit
     def test_trailing_slash_stripped(self):
@@ -75,7 +91,7 @@ class TestOllamaClientGenerate:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_generate_sends_correct_payload(self, mocker):
-        """generate() sends model, prompt, and stream=False to Ollama API."""
+        """generate() sends model, prompt, stream=False, and options to Ollama API."""
         client = OllamaClient(base_url="http://fake:11434", model="mistral")
 
         mock_response = mocker.Mock()
@@ -97,6 +113,58 @@ class TestOllamaClientGenerate:
         assert payload["model"] == "mistral"
         assert payload["prompt"] == "test prompt"
         assert payload["stream"] is False
+        # Verify options are passed
+        options = payload["options"]
+        assert options["temperature"] == client.temperature
+        assert options["top_p"] == client.top_p
+        assert options["num_predict"] == client.max_tokens
+        assert options["num_ctx"] == client.num_ctx
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_num_thread_omitted_when_zero(self, mocker):
+        """num_thread is NOT included in options when set to 0 (auto)."""
+        client = OllamaClient(base_url="http://fake:11434", num_thread=0)
+
+        mock_response = mocker.Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"response": "answer"}
+        mock_response.raise_for_status = mocker.Mock()
+
+        mock_client = mocker.AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__ = mocker.AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = mocker.AsyncMock(return_value=False)
+
+        mocker.patch("httpx.AsyncClient", return_value=mock_client)
+
+        await client.generate("test")
+
+        payload = mock_client.post.call_args[1]["json"]
+        assert "num_thread" not in payload["options"]
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_num_thread_included_when_set(self, mocker):
+        """num_thread IS included in options when set to a positive value."""
+        client = OllamaClient(base_url="http://fake:11434", num_thread=4)
+
+        mock_response = mocker.Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"response": "answer"}
+        mock_response.raise_for_status = mocker.Mock()
+
+        mock_client = mocker.AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__ = mocker.AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = mocker.AsyncMock(return_value=False)
+
+        mocker.patch("httpx.AsyncClient", return_value=mock_client)
+
+        await client.generate("test")
+
+        payload = mock_client.post.call_args[1]["json"]
+        assert payload["options"]["num_thread"] == 4
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -243,8 +311,8 @@ class TestPromptTemplate:
 
     @pytest.mark.unit
     def test_build_prompt_multiple_chunks(self):
-        """Built prompt includes all chunks with source attribution."""
-        template = PromptTemplate()
+        """Built prompt includes chunks up to the max_chunks limit."""
+        template = PromptTemplate(max_chunks=3)
         chunks = [
             {"text": "Chunk one content.", "metadata": {"source": "Doc A"}},
             {"text": "Chunk two content.", "metadata": {"source": "Doc B"}},
@@ -280,6 +348,43 @@ class TestPromptTemplate:
         ]
         prompt = template.build(question="test?", chunks=chunks)
         assert "Pain Management Protocol v3.2" in prompt
+
+    @pytest.mark.unit
+    def test_build_prompt_limits_chunk_count(self):
+        """Passing 5 chunks with max_chunks=3 only includes the first 3."""
+        template = PromptTemplate(max_chunks=3)
+        chunks = [
+            {"text": f"Chunk {i} content.", "metadata": {"source": f"Doc {i}"}}
+            for i in range(5)
+        ]
+        prompt = template.build(question="test?", chunks=chunks)
+        assert "Chunk 0 content." in prompt
+        assert "Chunk 1 content." in prompt
+        assert "Chunk 2 content." in prompt
+        assert "Chunk 3 content." not in prompt
+        assert "Chunk 4 content." not in prompt
+
+    @pytest.mark.unit
+    def test_build_prompt_truncates_long_chunks(self):
+        """A 500-char chunk is truncated to max_chunk_chars with '...' suffix."""
+        template = PromptTemplate(max_chunk_chars=300)
+        long_text = "A" * 500
+        chunks = [{"text": long_text, "metadata": {"source": "Doc"}}]
+        prompt = template.build(question="test?", chunks=chunks)
+        # The full 500-char text should NOT appear
+        assert long_text not in prompt
+        # The truncated version (300 chars + "...") should appear
+        assert "A" * 300 + "..." in prompt
+
+    @pytest.mark.unit
+    def test_build_prompt_does_not_truncate_short_chunks(self):
+        """A chunk within max_chunk_chars is not truncated."""
+        template = PromptTemplate(max_chunk_chars=300)
+        short_text = "Short clinical text."
+        chunks = [{"text": short_text, "metadata": {"source": "Doc"}}]
+        prompt = template.build(question="test?", chunks=chunks)
+        assert short_text in prompt
+        assert "..." not in prompt
 
 
 # ============================================
@@ -461,3 +566,75 @@ class TestResponseParserLowConfidence:
         text = "Confident answer.\nConfidence: 0.92"
         result = parser.parse(text, retrieved_chunks=[])
         assert result.confidence >= 0.70
+
+
+# ============================================
+# Streaming Tests
+# ============================================
+
+
+class TestOllamaClientStream:
+    """Tests for the generate_stream method."""
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_generate_stream_yields_tokens(self, mocker):
+        """generate_stream() yields individual tokens from NDJSON lines."""
+        import json
+        from contextlib import asynccontextmanager
+
+        client = OllamaClient(base_url="http://fake:11434")
+
+        lines = [
+            json.dumps({"response": "Hello", "done": False}),
+            json.dumps({"response": " world", "done": False}),
+            json.dumps({"response": "", "done": True}),
+        ]
+
+        async def fake_aiter_lines():
+            for line in lines:
+                yield line
+
+        mock_response = mocker.Mock()
+        mock_response.raise_for_status = mocker.Mock()
+        mock_response.aiter_lines = fake_aiter_lines
+
+        @asynccontextmanager
+        async def fake_stream(*args, **kwargs):
+            yield mock_response
+
+        mock_client = mocker.AsyncMock()
+        mock_client.stream = fake_stream
+        mock_client.__aenter__ = mocker.AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = mocker.AsyncMock(return_value=False)
+
+        mocker.patch("httpx.AsyncClient", return_value=mock_client)
+
+        tokens = []
+        async for token in client.generate_stream("test prompt"):
+            tokens.append(token)
+
+        assert tokens == ["Hello", " world"]
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_generate_stream_fallback_on_error(self, mocker):
+        """generate_stream() falls back to non-streaming on connection error."""
+        client = OllamaClient(base_url="http://fake:11434")
+
+        # Make the entire AsyncClient context manager raise on stream
+        mock_client = mocker.AsyncMock()
+        mock_client.stream.side_effect = httpx.ConnectError("Connection refused")
+        mock_client.__aenter__ = mocker.AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = mocker.AsyncMock(return_value=False)
+
+        mocker.patch("httpx.AsyncClient", return_value=mock_client)
+
+        # Mock the non-streaming generate to return a fallback
+        mocker.patch.object(client, "generate", return_value="Fallback response")
+
+        tokens = []
+        async for token in client.generate_stream("test"):
+            tokens.append(token)
+
+        assert tokens == ["Fallback response"]
