@@ -140,15 +140,15 @@ function renderQueryResults(data) {
     if (confidence >= 0.85) {
         level = 'High Confidence';
         levelClass = 'confidence-high';
-        barColor = '#059669';
+        barColor = '#22c55e';
     } else if (confidence >= 0.70) {
         level = 'Medium Confidence';
         levelClass = 'confidence-medium';
-        barColor = '#d97706';
+        barColor = '#f59e0b';
     } else {
         level = 'Low Confidence';
         levelClass = 'confidence-low';
-        barColor = '#dc2626';
+        barColor = '#ef4444';
     }
 
     bar.style.backgroundColor = barColor;
