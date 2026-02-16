@@ -109,6 +109,26 @@ class CacheManager:
         digest = hashlib.sha256(normalized.encode()).hexdigest()
         return f"query:{digest}"
 
+    async def flush_embeddings(self) -> int:
+        """Flush all cached embeddings. Returns count of keys deleted."""
+        redis = await self._get_redis()
+        keys = []
+        async for key in redis.scan_iter("embedding:*"):
+            keys.append(key)
+        if keys:
+            await redis.delete(*keys)
+        return len(keys)
+
+    async def flush_queries(self) -> int:
+        """Flush all cached query results. Returns count of keys deleted."""
+        redis = await self._get_redis()
+        keys = []
+        async for key in redis.scan_iter("query:*"):
+            keys.append(key)
+        if keys:
+            await redis.delete(*keys)
+        return len(keys)
+
     async def close(self) -> None:
         """Close Redis connection."""
         if self._redis is not None:

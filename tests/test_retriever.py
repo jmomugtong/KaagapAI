@@ -47,7 +47,7 @@ def sample_chunks():
         chunk.content = text
         chunk.document_id = (i // 3) + 1  # Group 3 chunks per document
         chunk.chunk_index = i
-        chunk.embedding = [0.1 * (i + 1)] * 384  # Dummy embedding
+        chunk.embedding = [0.1 * (i + 1)] * 768  # Dummy embedding
         chunks.append(chunk)
     return chunks
 
@@ -228,7 +228,7 @@ class TestVectorRetriever:
         mock_session.execute.return_value = mock_result
 
         retriever = VectorRetriever(mock_session)
-        query_embedding = [0.1] * 384
+        query_embedding = [0.1] * 768
         results = await retriever.search(query_embedding, top_k=5)
 
         assert len(results) == 1
@@ -245,7 +245,7 @@ class TestVectorRetriever:
         mock_session.execute.return_value = mock_result
 
         retriever = VectorRetriever(mock_session)
-        query_embedding = [0.1] * 384
+        query_embedding = [0.1] * 768
         await retriever.search(query_embedding, top_k=3)
 
         # Verify execute was called (the SQL should contain LIMIT)
@@ -266,7 +266,7 @@ class TestVectorRetriever:
         mock_session.execute.return_value = mock_result
 
         retriever = VectorRetriever(mock_session)
-        results = await retriever.search([0.1] * 384)
+        results = await retriever.search([0.1] * 768)
         assert all(r.source == "vector" for r in results)
 
     @pytest.mark.asyncio
@@ -278,7 +278,7 @@ class TestVectorRetriever:
         mock_session.execute.return_value = mock_result
 
         retriever = VectorRetriever(mock_session)
-        results = await retriever.search([0.1] * 384)
+        results = await retriever.search([0.1] * 768)
         assert results == []
 
     @pytest.mark.asyncio
@@ -288,7 +288,7 @@ class TestVectorRetriever:
         mock_session.execute.side_effect = Exception("DB connection failed")
 
         retriever = VectorRetriever(mock_session)
-        results = await retriever.search([0.1] * 384)
+        results = await retriever.search([0.1] * 768)
         assert results == []
 
 
@@ -314,7 +314,7 @@ class TestHybridRetriever:
         )
         results = await retriever.search(
             query="pain management",
-            query_embedding=[0.1] * 384,
+            query_embedding=[0.1] * 768,
             top_k=5,
         )
         assert all(isinstance(r, ScoredChunk) for r in results)
@@ -333,7 +333,7 @@ class TestHybridRetriever:
         )
         results = await retriever.search(
             query="pain management protocol acetaminophen",
-            query_embedding=[0.1] * 384,
+            query_embedding=[0.1] * 768,
         )
         assert len(results) <= 5
 
@@ -376,7 +376,7 @@ class TestHybridRetriever:
         ):
             results = await retriever.search(
                 query="pain management",
-                query_embedding=[0.1] * 384,
+                query_embedding=[0.1] * 768,
                 top_k=5,
             )
 
@@ -444,7 +444,7 @@ class TestHybridRetriever:
         ):
             results = await retriever.search(
                 query="test",
-                query_embedding=[0.1] * 384,
+                query_embedding=[0.1] * 768,
                 top_k=5,
             )
 
@@ -497,7 +497,7 @@ class TestHybridRetriever:
         ):
             results = await retriever.search(
                 query="test",
-                query_embedding=[0.1] * 384,
+                query_embedding=[0.1] * 768,
                 top_k=5,
             )
 
@@ -538,7 +538,7 @@ class TestHybridRetriever:
         ):
             results = await retriever.search(
                 query="test",
-                query_embedding=[0.1] * 384,
+                query_embedding=[0.1] * 768,
                 top_k=5,
             )
 
@@ -579,7 +579,7 @@ class TestHybridRetriever:
         ):
             results = await retriever.search(
                 query="test",
-                query_embedding=[0.1] * 384,
+                query_embedding=[0.1] * 768,
                 top_k=5,
             )
 
@@ -645,7 +645,7 @@ class TestHybridRetriever:
         ):
             results = await retriever.search(
                 query="test",
-                query_embedding=[0.1] * 384,
+                query_embedding=[0.1] * 768,
                 top_k=5,
             )
 
@@ -664,7 +664,7 @@ class TestHybridRetriever:
         )
         results = await retriever.search(
             query="pain management",
-            query_embedding=[0.1] * 384,
+            query_embedding=[0.1] * 768,
             top_k=5,
         )
 
@@ -688,7 +688,7 @@ class TestHybridRetriever:
         )
         results = await retriever.search(
             query="xyznonexistent",
-            query_embedding=[0.1] * 384,
+            query_embedding=[0.1] * 768,
             top_k=5,
         )
         assert results == []
@@ -738,7 +738,7 @@ class TestHybridRetriever:
         ):
             results = await retriever.search(
                 query="test",
-                query_embedding=[0.1] * 384,
+                query_embedding=[0.1] * 768,
                 top_k=5,
             )
 

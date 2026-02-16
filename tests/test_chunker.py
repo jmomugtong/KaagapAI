@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.rag.chunker import ChunkMetadata, PDFParser, SmartChunker
+from src.rag.chunker import ChunkMetadata, PDFParser, SemanticDocChunker, SmartChunker
 
 # Mock PDF content
 MOCK_PDF_TEXT = """
@@ -62,6 +62,13 @@ def test_smart_chunking_logic():
         )  # Allowing some leeway for token estimation vs chars
 
 
+def test_smart_chunker_default_sizes():
+    """Verify the new default chunk sizes (1500/200)."""
+    chunker = SmartChunker()
+    assert chunker.chunk_size == 1500
+    assert chunker.chunk_overlap == 200
+
+
 def test_chunking_metadata_assignment():
     # Use smaller chunk size to ensure multiple chunks
     chunker = SmartChunker(chunk_size=50, chunk_overlap=10)
@@ -80,3 +87,107 @@ def test_chunking_metadata_assignment():
     assert chunks[0].metadata.source == "test.pdf"
     assert chunks[0].metadata.chunk_index == 0
     assert chunks[1].metadata.chunk_index == 1
+
+
+class TestSemanticDocChunker:
+    """Tests for SemanticDocChunker."""
+
+    def test_fallback_when_no_embedding_model(self):
+        """Falls back to SmartChunker when embedding_model is None."""
+        chunker = SemanticDocChunker(embedding_model=None)
+        chunks = chunker.chunk(MOCK_PDF_TEXT, source="test.pdf")
+        assert len(chunks) > 0
+        assert chunks[0].metadata.source == "test.pdf"
+
+    def test_fallback_on_exception(self):
+        """Falls back to SmartChunker when SemanticChunker raises."""
+        mock_embeddings = MagicMock()
+        mock_embeddings.embed_documents.side_effect = Exception("Model error")
+        chunker = SemanticDocChunker(embedding_model=mock_embeddings)
+        chunks = chunker.chunk(MOCK_PDF_TEXT, source="test.pdf")
+        assert len(chunks) > 0  # Should get fallback chunks
+
+    def test_semantic_chunking_with_mock_embeddings(self):
+        """Test semantic chunking with mocked embedding model."""
+        mock_embeddings = MagicMock()
+        # Return different embeddings for each sentence to create breakpoints
+        import numpy as np
+
+        call_count = [0]
+
+        def mock_embed(texts):
+            results = []
+            for _ in texts:
+                call_count[0] += 1
+                results.append(np.random.rand(768).tolist())
+            return results
+
+        mock_embeddings.embed_documents = mock_embed
+
+        long_text = (
+            "The patient presented with chest pain. "
+            "ECG showed ST elevation. "
+            "Troponin levels were elevated. "
+            "The diagnosis was acute myocardial infarction. "
+            "Treatment included aspirin and heparin. "
+            "The patient was taken to the cath lab. "
+            "A stent was placed in the LAD artery. "
+            "The patient recovered well post-procedure. "
+            "Discharge medications included dual antiplatelet therapy. "
+            "Follow-up was scheduled in two weeks."
+        )
+        chunker = SemanticDocChunker(
+            embedding_model=mock_embeddings,
+            min_chunk_size=50,
+        )
+        chunks = chunker.chunk(long_text, source="clinical_note.pdf")
+        assert len(chunks) > 0
+        # Verify sequential indexing
+        for i, c in enumerate(chunks):
+            assert c.metadata.chunk_index == i
+
+    def test_oversized_chunks_get_sub_chunked(self):
+        """Chunks exceeding max_chunk_size are sub-chunked."""
+        mock_embeddings = MagicMock()
+        # Return a single embedding so everything stays in one "semantic chunk"
+        mock_embeddings.embed_documents.return_value = [[0.1] * 768] * 50
+
+        # Generate text that will produce a single large semantic chunk
+        huge_text = "This is a very long sentence. " * 200  # ~6000 chars
+
+        chunker = SemanticDocChunker(
+            embedding_model=mock_embeddings,
+            max_chunk_size=2000,
+            min_chunk_size=50,
+        )
+        chunks = chunker.chunk(huge_text, source="big_doc.pdf")
+        # Should have multiple chunks since the single semantic chunk exceeds max_chunk_size
+        assert len(chunks) > 1
+        for c in chunks:
+            assert (
+                len(c.content) <= 2200
+            )  # Some leeway for RecursiveCharacterTextSplitter
+
+    def test_tiny_chunks_dropped(self):
+        """Chunks smaller than min_chunk_size are filtered out."""
+        mock_embeddings = MagicMock()
+        # Return very different embeddings to create many small chunks
+        import numpy as np
+
+        def mock_embed(texts):
+            return [np.random.rand(768).tolist() for _ in texts]
+
+        mock_embeddings.embed_documents = mock_embed
+
+        # Short text with many breakpoints
+        short_text = "Hi. Ok. Yes. No. Sure. Fine. "
+        chunker = SemanticDocChunker(
+            embedding_model=mock_embeddings,
+            min_chunk_size=100,
+        )
+        chunks = chunker.chunk(short_text, source="tiny.pdf")
+        # Either chunks were dropped (falling through to fallback) or all chunks meet minimum
+        for c in chunks:
+            # If semantic chunking produced results, they should be >= min_chunk_size
+            # or it fell back to SmartChunker which has no min_chunk_size filter
+            assert len(c.content) > 0

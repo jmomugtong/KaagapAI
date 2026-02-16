@@ -164,11 +164,11 @@ def sample_chunk() -> dict:
 
 @pytest.fixture
 def sample_embedding() -> list[float]:
-    """Sample 384-dimensional embedding vector."""
+    """Sample 768-dimensional embedding vector."""
     import random
 
     random.seed(42)
-    return [random.random() for _ in range(384)]
+    return [random.random() for _ in range(768)]
 
 
 @pytest.fixture

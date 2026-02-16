@@ -1,7 +1,8 @@
 """Generate sample clinical PDF documents for testing MedQuery."""
 
-from fpdf import FPDF
 from pathlib import Path
+
+from fpdf import FPDF
 
 
 def create_pdf(filename: str, title: str, sections: list[tuple[str, str]]):

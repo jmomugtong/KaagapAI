@@ -31,7 +31,7 @@ class DocumentChunk(Base):
     document_id: Mapped[int] = mapped_column(ForeignKey("clinical_docs.id"))
     content: Mapped[str] = mapped_column("chunk_text", Text)
     chunk_index: Mapped[int] = mapped_column(Integer)
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(384))
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(768))
 
     document: Mapped["ClinicalDoc"] = relationship(back_populates="chunks")
 

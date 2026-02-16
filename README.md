@@ -24,7 +24,8 @@ MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system desig
 - **Fast Responses**: Query latency p95 < 2 seconds, cached queries < 200ms
 - **High Accuracy**: ROUGE-L score >= 0.60, hallucination rate < 5%
 - **HIPAA Compliant**: PII redaction, audit logging, row-level security
-- **Zero API Cost**: 100% open-source stack (Ollama, sentence-transformers)
+- **Zero API Cost**: 100% open-source stack (Ollama, FlashRank, pgvector)
+- **Medical-Domain LLM**: MedGemma 4B fine-tuned on clinical QA and FHIR EHR data
 - **Full Observability**: Prometheus metrics, Grafana dashboards, OpenTelemetry tracing
 
 ---
@@ -110,10 +111,14 @@ docker-compose ps
 ### 4. Download AI Models
 
 ```bash
-# Download Mistral model for Ollama (one-time, ~4GB)
-docker-compose exec ollama ollama pull mistral
+# Download MedGemma model for Ollama (one-time, ~2.5GB)
+docker-compose exec ollama ollama pull alibayram/medgemma
 
-# The embedding model (all-MiniLM-L6-v2) downloads automatically on first use
+# Download nomic-embed-text embedding model (one-time, ~274MB)
+docker-compose exec ollama ollama pull nomic-embed-text
+
+# Or pre-download all models for offline deployment:
+python scripts/setup_offline.py
 ```
 
 ### 5. Initialize Database
@@ -250,7 +255,7 @@ medquery/
 │   │   ├── chunker.py    # Document chunking
 │   │   ├── embedding.py  # Embedding generation
 │   │   ├── retriever.py  # Hybrid retrieval (BM25 + vector)
-│   │   ├── reranker.py   # LLM-based reranking
+│   │   ├── reranker.py   # FlashRank cross-encoder reranking
 │   │   └── cache.py      # Caching logic
 │   ├── llm/              # LLM integration
 │   │   ├── ollama_client.py    # Ollama API client
@@ -315,7 +320,7 @@ Key variables:
 | `SECRET_KEY` | JWT signing key | (generate) |
 | `DATABASE_URL` | PostgreSQL connection | postgresql+asyncpg://... |
 | `REDIS_URL` | Redis connection | redis://redis:6379/0 |
-| `OLLAMA_MODEL` | LLM model name | mistral |
+| `OLLAMA_MODEL` | LLM model name | alibayram/medgemma |
 | `RATE_LIMIT_PER_MINUTE` | API rate limit | 10 |
 
 ---
@@ -399,13 +404,51 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) for deta
 
 ---
 
+## Technology Stack
+
+The open-source model choices were informed by research from 10+ AI practitioners and engineers. Each component was selected for optimal clinical RAG performance on CPU-only, 16 GB RAM deployments with zero API cost.
+
+| Component | Technology | Why |
+|-----------|-----------|-----|
+| **LLM** | [MedGemma 4B](https://ollama.com/alibayram/medgemma) | Google's medical-domain model (clinical QA + FHIR EHR data), 40% less RAM than 7B |
+| **Embedding** | [nomic-embed-text](https://ollama.com/library/nomic-embed-text) | 768-dim, 8192 token context, Ollama-native, superior MTEB retrieval |
+| **Reranker** | [FlashRank](https://github.com/PrithivirajDamodaran/FlashRank) | <100ms batch reranking on CPU, 4MB model, no torch dependency |
+| **Chunking** | [LangChain SemanticChunker](https://python.langchain.com/) + medical separators | Section-aware boundaries (1500 chars, 200 overlap) |
+| **Retrieval** | BM25 + pgvector hybrid | 0.4 BM25 + 0.6 cosine similarity fusion |
+| **Vector DB** | PostgreSQL + pgvector | 768-dim vectors with IVFFlat indexing |
+| **LLM Runtime** | [Ollama](https://ollama.ai/) | Local inference for LLM + embeddings, zero API cost |
+| **Cache** | Redis | Two-tier: embedding (7d TTL) + query (1h TTL) |
+| **Framework** | [FastAPI](https://fastapi.tiangolo.com/) | Async Python web framework |
+
+### Research References
+
+Model and architecture decisions were guided by recommendations from these AI practitioners:
+
+**Thought Leaders:**
+- **Sebastian Raschka** -- [State of LLMs 2025](https://sebastianraschka.com/blog/2025/state-of-llms-2025.html): "Qwen overtook Llama. Smaller well-trained models match larger predecessors."
+- **Andrej Karpathy** -- [2025 LLM Year in Review](https://karpathy.bearblog.dev/year-in-review-2025/): Context engineering -- precision over volume in RAG context windows
+- **Andrew Ng** -- [RAG Course (Coursera)](https://www.coursera.org/learn/retrieval-augmented-generation-rag), [Advanced Retrieval with Chroma](https://www.deeplearning.ai/short-courses/advanced-retrieval-for-ai/): Cross-encoder reranking + larger chunk context + evaluate retrieval independently
+- **Chorouk Malmoum** -- SLMs for Agentic AI (citing NVIDIA research): SLMs outperform LLMs for specialized tasks
+
+**RAG Practitioners:**
+- **Paul Iusztin** -- [Build RAG Pipelines That Actually Work](https://decodingml.substack.com/p/build-rag-pipelines-that-actually): "RAG projects fail because no one measures retrieval quality"
+- **Shantanu Ladhwe** -- [Production RAG with RAGAS Evaluation](https://jamwithai.substack.com/): Ollama + section-aware chunking, Langfuse observability
+- **Paolo Perrone** -- [The Open-Source Stack for AI Agents](https://www.decodingai.com/p/the-open-source-stack-for-ai-agents): NVIDIA Nemotron, Docling for parsing
+- **Alex Razvant** -- [A Practical Roadmap on LLM Systems](https://multimodalai.substack.com/p/a-practical-roadmap-on-llm-systems)
+- **Daniel Lee** -- RRA Pattern (Retrieval, Rerank, Augment) for enterprise-grade LLMs
+- **Jeremy Park** -- Production RAG architecture patterns
+
+---
+
 ## Acknowledgments
 
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
-- [Ollama](https://ollama.ai/) - Local LLM inference
-- [sentence-transformers](https://www.sbert.net/) - Embedding models
+- [Ollama](https://ollama.ai/) - Local LLM and embedding inference
+- [MedGemma](https://ollama.com/alibayram/medgemma) - Medical-domain LLM
+- [nomic-embed-text](https://ollama.com/library/nomic-embed-text) - Embedding model
+- [FlashRank](https://github.com/PrithivirajDamodaran/FlashRank) - Lightweight reranker
 - [pgvector](https://github.com/pgvector/pgvector) - Vector similarity search
-- [LangChain](https://python.langchain.com/) - Document processing
+- [LangChain](https://python.langchain.com/) - Document processing & semantic chunking
 
 ---
 

@@ -1,27 +1,21 @@
 """
-Reranker for MedQuery (Phase 6)
+Reranker for MedQuery
 
-LLM-based reranking of retrieved chunks by contextual relevance.
-Uses Ollama to score each chunk against the query, then reorders
-by relevance. Falls back to original ordering if Ollama is unavailable.
+Dedicated cross-encoder reranking using FlashRank for sub-100ms
+reranking on CPU. Falls back to retrieval ordering if FlashRank
+is unavailable.
+
+Replaces the previous LLM-based reranker that called Ollama per-chunk
+(5 LLM calls per query = 15-40s). FlashRank reranks all chunks in a
+single batch call in <100ms.
 """
 
 import logging
-import re
 from dataclasses import dataclass
 
-from src.llm.ollama_client import OllamaClient
 from src.rag.retriever import ScoredChunk
 
 logger = logging.getLogger(__name__)
-
-RERANK_PROMPT = """Rate the relevance of the following document chunk to the query on a scale of 0.0 to 1.0.
-
-QUERY: {query}
-
-CHUNK: {chunk_text}
-
-Respond with ONLY a single number between 0.0 and 1.0 representing the relevance score. Nothing else."""
 
 # Confidence thresholds
 HIGH_CONFIDENCE = 0.85
@@ -43,10 +37,17 @@ class RerankedChunk:
 
 
 class Reranker:
-    """LLM-based reranker for retrieved document chunks."""
+    """FlashRank-based reranker for retrieved document chunks."""
 
-    def __init__(self, ollama_client: OllamaClient | None = None) -> None:
-        self._client = ollama_client
+    def __init__(self) -> None:
+        self._ranker = None
+        try:
+            from flashrank import Ranker
+
+            self._ranker = Ranker()
+            logger.info("FlashRank reranker initialized")
+        except Exception as e:
+            logger.warning("FlashRank not available, using fallback: %s", e)
 
     async def rerank(
         self,
@@ -55,57 +56,53 @@ class Reranker:
         top_k: int = 5,
     ) -> list[RerankedChunk]:
         """
-        Rerank chunks using LLM relevance scoring.
+        Rerank chunks using FlashRank cross-encoder scoring.
 
-        Falls back to original retrieval order if LLM is unavailable.
+        Falls back to original retrieval order if FlashRank is unavailable.
         """
         if not chunks:
             return []
 
-        if self._client is None:
+        if self._ranker is None:
             return self._fallback_rerank(chunks, top_k)
 
-        reranked = []
-        for chunk in chunks:
-            rerank_score = await self._score_chunk(query, chunk.content)
-            # Blend: 0.3 * retrieval + 0.7 * rerank
-            final_score = 0.3 * chunk.score + 0.7 * rerank_score
-            reranked.append(
-                RerankedChunk(
-                    chunk_id=chunk.chunk_id,
-                    content=chunk.content,
-                    document_id=chunk.document_id,
-                    chunk_index=chunk.chunk_index,
-                    retrieval_score=chunk.score,
-                    rerank_score=rerank_score,
-                    final_score=final_score,
-                    source="reranked",
-                )
-            )
-
-        reranked.sort(key=lambda x: x.final_score, reverse=True)
-        return reranked[:top_k]
-
-    async def _score_chunk(self, query: str, chunk_text: str) -> float:
-        """Score a single chunk's relevance to the query via LLM."""
-        prompt = RERANK_PROMPT.format(query=query, chunk_text=chunk_text[:500])
         try:
-            response = await self._client.generate(prompt)
-            return self._parse_score(response)
-        except Exception as e:
-            logger.warning("Rerank scoring failed: %s", e)
-            return 0.5
+            from flashrank import RerankRequest
 
-    def _parse_score(self, response: str) -> float:
-        """Extract a float score from LLM response, clamped to [0.0, 1.0]."""
-        match = re.search(r"([\d.]+)", response.strip())
-        if match:
-            try:
-                score = float(match.group(1))
-                return max(0.0, min(1.0, score))
-            except ValueError:
-                pass
-        return 0.5
+            passages = [{"id": str(c.chunk_id), "text": c.content} for c in chunks]
+            request = RerankRequest(query=query, passages=passages)
+            results = self._ranker.rerank(request)
+
+            # Build a map from chunk_id to rerank score
+            rerank_scores: dict[int, float] = {}
+            for r in results:
+                cid = int(r["id"])
+                rerank_scores[cid] = float(r["score"])
+
+            reranked = []
+            for chunk in chunks:
+                rr_score = rerank_scores.get(chunk.chunk_id, 0.5)
+                # Blend: 0.3 * retrieval + 0.7 * rerank
+                final_score = 0.3 * chunk.score + 0.7 * rr_score
+                reranked.append(
+                    RerankedChunk(
+                        chunk_id=chunk.chunk_id,
+                        content=chunk.content,
+                        document_id=chunk.document_id,
+                        chunk_index=chunk.chunk_index,
+                        retrieval_score=chunk.score,
+                        rerank_score=rr_score,
+                        final_score=final_score,
+                        source="reranked",
+                    )
+                )
+
+            reranked.sort(key=lambda x: x.final_score, reverse=True)
+            return reranked[:top_k]
+
+        except Exception as e:
+            logger.warning("FlashRank reranking failed: %s", e)
+            return self._fallback_rerank(chunks, top_k)
 
     def _fallback_rerank(
         self, chunks: list[ScoredChunk], top_k: int

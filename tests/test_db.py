@@ -92,7 +92,7 @@ async def test_document_chunk_crud(db_session):
         document_id=doc.id,
         content="Test content chunk",
         chunk_index=0,
-        embedding=[0.1] * 384,  # 384-dim vector
+        embedding=[0.1] * 768,  # 768-dim vector
     )
     db_session.add(chunk)
     await db_session.commit()

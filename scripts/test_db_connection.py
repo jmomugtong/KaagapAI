@@ -5,12 +5,16 @@ import sys
 # Ensure src module can be imported
 sys.path.append(os.getcwd())
 
-from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
 from src.db.models import Base
 
 # Using the password from .env
-DATABASE_URL = "postgresql+asyncpg://medquery_user:medquery_password@localhost:5432/medquery"
+DATABASE_URL = (
+    "postgresql+asyncpg://medquery_user:medquery_password@localhost:5432/medquery"
+)
+
 
 async def main():
     print(f"Testing Schema Creation on: {DATABASE_URL}")
@@ -27,7 +31,9 @@ async def main():
     except Exception as e:
         print(f"Schema Creation Failed: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

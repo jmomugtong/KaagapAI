@@ -36,10 +36,10 @@ RESPONSE:
         max_chunk_chars: int | None = None,
     ) -> None:
         self.max_chunks = max_chunks or int(
-            os.environ.get("LLM_MAX_CONTEXT_CHUNKS", "3")
+            os.environ.get("LLM_MAX_CONTEXT_CHUNKS", "5")
         )
         self.max_chunk_chars = max_chunk_chars or int(
-            os.environ.get("LLM_MAX_CHUNK_CHARS", "300")
+            os.environ.get("LLM_MAX_CHUNK_CHARS", "800")
         )
 
     def build(

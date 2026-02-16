@@ -62,11 +62,28 @@ async def lifespan(app: FastAPI):
         is_healthy = await app.state.ollama_client.health_check()
         if is_healthy:
             logger.info("Ollama client initialized and healthy")
+            # Warm up the model so first user query doesn't hit cold-start latency
+            logger.info("Warming up LLM model (loading into memory)...")
+            warmup_resp = await app.state.ollama_client.generate("Hi")
+            if warmup_resp:
+                logger.info("LLM model warmed up successfully")
+            else:
+                logger.warning("LLM warmup returned empty (model may still be loading)")
         else:
             logger.warning("Ollama client initialized but service is unreachable")
     except Exception as e:
         logger.warning("Ollama client initialization failed: %s", e)
         app.state.ollama_client = None
+
+    # Initialize FlashRank reranker (loads model once, reused for all requests)
+    try:
+        from src.rag.reranker import Reranker
+
+        app.state.reranker = Reranker()
+        logger.info("Reranker initialized successfully")
+    except Exception as e:
+        logger.warning("Reranker initialization failed: %s", e)
+        app.state.reranker = None
 
     yield
 
@@ -220,11 +237,11 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
 
     from src.db.models import DocumentChunk
     from src.db.postgres import AsyncSessionLocal
-    from src.rag.retriever import HybridRetriever
+    from src.rag.retriever import HybridRetriever, ScoredChunk
 
     # Generate query embedding
     try:
-        embeddings = await embedding_gen.generate_embeddings([question])
+        embeddings = await embedding_gen.generate_embeddings([question], is_query=True)
         query_embedding = embeddings[0]
     except Exception as e:
         logger.warning("Embedding generation failed: %s", e)
@@ -270,6 +287,28 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
             "query_id": "error",
             "processing_time_ms": round(elapsed, 1),
         }
+
+    # Rerank results using FlashRank cross-encoder
+    reranker = getattr(app.state, "reranker", None)
+    if reranker and search_results:
+        try:
+            reranked = await reranker.rerank(
+                question, search_results, top_k=max_results
+            )
+            # Convert RerankedChunk back to ScoredChunk for downstream compatibility
+            search_results = [
+                ScoredChunk(
+                    chunk_id=r.chunk_id,
+                    content=r.content,
+                    document_id=r.document_id,
+                    chunk_index=r.chunk_index,
+                    score=r.final_score,
+                    source=r.source,
+                )
+                for r in reranked
+            ]
+        except Exception as e:
+            logger.warning("Reranking failed, using retrieval order: %s", e)
 
     # Format retrieved chunks for response and prompt context
     retrieved_chunks = []
@@ -452,9 +491,9 @@ async def query_stream_endpoint(request: Request):
 
     from src.db.models import DocumentChunk
     from src.db.postgres import AsyncSessionLocal
-    from src.rag.retriever import HybridRetriever
+    from src.rag.retriever import HybridRetriever, ScoredChunk
 
-    embeddings = await embedding_gen.generate_embeddings([question])
+    embeddings = await embedding_gen.generate_embeddings([question], is_query=True)
     query_embedding = embeddings[0]
 
     async with AsyncSessionLocal() as session:
@@ -471,6 +510,27 @@ async def query_stream_endpoint(request: Request):
         search_results = await retriever.search(
             question, query_embedding, top_k=max_results
         )
+
+    # Rerank results using FlashRank cross-encoder
+    reranker = getattr(app.state, "reranker", None)
+    if reranker and search_results:
+        try:
+            reranked = await reranker.rerank(
+                question, search_results, top_k=max_results
+            )
+            search_results = [
+                ScoredChunk(
+                    chunk_id=r.chunk_id,
+                    content=r.content,
+                    document_id=r.document_id,
+                    chunk_index=r.chunk_index,
+                    score=r.final_score,
+                    source=r.source,
+                )
+                for r in reranked
+            ]
+        except Exception as e:
+            logger.warning("Reranking failed, using retrieval order: %s", e)
 
     if not search_results:
         raise HTTPException(
@@ -518,7 +578,7 @@ async def upload_endpoint(
 
     from src.db.models import ClinicalDoc, DocumentChunk
     from src.db.postgres import AsyncSessionLocal
-    from src.rag.chunker import PDFParser, SmartChunker
+    from src.rag.chunker import PDFParser, SemanticDocChunker, SmartChunker
 
     # Validate document type
     if document_type not in {"protocol", "guideline", "reference"}:
@@ -540,7 +600,15 @@ async def upload_endpoint(
     parser = PDFParser()
     text = parser.parse(str(file_path))
 
-    chunker = SmartChunker()
+    # Use semantic chunking if embedding model is available, otherwise fall back
+    embedding_gen = getattr(app.state, "embedding_generator", None)
+    if embedding_gen:
+        from src.rag.embedding import LangChainEmbeddingAdapter
+
+        lc_embeddings = LangChainEmbeddingAdapter(embedding_gen)
+        chunker = SemanticDocChunker(embedding_model=lc_embeddings)
+    else:
+        chunker = SmartChunker()
     chunks = chunker.chunk(text, source=file.filename or "unknown")
 
     # Parse metadata JSON

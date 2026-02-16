@@ -26,13 +26,13 @@ class TestOllamaClientInit:
     def test_default_configuration(self):
         """Client initializes with sensible defaults including LLM params."""
         client = OllamaClient()
-        assert client.base_url == "http://ollama:11434"
-        assert client.model == "mistral"
+        assert client.base_url == "http://localhost:11434"
+        assert client.model == "alibayram/medgemma"
         assert client.timeout > 0
         assert client.temperature == 0.1
         assert client.max_tokens == 500
         assert client.top_p == 0.9
-        assert client.num_ctx == 2048
+        assert client.num_ctx == 4096
         assert client.num_thread == 0
 
     @pytest.mark.unit

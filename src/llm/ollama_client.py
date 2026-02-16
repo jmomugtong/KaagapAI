@@ -19,15 +19,15 @@ import httpx
 logger = logging.getLogger(__name__)
 
 # Defaults from environment / docker-compose
-DEFAULT_BASE_URL = os.environ.get("OLLAMA_URL", "http://ollama:11434")
-DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "mistral")
-DEFAULT_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT_SECONDS", "30"))
+DEFAULT_BASE_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "alibayram/medgemma")
+DEFAULT_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT_SECONDS", "120"))
 
 # LLM generation parameters
 DEFAULT_TEMPERATURE = float(os.environ.get("LLM_TEMPERATURE", "0.1"))
 DEFAULT_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "500"))
 DEFAULT_TOP_P = float(os.environ.get("LLM_TOP_P", "0.9"))
-DEFAULT_NUM_CTX = int(os.environ.get("LLM_NUM_CTX", "2048"))
+DEFAULT_NUM_CTX = int(os.environ.get("LLM_NUM_CTX", "4096"))
 DEFAULT_NUM_THREAD = int(os.environ.get("LLM_NUM_THREAD", "0"))
 
 # Retry configuration

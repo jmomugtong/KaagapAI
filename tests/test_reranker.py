@@ -1,5 +1,5 @@
 """
-Tests for MedQuery Reranker (Phase 6)
+Tests for MedQuery Reranker (FlashRank-based)
 """
 
 import pytest
@@ -20,17 +20,21 @@ def _make_chunk(chunk_id: int, content: str, score: float) -> ScoredChunk:
 
 
 class TestRerankerFallback:
-    """Tests for reranker without LLM (fallback mode)."""
+    """Tests for reranker without FlashRank (fallback mode)."""
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_fallback_preserves_order(self):
+    async def test_fallback_preserves_order(self, mocker):
+        mocker.patch(
+            "src.rag.reranker.Reranker.__init__",
+            lambda self: setattr(self, "_ranker", None),
+        )
         chunks = [
             _make_chunk(1, "High relevance chunk", 0.9),
             _make_chunk(2, "Medium relevance chunk", 0.7),
             _make_chunk(3, "Low relevance chunk", 0.3),
         ]
-        reranker = Reranker(ollama_client=None)
+        reranker = Reranker()
         results = await reranker.rerank("test query", chunks)
         assert len(results) == 3
         assert results[0].chunk_id == 1
@@ -38,82 +42,129 @@ class TestRerankerFallback:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_fallback_returns_reranked_chunks(self):
+    async def test_fallback_returns_reranked_chunks(self, mocker):
+        mocker.patch(
+            "src.rag.reranker.Reranker.__init__",
+            lambda self: setattr(self, "_ranker", None),
+        )
         chunks = [_make_chunk(1, "text", 0.8)]
-        reranker = Reranker(ollama_client=None)
+        reranker = Reranker()
         results = await reranker.rerank("query", chunks)
         assert isinstance(results[0], RerankedChunk)
         assert results[0].source == "fallback"
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_fallback_respects_top_k(self):
+    async def test_fallback_respects_top_k(self, mocker):
+        mocker.patch(
+            "src.rag.reranker.Reranker.__init__",
+            lambda self: setattr(self, "_ranker", None),
+        )
         chunks = [_make_chunk(i, f"chunk {i}", 0.5) for i in range(10)]
-        reranker = Reranker(ollama_client=None)
+        reranker = Reranker()
         results = await reranker.rerank("query", chunks, top_k=3)
         assert len(results) == 3
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_empty_chunks(self):
-        reranker = Reranker(ollama_client=None)
+    async def test_empty_chunks(self, mocker):
+        mocker.patch(
+            "src.rag.reranker.Reranker.__init__",
+            lambda self: setattr(self, "_ranker", None),
+        )
+        reranker = Reranker()
         results = await reranker.rerank("query", [])
         assert results == []
 
 
-class TestRerankerWithLLM:
-    """Tests for reranker with mocked LLM."""
+class TestRerankerWithFlashRank:
+    """Tests for reranker with mocked FlashRank."""
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_rerank_with_llm_rescores(self, mocker):
-        mock_client = mocker.AsyncMock()
-        mock_client.generate.return_value = "0.95"
+    async def test_rerank_with_flashrank_rescores(self, mocker):
+        mock_ranker = mocker.MagicMock()
+        mock_ranker.rerank.return_value = [
+            {"id": "1", "text": "Low retrieval but high relevance", "score": 0.95},
+            {"id": "2", "text": "High retrieval but low relevance", "score": 0.40},
+        ]
+        mocker.patch(
+            "src.rag.reranker.Reranker.__init__",
+            lambda self: setattr(self, "_ranker", mock_ranker),
+        )
 
         chunks = [
             _make_chunk(1, "Low retrieval but high relevance", 0.3),
             _make_chunk(2, "High retrieval but low relevance", 0.9),
         ]
-        reranker = Reranker(ollama_client=mock_client)
+        reranker = Reranker()
         results = await reranker.rerank("query", chunks)
         assert all(r.source == "reranked" for r in results)
-        assert all(r.rerank_score == 0.95 for r in results)
+        # Chunk 1: 0.3*0.3 + 0.7*0.95 = 0.755
+        # Chunk 2: 0.3*0.9 + 0.7*0.40 = 0.55
+        assert results[0].chunk_id == 1  # Higher final score after reranking
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_rerank_handles_llm_failure(self, mocker):
-        mock_client = mocker.AsyncMock()
-        mock_client.generate.side_effect = Exception("LLM error")
+    async def test_rerank_batch_call(self, mocker):
+        """Verify all chunks are passed in a single batch call."""
+        mock_ranker = mocker.MagicMock()
+        mock_ranker.rerank.return_value = [
+            {"id": "1", "text": "chunk 1", "score": 0.8},
+            {"id": "2", "text": "chunk 2", "score": 0.6},
+            {"id": "3", "text": "chunk 3", "score": 0.4},
+        ]
+        mocker.patch(
+            "src.rag.reranker.Reranker.__init__",
+            lambda self: setattr(self, "_ranker", mock_ranker),
+        )
+
+        chunks = [
+            _make_chunk(1, "chunk 1", 0.5),
+            _make_chunk(2, "chunk 2", 0.5),
+            _make_chunk(3, "chunk 3", 0.5),
+        ]
+        reranker = Reranker()
+        await reranker.rerank("query", chunks)
+        # FlashRank should be called exactly once with all chunks
+        assert mock_ranker.rerank.call_count == 1
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_rerank_handles_flashrank_failure(self, mocker):
+        mock_ranker = mocker.MagicMock()
+        mock_ranker.rerank.side_effect = Exception("FlashRank error")
+        mocker.patch(
+            "src.rag.reranker.Reranker.__init__",
+            lambda self: setattr(self, "_ranker", mock_ranker),
+        )
 
         chunks = [_make_chunk(1, "text", 0.8)]
-        reranker = Reranker(ollama_client=mock_client)
+        reranker = Reranker()
         results = await reranker.rerank("query", chunks)
         assert len(results) == 1
-        assert results[0].rerank_score == 0.5  # fallback score
-
-
-class TestRerankerScoreParsing:
-    """Tests for score parsing from LLM responses."""
+        assert results[0].source == "fallback"
 
     @pytest.mark.unit
-    def test_parse_clean_score(self):
-        reranker = Reranker()
-        assert reranker._parse_score("0.85") == 0.85
+    @pytest.mark.asyncio
+    async def test_rerank_score_blending(self, mocker):
+        """Verify the 0.3 retrieval + 0.7 rerank blending formula."""
+        mock_ranker = mocker.MagicMock()
+        mock_ranker.rerank.return_value = [
+            {"id": "1", "text": "text", "score": 0.80},
+        ]
+        mocker.patch(
+            "src.rag.reranker.Reranker.__init__",
+            lambda self: setattr(self, "_ranker", mock_ranker),
+        )
 
-    @pytest.mark.unit
-    def test_parse_score_with_text(self):
+        chunks = [_make_chunk(1, "text", 0.60)]
         reranker = Reranker()
-        assert reranker._parse_score("The relevance is 0.72") == 0.72
-
-    @pytest.mark.unit
-    def test_parse_score_clamped_high(self):
-        reranker = Reranker()
-        assert reranker._parse_score("1.5") == 1.0
-
-    @pytest.mark.unit
-    def test_parse_score_invalid(self):
-        reranker = Reranker()
-        assert reranker._parse_score("not a number") == 0.5
+        results = await reranker.rerank("query", chunks)
+        # Expected: 0.3 * 0.60 + 0.7 * 0.80 = 0.18 + 0.56 = 0.74
+        assert abs(results[0].final_score - 0.74) < 0.001
+        assert abs(results[0].retrieval_score - 0.60) < 0.001
+        assert abs(results[0].rerank_score - 0.80) < 0.001
 
 
 class TestConfidenceAssessment:

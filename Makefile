@@ -46,7 +46,7 @@ help:
 	@echo "  db-downgrade   Rollback last migration"
 	@echo ""
 	@echo "AI/ML:"
-	@echo "  ollama-pull    Download Ollama model (phi3:mini)"
+	@echo "  ollama-pull    Download Ollama model (alibayram/medgemma)"
 	@echo "  eval           Run evaluation suite"
 	@echo ""
 	@echo "Utilities:"
@@ -172,13 +172,13 @@ db-current:
 # ============================================
 
 ollama-pull:
-	docker-compose exec ollama ollama pull phi3:mini
+	docker-compose exec ollama ollama pull alibayram/medgemma
 
 ollama-list:
 	docker-compose exec ollama ollama list
 
 embedding-warmup:
-	python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+	docker-compose exec ollama ollama pull nomic-embed-text
 
 # ============================================
 # Evaluation
