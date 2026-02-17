@@ -33,10 +33,11 @@ class PipelineResult:
 class ClassicalPipeline:
     """Standard retrieve-rerank-synthesize RAG pipeline."""
 
-    def __init__(self, embedding_generator, ollama_client, reranker):
+    def __init__(self, embedding_generator, ollama_client, reranker, cached_chunks=None):
         self.embedding_generator = embedding_generator
         self.ollama_client = ollama_client
         self.reranker = reranker
+        self.cached_chunks = cached_chunks  # Pre-loaded chunks to avoid DB queries
 
     async def run(
         self,
@@ -154,23 +155,30 @@ class ClassicalPipeline:
         from src.rag.retriever import HybridRetriever, ScoredChunk
 
         try:
+            # Use cached chunks if available, otherwise load from DB
+            if self.cached_chunks is not None:
+                chunks = self.cached_chunks
+                logger.info("Using cached chunks: %d chunks", len(chunks))
+            else:
+                logger.info("Loading chunks from database (cache not available)")
+                async with AsyncSessionLocal() as session:
+                    result = await session.execute(select(DocumentChunk))
+                    chunks = result.scalars().all()
+
+            if not chunks:
+                elapsed = (time.time() - start_time) * 1000
+                return PipelineResult(
+                    answer="No documents indexed yet. Upload documents first.",
+                    confidence=0.0,
+                    citations=[],
+                    retrieved_chunks=[],
+                    query_id="no_docs",
+                    processing_time_ms=round(elapsed, 1),
+                    pipeline="classical",
+                    steps=steps,
+                )
+
             async with AsyncSessionLocal() as session:
-                result = await session.execute(select(DocumentChunk))
-                chunks = result.scalars().all()
-
-                if not chunks:
-                    elapsed = (time.time() - start_time) * 1000
-                    return PipelineResult(
-                        answer="No documents indexed yet. Upload documents first.",
-                        confidence=0.0,
-                        citations=[],
-                        retrieved_chunks=[],
-                        query_id="no_docs",
-                        processing_time_ms=round(elapsed, 1),
-                        pipeline="classical",
-                        steps=steps,
-                    )
-
                 retriever = HybridRetriever(chunks, session)
                 search_results = await retriever.search(
                     question, query_embedding, top_k=max_results

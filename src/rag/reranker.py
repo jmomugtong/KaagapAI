@@ -93,7 +93,7 @@ class Reranker:
                         retrieval_score=chunk.score,
                         rerank_score=rr_score,
                         final_score=final_score,
-                        source="reranked",
+                        source=chunk.source,  # Preserve original source (hybrid/bm25/vector)
                     )
                 )
 
@@ -117,7 +117,7 @@ class Reranker:
                 retrieval_score=c.score,
                 rerank_score=c.score,
                 final_score=c.score,
-                source="fallback",
+                source=c.source,  # Preserve original source (hybrid/bm25/vector)
             )
             for c in chunks
         ]

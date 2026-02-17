@@ -84,6 +84,27 @@ async def lifespan(app: FastAPI):
         logger.warning("Reranker initialization failed: %s", e)
         app.state.reranker = None
 
+    # Load document chunks and build BM25 index once (cached for all queries)
+    try:
+        from sqlalchemy import select
+
+        from src.db.models import DocumentChunk
+        from src.db.postgres import AsyncSessionLocal
+
+        logger.info("Loading document chunks for caching...")
+        start = time.time()
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(select(DocumentChunk))
+            chunks = result.scalars().all()
+            # Store as list to avoid lazy-loading issues
+            app.state.cached_chunks = list(chunks)
+            logger.info(
+                "Loaded %d chunks in %.2fs", len(chunks), time.time() - start
+            )
+    except Exception as e:
+        logger.warning("Chunk caching failed: %s", e)
+        app.state.cached_chunks = []
+
     yield
 
     # Shutdown
@@ -203,6 +224,7 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
         embedding_generator=getattr(app.state, "embedding_generator", None),
         ollama_client=getattr(app.state, "ollama_client", None),
         reranker=getattr(app.state, "reranker", None),
+        cached_chunks=getattr(app.state, "cached_chunks", None),
     )
     result = await pipeline.run(question, max_results, confidence_threshold)
 
@@ -425,8 +447,11 @@ async def compare_endpoint(request: Request) -> dict[str, Any]:
     embedding_gen = getattr(app.state, "embedding_generator", None)
     ollama_client = getattr(app.state, "ollama_client", None)
     reranker = getattr(app.state, "reranker", None)
+    cached_chunks = getattr(app.state, "cached_chunks", None)
 
-    classical = ClassicalPipeline(embedding_gen, ollama_client, reranker)
+    classical = ClassicalPipeline(
+        embedding_gen, ollama_client, reranker, cached_chunks
+    )
     agentic = AgenticPipeline(embedding_gen, ollama_client, reranker)
 
     # Run both concurrently
@@ -576,6 +601,20 @@ async def upload_endpoint(
         doc_id = doc.id
 
     elapsed = (time.time() - start_time) * 1000
+
+    # Refresh cached chunks after successful upload
+    try:
+        from sqlalchemy import select
+
+        logger.info("Refreshing cached chunks after document upload...")
+        async with AsyncSessionLocal() as refresh_session:
+            result = await refresh_session.execute(select(DocumentChunk))
+            new_chunks = result.scalars().all()
+            app.state.cached_chunks = list(new_chunks)
+            logger.info("Cache refreshed: %d chunks now cached", len(new_chunks))
+    except Exception as e:
+        logger.warning("Failed to refresh chunk cache: %s", e)
+
     return {
         "document_id": doc_id,
         "filename": file.filename,

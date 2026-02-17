@@ -21,10 +21,13 @@ MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system desig
 
 ### Key Features
 
+- **Dual RAG Pipelines**: Classical RAG (hybrid retrieval + reranking) and Agentic RAG (ReAct-style reasoning with query decomposition)
 - **Fast Responses**: Query latency p95 < 2 seconds, cached queries < 200ms
 - **High Accuracy**: ROUGE-L score >= 0.60, hallucination rate < 5%
+- **Batch Document Upload**: Multi-file and folder upload with concurrent processing (3 parallel uploads)
+- **Comparison Mode**: Side-by-side comparison of Classical vs Agentic pipeline results
 - **HIPAA Compliant**: PII redaction, audit logging, row-level security
-- **Zero API Cost**: 100% open-source stack (Ollama, FlashRank, pgvector)
+- **Zero API Cost**: 100% open-source stack (local embeddings, Ollama, FlashRank, pgvector)
 - **Medical-Domain LLM**: MedGemma 4B fine-tuned on clinical QA and FHIR EHR data
 - **Full Observability**: Prometheus metrics, Grafana dashboards, OpenTelemetry tracing
 
@@ -42,8 +45,10 @@ MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system desig
 ┌─────────────────────────────────────────────────────────────────┐
 │                     API GATEWAY LAYER                           │
 │  FastAPI Application Server                                    │
-│  - POST /api/v1/query (rate limited: 10/min per user)          │
-│  - POST /api/v1/upload (async document ingestion)              │
+│  - POST /api/v1/query (Classical RAG pipeline)                 │
+│  - POST /api/v1/agent/query (Agentic RAG pipeline)            │
+│  - POST /api/v1/compare (Compare both pipelines)               │
+│  - POST /api/v1/upload (async batch document ingestion)        │
 │  - GET /api/v1/evals (evaluation suite execution)              │
 │  - GET /metrics (Prometheus endpoint)                          │
 └────────────────────┬────────────────────────────────────────────┘
@@ -64,6 +69,72 @@ MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system desig
 │  PostgreSQL + pgvector  │  Redis Cache  │  Ollama LLM          │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## RAG Pipelines
+
+MedQuery provides two RAG pipeline implementations for different query complexity levels:
+
+### Classical RAG Pipeline
+
+**Best for**: Single-concept queries, straightforward clinical questions
+
+**Flow**:
+1. PII Redaction → Query Preprocessing
+2. Cache Check (Redis, 1-hour TTL)
+3. Embedding Generation (sentence-transformers, ~160ms)
+4. Hybrid Retrieval (BM25 + pgvector fusion: 0.4 × BM25 + 0.6 × cosine)
+5. FlashRank Reranking (<100ms batch cross-encoder)
+6. LLM Synthesis (MedGemma 4B via Ollama)
+7. Confidence Scoring + Hallucination Detection
+8. Result Caching
+
+**Example queries**:
+- "What is the first-line treatment for hypertension?"
+- "What are the contraindications for metformin?"
+- "Recommended dosage for ACE inhibitors in elderly patients"
+
+**Performance**: <2s p95, <200ms cached
+
+### Agentic RAG Pipeline
+
+**Best for**: Comparative, multi-step, temporal, or complex queries requiring reasoning
+
+**Flow**:
+1. PII Redaction → Query Classification (SIMPLE/COMPARATIVE/MULTI_STEP/TEMPORAL)
+2. Query Decomposition (max 4 sub-queries based on type)
+3. Per-Sub-Query Retrieval (parallel hybrid retrieval for each sub-query)
+4. Deduplication Across Sub-Queries (by chunk ID)
+5. LLM Synthesis with Sub-Query Context
+6. Self-Reflection (sufficiency check, optional retry up to 3 iterations)
+7. Result with Step Trace
+
+**Example queries**:
+- "Compare first-line treatments for hypertension vs diabetes"
+- "What changed between 2020 and 2023 diabetes guidelines?"
+- "Step-by-step protocol for acute MI management"
+
+**Performance**: <5s for complex queries, step-by-step trace visible in UI
+
+### Comparison Mode
+
+The `/api/v1/compare` endpoint and frontend Compare tab run both pipelines in parallel using `asyncio.gather()`, returning:
+- Side-by-side answers and confidence scores
+- Retrieved chunks from each pipeline (may differ due to decomposition)
+- Processing time comparison
+- Step-by-step trace for Agentic pipeline
+
+---
+
+## Architecture Documentation
+
+Detailed architecture diagrams and pipeline flows:
+
+📚 **[Architecture Documentation](./docs/architecture/)** - Complete system architecture
+- [Classical RAG Flow](./docs/architecture/classical-rag-flow.md) - Single-pass hybrid retrieval
+- [Agentic RAG Flow](./docs/architecture/agentic-rag-flow.md) - ReAct-style reasoning
+- [Pipeline Comparison](./docs/architecture/pipeline-comparison.md) - When to use which pipeline
 
 ---
 
@@ -126,12 +197,28 @@ python scripts/setup_offline.py
 ```bash
 # Run database migrations
 docker-compose exec api alembic upgrade head
-
-# (Optional) Seed sample clinical documents
-docker-compose exec api python scripts/seed_clinical_docs.py
 ```
 
-### 6. Verify Installation
+### 6. Upload Clinical Documents
+
+MedQuery includes 17 open-source clinical PDFs (6 guidelines, 6 protocols, 5 references):
+
+```bash
+# Download clinical documents (one-time, ~100MB)
+bash scripts/download_documents.sh
+
+# Upload all documents to database (batch upload, ~30-40 minutes)
+bash scripts/upload_all.sh
+```
+
+**Documents included:**
+- **Guidelines**: VA/DoD Diabetes, Hypertension, Low Back Pain, Opioid Therapy, PTSD; WHO Cancer Pain
+- **Protocols**: CDC Opioid Prescribing, STI Treatment; NIH COVID-19 Treatment; NICE Head Injury; WHO COVID-19, Malaria
+- **References**: CDC Adult/Child Immunization, Antibiotic Stewardship, STI Wall Chart; WHO Essential Medicines
+
+Total: 6,303 chunks with embeddings
+
+### 7. Verify Installation
 
 ```bash
 # Check API health
@@ -139,9 +226,14 @@ curl http://localhost:8000/health
 
 # Expected response:
 # {"status": "healthy", "version": "0.1.0"}
+
+# Test a query (after documents are uploaded)
+curl -X POST http://localhost:8000/api/v1/query \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What is the first-line treatment for hypertension?"}'
 ```
 
-### 7. Access Services
+### 8. Access Services
 
 | Service | URL | Description |
 |---------|-----|-------------|
@@ -155,7 +247,7 @@ curl http://localhost:8000/health
 
 ## Usage
 
-### Submit a Query
+### Submit a Query (Classical RAG)
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/query \
@@ -164,6 +256,31 @@ curl -X POST http://localhost:8000/api/v1/query \
     "question": "What is the post-operative pain protocol for knee replacement?",
     "max_results": 5,
     "confidence_threshold": 0.70
+  }'
+```
+
+### Submit a Query (Agentic RAG)
+
+For complex queries that benefit from decomposition and reasoning:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/agent/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "Compare first-line treatments for hypertension vs diabetes",
+    "max_results": 5
+  }'
+```
+
+### Compare Both Pipelines
+
+Run both Classical and Agentic pipelines side-by-side:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/compare \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What are the contraindications for ACE inhibitors?"
   }'
 ```
 
@@ -176,6 +293,15 @@ curl -X POST http://localhost:8000/api/v1/upload \
   -F 'metadata={"department": "orthopedics", "version": "3.2"}'
 ```
 
+### Batch Upload Documents
+
+Upload multiple documents (processed with 3 concurrent uploads):
+
+```bash
+# Using the batch upload script
+bash scripts/upload_all.sh
+```
+
 ### Run Evaluation Suite
 
 ```bash
@@ -184,6 +310,15 @@ docker-compose exec api python scripts/run_evals.py
 
 # Check if thresholds are met
 docker-compose exec api python scripts/check_thresholds.py
+```
+
+### Clean Duplicate Documents
+
+If you've uploaded documents multiple times during testing:
+
+```bash
+# View duplicates and remove older copies
+python scripts/deduplicate_documents.py
 ```
 
 ---
@@ -247,14 +382,14 @@ make check
 ```
 medquery/
 ├── src/
-│   ├── api/              # FastAPI routes and middleware
-│   │   ├── routes.py     # API endpoints
-│   │   ├── auth.py       # Authentication
-│   │   └── middleware.py # Request/response middleware
+│   ├── pipelines/        # RAG pipeline implementations
+│   │   ├── classical.py  # Classical RAG (hybrid retrieval + reranking)
+│   │   ├── agentic.py    # Agentic RAG (ReAct-style reasoning)
+│   │   └── prompts.py    # Agent prompt templates
 │   ├── rag/              # RAG pipeline components
-│   │   ├── chunker.py    # Document chunking
-│   │   ├── embedding.py  # Embedding generation
-│   │   ├── retriever.py  # Hybrid retrieval (BM25 + vector)
+│   │   ├── chunker.py    # Document chunking (SmartChunker)
+│   │   ├── embedding.py  # Local embedding (sentence-transformers)
+│   │   ├── retriever.py  # Hybrid retrieval (BM25 + pgvector)
 │   │   ├── reranker.py   # FlashRank cross-encoder reranking
 │   │   └── cache.py      # Caching logic
 │   ├── llm/              # LLM integration
@@ -271,8 +406,23 @@ medquery/
 │   │   ├── telemetry.py  # OpenTelemetry setup
 │   │   └── metrics.py    # Prometheus metrics
 │   └── main.py           # Application entry point
+├── frontend/             # Web UI
+│   ├── index.html        # Main HTML (4 tabs: Classical, Agentic, Compare, Upload)
+│   ├── app.js            # Frontend logic (batch upload, comparison UI)
+│   └── styles.css        # Dark clinical theme
 ├── tests/                # Test suite
+│   ├── test_classical_pipeline.py  # Classical pipeline tests
+│   ├── test_agentic_pipeline.py    # Agentic pipeline tests
+│   ├── test_compare_endpoint.py    # Compare endpoint tests
+│   └── ...               # Other tests
 ├── scripts/              # Utility scripts
+│   ├── download_documents.sh       # Download public clinical PDFs
+│   ├── deduplicate_documents.py    # Clean duplicate documents
+│   └── ...               # Other scripts
+├── documents/            # Clinical document corpus
+│   ├── clinical_guidelines/   # 6 VA/DoD + WHO guidelines
+│   ├── clinical_protocols/    # 6 CDC/NIH/NICE/WHO protocols
+│   └── clinical_references/   # 5 CDC/WHO reference materials
 ├── datasets/             # Evaluation datasets
 ├── k6/                   # Load test scripts
 ├── docker-compose.yml    # Docker services
@@ -377,8 +527,10 @@ Full API documentation available at:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/query` | Submit clinical query |
-| POST | `/api/v1/upload` | Upload document |
+| POST | `/api/v1/query` | Submit clinical query (Classical RAG) |
+| POST | `/api/v1/agent/query` | Submit clinical query (Agentic RAG) |
+| POST | `/api/v1/compare` | Compare both pipelines side-by-side |
+| POST | `/api/v1/upload` | Upload document (batch-capable) |
 | GET | `/api/v1/jobs/{id}` | Check job status |
 | GET | `/api/v1/evals` | Run evaluation |
 | GET | `/health` | Health check |
@@ -411,14 +563,14 @@ The open-source model choices were informed by research from 10+ AI practitioner
 | Component | Technology | Why |
 |-----------|-----------|-----|
 | **LLM** | [MedGemma 4B](https://ollama.com/alibayram/medgemma) | Google's medical-domain model (clinical QA + FHIR EHR data), 40% less RAM than 7B |
-| **Embedding** | [nomic-embed-text](https://ollama.com/library/nomic-embed-text) | 768-dim, 8192 token context, Ollama-native, superior MTEB retrieval |
+| **Embedding** | [sentence-transformers](https://sbert.net/) (nomic-embed-text-v1.5) | 60× faster than Ollama HTTP (10s → 0.16s per batch), local inference, 768-dim vectors |
 | **Reranker** | [FlashRank](https://github.com/PrithivirajDamodaran/FlashRank) | <100ms batch reranking on CPU, 4MB model, no torch dependency |
-| **Chunking** | [LangChain SemanticChunker](https://python.langchain.com/) + medical separators | Section-aware boundaries (1500 chars, 200 overlap) |
-| **Retrieval** | BM25 + pgvector hybrid | 0.4 BM25 + 0.6 cosine similarity fusion |
-| **Vector DB** | PostgreSQL + pgvector | 768-dim vectors with IVFFlat indexing |
-| **LLM Runtime** | [Ollama](https://ollama.ai/) | Local inference for LLM + embeddings, zero API cost |
+| **Chunking** | [LangChain SmartChunker](https://python.langchain.com/) + medical separators | Section-aware boundaries (1500 chars, 200 overlap), faster than SemanticChunker |
+| **Retrieval** | BM25 + pgvector hybrid | 0.4 BM25 + 0.6 cosine similarity fusion, dual-mode fallback |
+| **Vector DB** | PostgreSQL + pgvector | 768-dim vectors with IVFFlat indexing, CAST to vector type |
+| **LLM Runtime** | [Ollama](https://ollama.ai/) | Local inference for LLM, zero API cost |
 | **Cache** | Redis | Two-tier: embedding (7d TTL) + query (1h TTL) |
-| **Framework** | [FastAPI](https://fastapi.tiangolo.com/) | Async Python web framework |
+| **Framework** | [FastAPI](https://fastapi.tiangolo.com/) | Async Python web framework with concurrent upload support |
 
 ### Research References
 
