@@ -51,7 +51,7 @@ class TestRerankerFallback:
         reranker = Reranker()
         results = await reranker.rerank("query", chunks)
         assert isinstance(results[0], RerankedChunk)
-        assert results[0].source == "fallback"
+        assert results[0].source == "hybrid"  # Preserves original chunk source
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -99,7 +99,7 @@ class TestRerankerWithFlashRank:
         ]
         reranker = Reranker()
         results = await reranker.rerank("query", chunks)
-        assert all(r.source == "reranked" for r in results)
+        assert all(r.source == "hybrid" for r in results)  # Preserves original
         # Chunk 1: 0.3*0.3 + 0.7*0.95 = 0.755
         # Chunk 2: 0.3*0.9 + 0.7*0.40 = 0.55
         assert results[0].chunk_id == 1  # Higher final score after reranking
@@ -143,7 +143,7 @@ class TestRerankerWithFlashRank:
         reranker = Reranker()
         results = await reranker.rerank("query", chunks)
         assert len(results) == 1
-        assert results[0].source == "fallback"
+        assert results[0].source == "hybrid"  # Preserves original on fallback
 
     @pytest.mark.unit
     @pytest.mark.asyncio
