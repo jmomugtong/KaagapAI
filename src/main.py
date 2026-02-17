@@ -61,13 +61,13 @@ async def lifespan(app: FastAPI):
         is_healthy = await app.state.ollama_client.health_check()
         if is_healthy:
             logger.info("Ollama client initialized and healthy")
-            # Warm up the model so first user query doesn't hit cold-start latency
+            # Warm up: load model into memory with a 1-token generation
             logger.info("Warming up LLM model (loading into memory)...")
-            warmup_resp = await app.state.ollama_client.generate("Hi")
-            if warmup_resp:
+            warmup_ok = await app.state.ollama_client.warmup()
+            if warmup_ok:
                 logger.info("LLM model warmed up successfully")
             else:
-                logger.warning("LLM warmup returned empty (model may still be loading)")
+                logger.warning("LLM warmup failed (model may still be loading)")
         else:
             logger.warning("Ollama client initialized but service is unreachable")
     except Exception as e:
@@ -98,9 +98,7 @@ async def lifespan(app: FastAPI):
             chunks = result.scalars().all()
             # Store as list to avoid lazy-loading issues
             app.state.cached_chunks = list(chunks)
-            logger.info(
-                "Loaded %d chunks in %.2fs", len(chunks), time.time() - start
-            )
+            logger.info("Loaded %d chunks in %.2fs", len(chunks), time.time() - start)
     except Exception as e:
         logger.warning("Chunk caching failed: %s", e)
         app.state.cached_chunks = []
@@ -449,9 +447,7 @@ async def compare_endpoint(request: Request) -> dict[str, Any]:
     reranker = getattr(app.state, "reranker", None)
     cached_chunks = getattr(app.state, "cached_chunks", None)
 
-    classical = ClassicalPipeline(
-        embedding_gen, ollama_client, reranker, cached_chunks
-    )
+    classical = ClassicalPipeline(embedding_gen, ollama_client, reranker, cached_chunks)
     agentic = AgenticPipeline(embedding_gen, ollama_client, reranker)
 
     # Run both concurrently

@@ -30,10 +30,11 @@ class TestOllamaClientInit:
         assert client.model == "alibayram/medgemma"
         assert client.timeout > 0
         assert client.temperature == 0.1
-        assert client.max_tokens == 500
+        assert client.max_tokens == 256
         assert client.top_p == 0.9
-        assert client.num_ctx == 4096
+        assert client.num_ctx == 2048
         assert client.num_thread == 0
+        assert client.keep_alive == "60m"
 
     @pytest.mark.unit
     def test_custom_configuration(self):
