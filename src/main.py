@@ -8,7 +8,6 @@ import json
 import logging
 import os
 import time
-import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -183,8 +182,6 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
     Validates input, redacts PII, runs hybrid retrieval + LLM synthesis,
     redacts PII from output, and returns structured response with citations.
     """
-    start_time = time.time()
-
     body = await request.json()
     question = body.get("question", "")
     max_results = body.get("max_results", 3)
@@ -200,244 +197,29 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
             detail="Query contains potentially unsafe content",
         )
 
-    # PII redaction on input
-    from src.security.pii_redaction import PIIRedactor
+    from src.pipelines.classical import ClassicalPipeline
 
-    redactor = PIIRedactor()
-    question = redactor.redact(question)
-
-    # Check query cache (skip LLM entirely on hit)
-    from src.rag.cache import CacheManager
-
-    cache = CacheManager()
-    try:
-        cached = await cache.get_query_result(question)
-        if cached is not None:
-            elapsed = (time.time() - start_time) * 1000
-            cached["cached"] = True
-            cached["processing_time_ms"] = round(elapsed, 1)
-            return cached
-    except Exception as e:
-        logger.warning("Query cache lookup failed: %s", e)
-
-    # Check embedding model availability
-    embedding_gen = getattr(app.state, "embedding_generator", None)
-    if not embedding_gen:
-        elapsed = (time.time() - start_time) * 1000
-        return {
-            "answer": "Embedding model not available. Please try again later.",
-            "confidence": 0.0,
-            "citations": [],
-            "retrieved_chunks": [],
-            "query_id": "error",
-            "processing_time_ms": round(elapsed, 1),
-        }
-
-    from sqlalchemy import select
-
-    from src.db.models import DocumentChunk
-    from src.db.postgres import AsyncSessionLocal
-    from src.rag.retriever import HybridRetriever, ScoredChunk
-
-    # Generate query embedding
-    try:
-        embeddings = await embedding_gen.generate_embeddings([question], is_query=True)
-        query_embedding = embeddings[0]
-    except Exception as e:
-        logger.warning("Embedding generation failed: %s", e)
-        elapsed = (time.time() - start_time) * 1000
-        return {
-            "answer": "Embedding generation failed. Please try again later.",
-            "confidence": 0.0,
-            "citations": [],
-            "retrieved_chunks": [],
-            "query_id": "error",
-            "processing_time_ms": round(elapsed, 1),
-        }
-
-    # Load all chunks and run hybrid retrieval
-    try:
-        async with AsyncSessionLocal() as session:
-            result = await session.execute(select(DocumentChunk))
-            chunks = result.scalars().all()
-
-            if not chunks:
-                elapsed = (time.time() - start_time) * 1000
-                return {
-                    "answer": "No documents indexed yet. Upload documents first.",
-                    "confidence": 0.0,
-                    "citations": [],
-                    "retrieved_chunks": [],
-                    "query_id": "no_docs",
-                    "processing_time_ms": round(elapsed, 1),
-                }
-
-            retriever = HybridRetriever(chunks, session)
-            search_results = await retriever.search(
-                question, query_embedding, top_k=max_results
-            )
-    except Exception as e:
-        logger.warning("Database query failed: %s", e)
-        elapsed = (time.time() - start_time) * 1000
-        return {
-            "answer": "Database unavailable. Please try again later.",
-            "confidence": 0.0,
-            "citations": [],
-            "retrieved_chunks": [],
-            "query_id": "error",
-            "processing_time_ms": round(elapsed, 1),
-        }
-
-    # Rerank results using FlashRank cross-encoder
-    reranker = getattr(app.state, "reranker", None)
-    if reranker and search_results:
-        try:
-            reranked = await reranker.rerank(
-                question, search_results, top_k=max_results
-            )
-            # Convert RerankedChunk back to ScoredChunk for downstream compatibility
-            search_results = [
-                ScoredChunk(
-                    chunk_id=r.chunk_id,
-                    content=r.content,
-                    document_id=r.document_id,
-                    chunk_index=r.chunk_index,
-                    score=r.final_score,
-                    source=r.source,
-                )
-                for r in reranked
-            ]
-        except Exception as e:
-            logger.warning("Reranking failed, using retrieval order: %s", e)
-
-    # Format retrieved chunks for response and prompt context
-    retrieved_chunks = []
-    prompt_chunks = []
-    for r in search_results:
-        retrieved_chunks.append(
-            {
-                "chunk_id": r.chunk_id,
-                "text": r.content,
-                "document_id": r.document_id,
-                "chunk_index": r.chunk_index,
-                "relevance_score": round(r.score, 4),
-                "source": r.source,
-            }
-        )
-        prompt_chunks.append(
-            {
-                "text": r.content,
-                "metadata": {
-                    "source": r.source,
-                    "chunk_index": r.chunk_index,
-                    "document_id": r.document_id,
-                },
-            }
-        )
-
-    if not search_results:
-        elapsed = (time.time() - start_time) * 1000
-        return {
-            "answer": "No relevant results found for your query.",
-            "confidence": 0.0,
-            "citations": [],
-            "retrieved_chunks": [],
-            "query_id": str(uuid.uuid4())[:8],
-            "processing_time_ms": round(elapsed, 1),
-        }
-
-    # LLM synthesis via Ollama
-    from src.llm.prompt_templates import PromptTemplate
-    from src.llm.response_parser import ResponseParser
-
-    ollama_client = getattr(app.state, "ollama_client", None)
-
-    if ollama_client:
-        try:
-            template = PromptTemplate()
-            prompt = template.build(question=question, chunks=prompt_chunks)
-            raw_response = await ollama_client.generate(prompt)
-
-            if raw_response:
-                parser = ResponseParser()
-                parsed = parser.parse(
-                    raw_response,
-                    retrieved_chunks=[
-                        {"text": c["text"], "source": c["source"]}
-                        for c in retrieved_chunks
-                    ],
-                )
-
-                # Low confidence: return snippets only
-                if parsed.confidence < confidence_threshold:
-                    answer = (
-                        "Confidence too low for synthesis. "
-                        "Relevant snippets are provided in retrieved_chunks."
-                    )
-                else:
-                    answer = parsed.answer
-
-                # PII redaction on LLM output
-                answer = redactor.redact(answer)
-
-                citations = [
-                    {
-                        "document": c.document,
-                        "section": c.section,
-                        "page": c.page,
-                        "relevance_score": round(search_results[0].score, 4),
-                    }
-                    for c in parsed.citations
-                ]
-
-                elapsed = (time.time() - start_time) * 1000
-                response = {
-                    "answer": answer,
-                    "confidence": round(parsed.confidence, 4),
-                    "citations": citations,
-                    "retrieved_chunks": retrieved_chunks,
-                    "query_id": str(uuid.uuid4())[:8],
-                    "processing_time_ms": round(elapsed, 1),
-                    "hallucination_flagged": parsed.has_hallucinated_citations,
-                }
-
-                # Cache the successful response
-                try:
-                    await cache.set_query_result(question, response)
-                except Exception as e:
-                    logger.warning("Failed to cache query result: %s", e)
-
-                return response
-            else:
-                logger.warning(
-                    "Ollama returned empty response, falling back to snippets"
-                )
-        except Exception as e:
-            logger.warning("LLM synthesis failed: %s, falling back to snippets", e)
-
-    # Fallback: return snippets without LLM synthesis
-    confidence = search_results[0].score if search_results else 0.0
-    answer = (
-        f"Found {len(search_results)} relevant chunk(s). "
-        "See retrieved_chunks for details. (LLM synthesis unavailable)"
+    pipeline = ClassicalPipeline(
+        embedding_generator=getattr(app.state, "embedding_generator", None),
+        ollama_client=getattr(app.state, "ollama_client", None),
+        reranker=getattr(app.state, "reranker", None),
     )
+    result = await pipeline.run(question, max_results, confidence_threshold)
 
-    elapsed = (time.time() - start_time) * 1000
-    return {
-        "answer": answer,
-        "confidence": round(confidence, 4),
-        "citations": [
-            {
-                "document_id": r.document_id,
-                "chunk_index": r.chunk_index,
-                "relevance_score": round(r.score, 4),
-            }
-            for r in search_results
-        ],
-        "retrieved_chunks": retrieved_chunks,
-        "query_id": str(uuid.uuid4())[:8],
-        "processing_time_ms": round(elapsed, 1),
+    # Convert PipelineResult to backward-compatible response dict
+    response: dict[str, Any] = {
+        "answer": result.answer,
+        "confidence": result.confidence,
+        "citations": result.citations,
+        "retrieved_chunks": result.retrieved_chunks,
+        "query_id": result.query_id,
+        "processing_time_ms": result.processing_time_ms,
     }
+    if result.hallucination_flagged:
+        response["hallucination_flagged"] = True
+    if result.cached:
+        response["cached"] = True
+    return response
 
 
 @app.post("/api/v1/query/stream", tags=["Query"])
@@ -567,6 +349,145 @@ async def query_stream_endpoint(request: Request):
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
+@app.post("/api/v1/agent/query", tags=["Query"])
+async def agent_query_endpoint(request: Request) -> dict[str, Any]:
+    """
+    Submit a clinical query using the agentic RAG pipeline.
+
+    Classifies the query, decomposes complex queries into sub-queries,
+    performs iterative retrieval, and self-reflects on answer completeness.
+    """
+    import asyncio
+
+    body = await request.json()
+    question = body.get("question", "")
+    max_results = body.get("max_results", 3)
+    confidence_threshold = body.get("confidence_threshold", 0.70)
+
+    # Input validation
+    from src.security.input_validation import InputValidator
+
+    validator = InputValidator()
+    if not validator.is_safe(question):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query contains potentially unsafe content",
+        )
+
+    from src.pipelines.agentic import AgenticPipeline
+
+    pipeline = AgenticPipeline(
+        embedding_generator=getattr(app.state, "embedding_generator", None),
+        ollama_client=getattr(app.state, "ollama_client", None),
+        reranker=getattr(app.state, "reranker", None),
+    )
+    result = await pipeline.run(question, max_results, confidence_threshold)
+
+    return {
+        "answer": result.answer,
+        "confidence": result.confidence,
+        "citations": result.citations,
+        "retrieved_chunks": result.retrieved_chunks,
+        "query_id": result.query_id,
+        "processing_time_ms": result.processing_time_ms,
+        "hallucination_flagged": result.hallucination_flagged,
+        "pipeline": result.pipeline,
+        "steps": result.steps,
+    }
+
+
+@app.post("/api/v1/compare", tags=["Query"])
+async def compare_endpoint(request: Request) -> dict[str, Any]:
+    """
+    Run both classical and agentic pipelines concurrently and return
+    a side-by-side comparison of their results.
+    """
+    import asyncio
+
+    body = await request.json()
+    question = body.get("question", "")
+    max_results = body.get("max_results", 3)
+    confidence_threshold = body.get("confidence_threshold", 0.70)
+
+    # Input validation (run once, not per-pipeline)
+    from src.security.input_validation import InputValidator
+
+    validator = InputValidator()
+    if not validator.is_safe(question):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query contains potentially unsafe content",
+        )
+
+    from src.pipelines.agentic import AgenticPipeline
+    from src.pipelines.classical import ClassicalPipeline
+
+    embedding_gen = getattr(app.state, "embedding_generator", None)
+    ollama_client = getattr(app.state, "ollama_client", None)
+    reranker = getattr(app.state, "reranker", None)
+
+    classical = ClassicalPipeline(embedding_gen, ollama_client, reranker)
+    agentic = AgenticPipeline(embedding_gen, ollama_client, reranker)
+
+    # Run both concurrently
+    classical_result, agentic_result = await asyncio.gather(
+        classical.run(question, max_results, confidence_threshold),
+        agentic.run(question, max_results, confidence_threshold),
+        return_exceptions=True,
+    )
+
+    def _result_to_dict(r):
+        if isinstance(r, Exception):
+            return {
+                "answer": f"Pipeline error: {r}",
+                "confidence": 0.0,
+                "citations": [],
+                "retrieved_chunks": [],
+                "query_id": "error",
+                "processing_time_ms": 0,
+                "hallucination_flagged": False,
+                "pipeline": "error",
+                "steps": [],
+            }
+        return {
+            "answer": r.answer,
+            "confidence": r.confidence,
+            "citations": r.citations,
+            "retrieved_chunks": r.retrieved_chunks,
+            "query_id": r.query_id,
+            "processing_time_ms": r.processing_time_ms,
+            "hallucination_flagged": r.hallucination_flagged,
+            "pipeline": r.pipeline,
+            "steps": r.steps,
+        }
+
+    c_dict = _result_to_dict(classical_result)
+    a_dict = _result_to_dict(agentic_result)
+
+    # Compute comparison metrics
+    c_time = c_dict["processing_time_ms"] or 1
+    a_time = a_dict["processing_time_ms"] or 1
+    c_retrieval_passes = sum(
+        1 for s in c_dict.get("steps", []) if s.get("name") == "retrieve"
+    )
+    a_retrieval_passes = sum(
+        1 for s in a_dict.get("steps", []) if s.get("name") == "retrieve"
+    )
+
+    return {
+        "classical": c_dict,
+        "agentic": a_dict,
+        "comparison": {
+            "latency_ratio": round(a_time / c_time, 2) if c_time else 0,
+            "confidence_delta": round(a_dict["confidence"] - c_dict["confidence"], 4),
+            "classical_retrieval_passes": max(c_retrieval_passes, 1),
+            "agentic_retrieval_passes": max(a_retrieval_passes, 1),
+            "classical_chunks_used": len(c_dict.get("retrieved_chunks", [])),
+            "agentic_chunks_used": len(a_dict.get("retrieved_chunks", [])),
+        },
+    }
+
+
 @app.post("/api/v1/upload", tags=["Documents"])
 async def upload_endpoint(
     file: UploadFile = File(...),
@@ -578,7 +499,7 @@ async def upload_endpoint(
 
     from src.db.models import ClinicalDoc, DocumentChunk
     from src.db.postgres import AsyncSessionLocal
-    from src.rag.chunker import PDFParser, SemanticDocChunker, SmartChunker
+    from src.rag.chunker import PDFParser, SmartChunker
 
     # Validate document type
     if document_type not in {"protocol", "guideline", "reference"}:
@@ -596,20 +517,16 @@ async def upload_endpoint(
     with open(file_path, "wb") as f:
         f.write(content)
 
-    # Parse PDF and chunk text
-    parser = PDFParser()
-    text = parser.parse(str(file_path))
+    import asyncio
 
-    # Use semantic chunking if embedding model is available, otherwise fall back
-    embedding_gen = getattr(app.state, "embedding_generator", None)
-    if embedding_gen:
-        from src.rag.embedding import LangChainEmbeddingAdapter
-
-        lc_embeddings = LangChainEmbeddingAdapter(embedding_gen)
-        chunker = SemanticDocChunker(embedding_model=lc_embeddings)
-    else:
+    # Parse PDF and chunk text (CPU-bound — run in thread pool)
+    def _parse_and_chunk():
+        parser = PDFParser()
+        text = parser.parse(str(file_path))
         chunker = SmartChunker()
-    chunks = chunker.chunk(text, source=file.filename or "unknown")
+        return chunker.chunk(text, source=file.filename or "unknown")
+
+    chunks = await asyncio.to_thread(_parse_and_chunk)
 
     # Parse metadata JSON
     try:
@@ -634,20 +551,26 @@ async def upload_endpoint(
         embeddings = []
         if embedding_gen and chunk_texts:
             try:
-                embeddings = await embedding_gen.generate_embeddings(chunk_texts)
+                embeddings = await embedding_gen.generate_embeddings(
+                    chunk_texts, cache=False
+                )
             except Exception as e:
                 logger.warning("Embedding generation failed: %s", e)
 
-        # Create chunk rows with embeddings
-        for i, chunk in enumerate(chunks):
-            emb = embeddings[i] if i < len(embeddings) else None
-            db_chunk = DocumentChunk(
-                document_id=doc.id,
-                content=chunk.content,
-                chunk_index=i,
-                embedding=emb,
-            )
-            session.add(db_chunk)
+        # Bulk-insert all chunk rows in one statement
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        if chunks:
+            rows = [
+                {
+                    "document_id": doc.id,
+                    "content": chunk.content,
+                    "chunk_index": i,
+                    "embedding": embeddings[i] if i < len(embeddings) else None,
+                }
+                for i, chunk in enumerate(chunks)
+            ]
+            await session.execute(pg_insert(DocumentChunk.__table__), rows)
 
         await session.commit()
         doc_id = doc.id

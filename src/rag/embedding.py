@@ -1,8 +1,8 @@
+import asyncio
 import hashlib
 import logging
 import os
-
-import httpx
+from functools import lru_cache
 
 from src.rag.cache import CacheManager
 
@@ -12,11 +12,32 @@ logger = logging.getLogger(__name__)
 QUERY_PREFIX = "search_query: "
 DOCUMENT_PREFIX = "search_document: "
 
-# Ollama embed API configuration
-DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-DEFAULT_EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "nomic-embed-text")
+# Model configuration
+DEFAULT_EMBEDDING_MODEL = os.environ.get(
+    "EMBEDDING_MODEL_HF", "nomic-ai/nomic-embed-text-v1.5"
+)
 DEFAULT_EMBEDDING_DIMENSION = int(os.environ.get("EMBEDDING_DIMENSION", "768"))
-EMBEDDING_BATCH_SIZE = int(os.environ.get("EMBEDDING_BATCH_SIZE", "32"))
+EMBEDDING_BATCH_SIZE = int(os.environ.get("EMBEDDING_BATCH_SIZE", "64"))
+
+# Keep Ollama config for fallback compatibility
+DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+
+
+@lru_cache(maxsize=1)
+def _load_st_model(model_name: str):
+    """Load sentence-transformers model once and cache it."""
+    from sentence_transformers import SentenceTransformer
+
+    logger.info("Loading sentence-transformers model: %s", model_name)
+    model = SentenceTransformer(model_name, trust_remote_code=True)
+    logger.info("Model loaded — dimension: %d", model.get_sentence_embedding_dimension())
+    return model
+
+
+def _encode_sync(model, texts: list[str], batch_size: int) -> list[list[float]]:
+    """Run model.encode synchronously — designed to be called via to_thread."""
+    embeddings_np = model.encode(texts, batch_size=batch_size, show_progress_bar=False)
+    return [emb.tolist() for emb in embeddings_np]
 
 
 class EmbeddingGenerator:
@@ -29,74 +50,62 @@ class EmbeddingGenerator:
         self.ollama_url = (ollama_url or DEFAULT_OLLAMA_URL).rstrip("/")
         self.cache = CacheManager()
         self.dimension = DEFAULT_EMBEDDING_DIMENSION
+        self._st_model = None
+
+    def _get_model(self):
+        """Lazy-load the sentence-transformers model."""
+        if self._st_model is None:
+            self._st_model = _load_st_model(self.model_name)
+        return self._st_model
 
     async def generate_embeddings(
-        self, texts: list[str], is_query: bool = False
+        self, texts: list[str], is_query: bool = False, cache: bool = True
     ) -> list[list[float]]:
-        """Generate embeddings via the Ollama /api/embed endpoint.
+        """Generate embeddings using sentence-transformers (local, fast).
+
+        Runs the CPU-bound encode in a thread pool so it doesn't block the
+        asyncio event loop.
 
         Args:
             texts: List of text strings to embed.
             is_query: If True, prepend search_query prefix (for retrieval queries).
                       If False, prepend search_document prefix (for documents).
+            cache: If True, write each embedding to Redis. Set False for bulk
+                   uploads where embeddings are persisted in Postgres directly.
         """
         prefix = QUERY_PREFIX if is_query else DOCUMENT_PREFIX
         prefixed_texts = [prefix + t for t in texts]
 
-        all_embeddings: list[list[float]] = []
+        model = self._get_model()
+        all_embeddings = await asyncio.to_thread(
+            _encode_sync, model, prefixed_texts, EMBEDDING_BATCH_SIZE
+        )
 
-        # Process in batches
-        for i in range(0, len(prefixed_texts), EMBEDDING_BATCH_SIZE):
-            batch = prefixed_texts[i : i + EMBEDDING_BATCH_SIZE]
-            batch_embeddings = await self._embed_batch(batch)
-            all_embeddings.extend(batch_embeddings)
-
-        # Cache using original text (not prefixed) as key
-        for text, emb in zip(texts, all_embeddings, strict=True):
-            key = hashlib.sha256(text.encode()).hexdigest()
-            await self.cache.set_embedding(key, emb)
+        if cache:
+            for text, emb in zip(texts, all_embeddings, strict=True):
+                key = hashlib.sha256(text.encode()).hexdigest()
+                await self.cache.set_embedding(key, emb)
 
         return all_embeddings
-
-    async def _embed_batch(self, texts: list[str]) -> list[list[float]]:
-        """Call Ollama /api/embed for a batch of texts."""
-        async with httpx.AsyncClient(timeout=httpx.Timeout(120)) as client:
-            response = await client.post(
-                f"{self.ollama_url}/api/embed",
-                json={"model": self.model_name, "input": texts},
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data["embeddings"]
 
 
 class LangChainEmbeddingAdapter:
     """Adapter to make EmbeddingGenerator compatible with LangChain's Embeddings interface.
 
     Used by SemanticChunker which expects synchronous embed_documents/embed_query.
-    Uses synchronous httpx calls to Ollama.
     """
 
     def __init__(self, generator: EmbeddingGenerator):
         self._generator = generator
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        """Synchronous embedding for documents (used by SemanticChunker)."""
+        """Synchronous embedding for documents."""
         prefixed = [DOCUMENT_PREFIX + t for t in texts]
-        return self._sync_embed(prefixed)
+        model = self._generator._get_model()
+        return _encode_sync(model, prefixed, EMBEDDING_BATCH_SIZE)
 
     def embed_query(self, text: str) -> list[float]:
         """Synchronous embedding for a query."""
         prefixed = [QUERY_PREFIX + text]
-        return self._sync_embed(prefixed)[0]
-
-    def _sync_embed(self, texts: list[str]) -> list[list[float]]:
-        """Synchronous call to Ollama /api/embed."""
-        with httpx.Client(timeout=httpx.Timeout(120)) as client:
-            response = client.post(
-                f"{self._generator.ollama_url}/api/embed",
-                json={"model": self._generator.model_name, "input": texts},
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data["embeddings"]
+        model = self._generator._get_model()
+        return _encode_sync(model, prefixed, EMBEDDING_BATCH_SIZE)[0]

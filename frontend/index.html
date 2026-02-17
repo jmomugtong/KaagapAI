@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MedQuery - Clinical RAG System</title>
-    <link rel="stylesheet" href="styles.css?v=4" />
+    <link rel="stylesheet" href="styles.css?v=6" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
@@ -14,7 +14,7 @@
     <div class="container">
       <header>
         <h1>MedQuery</h1>
-        <p class="subtitle">Production RAG System for Clinical Documentation</p>
+        <p class="subtitle">Classical vs. Agentic RAG for Clinical Documentation</p>
         <div class="status-bar" id="status-bar">
           <span class="status-dot"></span>
           <span id="status-text">Checking services...</span>
@@ -22,13 +22,15 @@
       </header>
 
       <div class="tabs">
-        <button class="tab-btn active" data-tab="query">Query</button>
-        <button class="tab-btn" data-tab="upload">Upload Document</button>
+        <button class="tab-btn active" data-tab="classical">Classical</button>
+        <button class="tab-btn" data-tab="agentic">Agentic</button>
+        <button class="tab-btn tab-compare" data-tab="compare">Compare</button>
+        <button class="tab-btn tab-upload" data-tab="upload">Upload</button>
       </div>
 
       <main>
-        <!-- Query Section -->
-        <section id="query" class="tab-content active">
+        <!-- Query Form (shared across Classical, Agentic, Compare) -->
+        <section id="query-form-section">
           <form id="query-form">
             <div class="form-group">
               <label for="question">Clinical Question</label>
@@ -36,7 +38,7 @@
                 id="question"
                 name="question"
                 rows="3"
-                placeholder="e.g., What is the post-operative pain protocol for knee replacement?"
+                placeholder="e.g., Compare pain protocols for knee vs hip replacement"
                 required
               ></textarea>
             </div>
@@ -72,50 +74,27 @@
               <span class="btn-spinner hidden"></span>
             </button>
           </form>
+        </section>
 
-          <div id="query-results" class="results-area hidden">
-            <!-- Answer Section -->
-            <div class="result-section" id="answer-section">
-              <div class="result-header">
-                <h3>Answer</h3>
-                <div class="meta-pills">
-                  <span class="pill" id="query-time-pill"></span>
-                  <span class="pill" id="query-id-pill"></span>
-                </div>
-              </div>
-              <div id="answer-text" class="answer-box"></div>
-              <div id="hallucination-warning" class="warning-box hidden">
-                Hallucination detected: some citations may reference sources not found in the retrieval set.
-              </div>
-            </div>
+        <!-- Classical Results -->
+        <section id="classical" class="tab-content active">
+          <div id="classical-results" class="results-area hidden"></div>
+        </section>
 
-            <!-- Confidence Section -->
-            <div class="result-section" id="confidence-section">
-              <h3>Confidence</h3>
-              <div class="confidence-bar-container">
-                <div class="confidence-bar" id="confidence-bar">
-                  <span id="confidence-label">0%</span>
-                </div>
-              </div>
-              <span class="confidence-level" id="confidence-level"></span>
-            </div>
+        <!-- Agentic Results -->
+        <section id="agentic" class="tab-content">
+          <div id="agentic-results" class="results-area hidden"></div>
+        </section>
 
-            <!-- Citations Section -->
-            <div class="result-section" id="citations-section">
-              <h3>Citations <span class="count-badge" id="citations-count">0</span></h3>
-              <div id="citations-list" class="citations-grid"></div>
-            </div>
-
-            <!-- Retrieved Chunks Section -->
-            <div class="result-section" id="chunks-section">
-              <h3>Retrieved Chunks <span class="count-badge" id="chunks-count">0</span></h3>
-              <div id="chunks-list" class="chunks-list"></div>
-            </div>
-
-            <!-- Raw JSON Toggle -->
-            <div class="result-section">
-              <button class="btn-link" id="toggle-raw">Show Raw JSON</button>
-              <div id="raw-json" class="json-output hidden"></div>
+        <!-- Compare Results -->
+        <section id="compare" class="tab-content">
+          <div id="compare-results" class="results-area hidden">
+            <!-- Comparison summary bar -->
+            <div class="comparison-summary" id="comparison-summary"></div>
+            <!-- Side-by-side panels -->
+            <div class="compare-panels">
+              <div class="compare-panel classical-panel" id="compare-classical"></div>
+              <div class="compare-panel agentic-panel" id="compare-agentic"></div>
             </div>
           </div>
         </section>
@@ -124,17 +103,25 @@
         <section id="upload" class="tab-content">
           <form id="upload-form">
             <div class="form-group">
-              <label for="file">Select Document (PDF)</label>
+              <label>Select Documents (PDF)</label>
+              <div class="upload-mode-toggle">
+                <button type="button" class="mode-btn active" data-mode="files">Select Files</button>
+                <button type="button" class="mode-btn" data-mode="folder">Select Folder</button>
+              </div>
               <div class="file-drop-zone" id="file-drop-zone">
-                <input type="file" id="file" name="file" accept=".pdf" required />
-                <div class="file-drop-text">
+                <input type="file" id="file-input-files" accept=".pdf" multiple class="file-input-hidden" />
+                <input type="file" id="file-input-folder" accept=".pdf" webkitdirectory class="file-input-hidden hidden" />
+                <div class="file-drop-text" id="file-drop-text">
                   <span class="file-icon">&#128196;</span>
-                  <p>Click to select or drag a PDF file here</p>
+                  <p id="drop-zone-label">Click to select or drag PDF files here</p>
                 </div>
-                <div class="file-selected hidden" id="file-selected">
-                  <span class="file-icon">&#9989;</span>
-                  <p id="file-name-display"></p>
+              </div>
+              <div class="file-list hidden" id="file-list">
+                <div class="file-list-header">
+                  <span id="file-list-count">0 files selected</span>
+                  <button type="button" class="btn-link" id="clear-files-btn">Clear all</button>
                 </div>
+                <div class="file-list-items" id="file-list-items"></div>
               </div>
             </div>
 
@@ -159,38 +146,46 @@
             </div>
 
             <button type="submit" class="btn secondary" id="upload-btn">
-              <span class="btn-text">Upload Document</span>
+              <span class="btn-text">Upload Documents</span>
               <span class="btn-spinner hidden"></span>
             </button>
           </form>
 
+          <!-- Batch Progress -->
+          <div class="batch-progress hidden" id="batch-progress">
+            <div class="batch-progress-header">
+              <span id="batch-progress-label">Uploading 0 of 0...</span>
+              <span id="batch-progress-pct">0%</span>
+            </div>
+            <div class="batch-progress-bar-container">
+              <div class="batch-progress-bar" id="batch-progress-bar"></div>
+            </div>
+            <div class="file-list-items" id="batch-file-statuses"></div>
+          </div>
+
+          <!-- Batch Summary -->
           <div id="upload-results" class="results-area hidden">
             <div class="upload-success" id="upload-success">
               <div class="success-icon">&#10003;</div>
-              <h3>Document Uploaded Successfully</h3>
+              <h3>Batch Upload Complete</h3>
               <div class="upload-details">
                 <div class="detail-row">
-                  <span class="detail-label">Document ID</span>
-                  <span class="detail-value" id="upload-doc-id"></span>
+                  <span class="detail-label">Files Uploaded</span>
+                  <span class="detail-value" id="upload-file-count"></span>
                 </div>
                 <div class="detail-row">
-                  <span class="detail-label">Filename</span>
-                  <span class="detail-value" id="upload-filename"></span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Chunks Created</span>
+                  <span class="detail-label">Total Chunks</span>
                   <span class="detail-value" id="upload-chunks"></span>
                 </div>
                 <div class="detail-row">
-                  <span class="detail-label">Processing Time</span>
+                  <span class="detail-label">Total Time</span>
                   <span class="detail-value" id="upload-time"></span>
                 </div>
+                <div class="detail-row hidden" id="upload-failures-row">
+                  <span class="detail-label">Failed</span>
+                  <span class="detail-value upload-failures-value" id="upload-failures"></span>
+                </div>
               </div>
-            </div>
-            <div class="upload-error hidden" id="upload-error">
-              <div class="error-icon">&#10007;</div>
-              <h3>Upload Failed</h3>
-              <p id="upload-error-msg"></p>
             </div>
           </div>
         </section>
@@ -201,6 +196,6 @@
       </footer>
     </div>
 
-    <script src="app.js?v=4"></script>
+    <script src="app.js?v=6"></script>
   </body>
 </html>

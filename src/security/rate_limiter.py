@@ -74,12 +74,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.limiter = limiter or RateLimiter()
 
     async def dispatch(self, request: Request, call_next):  # type: ignore[no-untyped-def]
-        # Skip rate limiting for health checks and metrics
+        # Skip rate limiting for health checks, metrics, and uploads
         if request.url.path in (
             "/health",
             "/ready",
             "/metrics",
             "/api/v1/evals",
+            "/api/v1/upload",
             "/docs",
             "/redoc",
             "/openapi.json",

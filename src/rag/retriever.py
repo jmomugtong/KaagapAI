@@ -239,12 +239,14 @@ class VectorRetriever:
     ) -> list[ScoredChunk]:
         """Search for chunks by cosine similarity to query embedding."""
         try:
+            # Format vector as pgvector literal: '[1.0,2.0,3.0]'::vector
             embedding_str = "[" + ",".join(str(v) for v in query_embedding) + "]"
             sql = text(
                 "SELECT id, chunk_text, document_id, chunk_index, "
-                "1 - (embedding <=> :query_vector) AS similarity "
+                "1 - (embedding <=> CAST(:query_vector AS vector)) AS similarity "
                 "FROM embeddings_cache "
-                "ORDER BY embedding <=> :query_vector "
+                "WHERE embedding IS NOT NULL "
+                "ORDER BY embedding <=> CAST(:query_vector AS vector) "
                 "LIMIT :top_k"
             )
             result = await self._session.execute(
@@ -263,9 +265,13 @@ class VectorRetriever:
                 )
                 for row in rows
             ]
-        except Exception:
-            logger.warning(
-                "Vector search failed, returning empty results", exc_info=True
+        except Exception as e:
+            logger.error(
+                "Vector search failed: %s (query_vector dim=%d, top_k=%d)",
+                str(e),
+                len(query_embedding),
+                top_k,
+                exc_info=True,
             )
             return []
 
