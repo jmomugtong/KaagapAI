@@ -29,7 +29,11 @@ def _load_st_model(model_name: str):
     from sentence_transformers import SentenceTransformer
 
     logger.info("Loading sentence-transformers model: %s", model_name)
-    model = SentenceTransformer(model_name, trust_remote_code=True)
+    try:
+        model = SentenceTransformer(model_name, trust_remote_code=True)
+    except TypeError:
+        # sentence-transformers < 2.3 doesn't support trust_remote_code
+        model = SentenceTransformer(model_name)
     logger.info("Model loaded — dimension: %d", model.get_sentence_embedding_dimension())
     return model
 

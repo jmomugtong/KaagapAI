@@ -38,7 +38,7 @@ MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system desig
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     CLIENT LAYER                                │
-│  Next.js Frontend: Query Interface + Results Display           │
+│  Web Frontend (HTML/JS/CSS): Query Interface + Results Display │
 └────────────────────┬────────────────────────────────────────────┘
                      │ REST API + JWT Authentication
                      ▼
@@ -150,8 +150,8 @@ Detailed architecture diagrams and pipeline flows:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/medquery.git
-cd medquery
+git clone https://github.com/jmomugtong/MedQuery.git
+cd MedQuery
 ```
 
 ### 2. Environment Setup
@@ -185,8 +185,8 @@ docker-compose ps
 # Download MedGemma model for Ollama (one-time, ~2.5GB)
 docker-compose exec ollama ollama pull alibayram/medgemma
 
-# Download nomic-embed-text embedding model (one-time, ~274MB)
-docker-compose exec ollama ollama pull nomic-embed-text
+# Embedding model (nomic-embed-text-v1.5) runs locally via sentence-transformers
+# and is downloaded automatically on first use — no Ollama pull needed.
 
 # Or pre-download all models for offline deployment:
 python scripts/setup_offline.py
@@ -597,7 +597,7 @@ Model and architecture decisions were guided by recommendations from these AI pr
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
 - [Ollama](https://ollama.ai/) - Local LLM and embedding inference
 - [MedGemma](https://ollama.com/alibayram/medgemma) - Medical-domain LLM
-- [nomic-embed-text](https://ollama.com/library/nomic-embed-text) - Embedding model
+- [nomic-embed-text-v1.5](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) - Embedding model (local, via sentence-transformers)
 - [FlashRank](https://github.com/PrithivirajDamodaran/FlashRank) - Lightweight reranker
 - [pgvector](https://github.com/pgvector/pgvector) - Vector similarity search
 - [LangChain](https://python.langchain.com/) - Document processing & semantic chunking

@@ -66,12 +66,16 @@ class RateLimiter:
         return max(0, RATE_LIMIT - len(active))
 
 
+# Module-level singleton so tests can import and reset it between runs.
+_limiter = RateLimiter()
+
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """FastAPI middleware for rate limiting."""
 
     def __init__(self, app, limiter: RateLimiter | None = None) -> None:  # type: ignore[no-untyped-def]
         super().__init__(app)
-        self.limiter = limiter or RateLimiter()
+        self.limiter = limiter if limiter is not None else _limiter
 
     async def dispatch(self, request: Request, call_next):  # type: ignore[no-untyped-def]
         # Skip rate limiting for health checks, metrics, and uploads

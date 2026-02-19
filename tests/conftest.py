@@ -32,6 +32,15 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 # ============================================
 
 
+@pytest.fixture(autouse=True)
+def reset_rate_limiter() -> Generator[None, None, None]:
+    """Clear in-memory rate limiter counters before each test."""
+    from src.security.rate_limiter import _limiter
+
+    _limiter._counters.clear()
+    yield
+
+
 @pytest.fixture
 def client() -> Generator[TestClient, None, None]:
     """Create a synchronous test client."""
