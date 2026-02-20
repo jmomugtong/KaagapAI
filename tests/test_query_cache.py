@@ -113,3 +113,99 @@ class TestQueryCacheMissHit:
 
         # Should not raise
         await cache.set_query_result("test query", {"answer": "x"})
+
+
+class TestCacheFlushAndClose:
+    """Tests for flush_embeddings, flush_queries, and close methods."""
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_flush_embeddings_returns_key_count(self, mocker):
+        """flush_embeddings deletes all embedding: keys and returns count."""
+        cache = CacheManager()
+        mock_redis = mocker.AsyncMock()
+
+        async def mock_scan_iter(pattern):
+            for key in ["embedding:abc123", "embedding:def456"]:
+                yield key
+
+        mock_redis.scan_iter = mock_scan_iter
+        mocker.patch.object(cache, "_get_redis", return_value=mock_redis)
+
+        count = await cache.flush_embeddings()
+        assert count == 2
+        mock_redis.delete.assert_called_once_with("embedding:abc123", "embedding:def456")
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_flush_embeddings_empty_returns_zero(self, mocker):
+        """flush_embeddings returns 0 and does not call delete when no keys exist."""
+        cache = CacheManager()
+        mock_redis = mocker.AsyncMock()
+
+        async def mock_scan_iter(pattern):
+            return
+            yield  # make it an async generator
+
+        mock_redis.scan_iter = mock_scan_iter
+        mocker.patch.object(cache, "_get_redis", return_value=mock_redis)
+
+        count = await cache.flush_embeddings()
+        assert count == 0
+        mock_redis.delete.assert_not_called()
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_flush_queries_returns_key_count(self, mocker):
+        """flush_queries deletes all query: keys and returns count."""
+        cache = CacheManager()
+        mock_redis = mocker.AsyncMock()
+
+        async def mock_scan_iter(pattern):
+            for key in ["query:aaa", "query:bbb", "query:ccc"]:
+                yield key
+
+        mock_redis.scan_iter = mock_scan_iter
+        mocker.patch.object(cache, "_get_redis", return_value=mock_redis)
+
+        count = await cache.flush_queries()
+        assert count == 3
+        mock_redis.delete.assert_called_once()
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_flush_queries_empty_returns_zero(self, mocker):
+        """flush_queries returns 0 when no query keys exist."""
+        cache = CacheManager()
+        mock_redis = mocker.AsyncMock()
+
+        async def mock_scan_iter(pattern):
+            return
+            yield
+
+        mock_redis.scan_iter = mock_scan_iter
+        mocker.patch.object(cache, "_get_redis", return_value=mock_redis)
+
+        count = await cache.flush_queries()
+        assert count == 0
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_close_closes_redis_and_clears_reference(self, mocker):
+        """close() calls redis.close() and sets _redis to None."""
+        cache = CacheManager()
+        mock_redis = mocker.AsyncMock()
+        cache._redis = mock_redis
+
+        await cache.close()
+
+        mock_redis.close.assert_called_once()
+        assert cache._redis is None
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_close_when_no_connection_does_not_raise(self):
+        """close() is a no-op when _redis is None."""
+        cache = CacheManager()
+        assert cache._redis is None
+        await cache.close()  # Should not raise

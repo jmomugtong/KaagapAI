@@ -293,3 +293,156 @@ class TestClassicalPipeline:
         assert cache_dict["hallucination_flagged"] is True
         assert "pipeline" not in cache_dict
         assert "steps" not in cache_dict
+
+
+# ---------------------------------------------------------------------------
+# Helper shared by LLM synthesis tests
+# ---------------------------------------------------------------------------
+
+
+def _setup_retrieval_mocks(mocker, chunks, search_results):
+    """Patch DB session and HybridRetriever so the pipeline can reach synthesis."""
+    mock_session = mocker.AsyncMock()
+    mock_session.__aenter__ = mocker.AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = mocker.AsyncMock(return_value=False)
+    mocker.patch("src.db.postgres.AsyncSessionLocal", return_value=mock_session)
+
+    mock_retriever = mocker.MagicMock()
+    mock_retriever.search = mocker.AsyncMock(return_value=search_results)
+    mocker.patch("src.rag.retriever.HybridRetriever", return_value=mock_retriever)
+
+
+class TestClassicalPipelineLLMSynthesis:
+    """Tests covering the LLM synthesis branch (lines 279-349 of classical.py)."""
+
+    # ------------------------------------------------------------------
+    # Shared setup: embedding + cache miss + chunks available
+    # ------------------------------------------------------------------
+
+    def _make_pipeline(self, mocker, mock_llm):
+        """Create a ClassicalPipeline with mock embedding and given LLM client."""
+        mock_emb = mocker.AsyncMock()
+        mock_emb.generate_embeddings.return_value = [[0.1] * 768]
+        mocker.patch("src.rag.cache.CacheManager.get_query_result", return_value=None)
+        mocker.patch("src.rag.cache.CacheManager.set_query_result", return_value=None)
+        chunk = _make_chunk(1, "ACE inhibitors are first-line for hypertension", 0.85)
+        _setup_retrieval_mocks(mocker, [chunk], [chunk])
+        return ClassicalPipeline(
+            embedding_generator=mock_emb,
+            ollama_client=mock_llm,
+            reranker=None,
+            cached_chunks=[chunk],
+        )
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_llm_synthesis_happy_path(self, mocker):
+        """LLM returns a high-confidence response — answer and citations come through."""
+        mock_llm = mocker.AsyncMock()
+        mock_llm.generate.return_value = (
+            "ACE inhibitors are recommended for hypertension. "
+            "[Guidelines v1, Section 1, p. 1]\nConfidence: 0.90"
+        )
+        pipeline = self._make_pipeline(mocker, mock_llm)
+        result = await pipeline.run("What is the first-line for hypertension?")
+
+        assert result.pipeline == "classical"
+        assert result.confidence >= 0.70
+        assert "ACE inhibitors" in result.answer
+        assert result.cached is False
+        # synthesize step should be recorded
+        step_names = [s["name"] for s in result.steps]
+        assert "synthesize" in step_names
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_low_confidence_returns_snippets_message(self, mocker):
+        """When LLM confidence < threshold, answer says 'Confidence too low'."""
+        mock_llm = mocker.AsyncMock()
+        mock_llm.generate.return_value = (
+            "I am not sure about this.\nConfidence: 0.30"
+        )
+        pipeline = self._make_pipeline(mocker, mock_llm)
+        result = await pipeline.run(
+            "What is the first-line for hypertension?",
+            confidence_threshold=0.70,
+        )
+
+        assert "Confidence too low" in result.answer
+        assert result.pipeline == "classical"
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_ollama_unavailable_falls_back_to_snippets(self, mocker):
+        """LLM raises → pipeline falls back to snippet-only answer."""
+        mock_llm = mocker.AsyncMock()
+        mock_llm.generate.side_effect = Exception("Ollama connection refused")
+        pipeline = self._make_pipeline(mocker, mock_llm)
+        result = await pipeline.run("What is the first-line for hypertension?")
+
+        assert "LLM synthesis unavailable" in result.answer
+        assert result.pipeline == "classical"
+        assert len(result.retrieved_chunks) > 0
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_empty_llm_response_falls_back(self, mocker):
+        """LLM returns None/empty → pipeline falls back to snippet-only answer."""
+        mock_llm = mocker.AsyncMock()
+        mock_llm.generate.return_value = None
+        pipeline = self._make_pipeline(mocker, mock_llm)
+        result = await pipeline.run("What is the first-line for hypertension?")
+
+        assert "LLM synthesis unavailable" in result.answer
+        assert result.pipeline == "classical"
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_result_is_cached_after_synthesis(self, mocker):
+        """After successful synthesis, cache.set_query_result must be called once."""
+        mock_llm = mocker.AsyncMock()
+        mock_llm.generate.return_value = (
+            "ACE inhibitors are recommended.\nConfidence: 0.85"
+        )
+        mock_emb = mocker.AsyncMock()
+        mock_emb.generate_embeddings.return_value = [[0.1] * 768]
+        mocker.patch("src.rag.cache.CacheManager.get_query_result", return_value=None)
+        mock_set_cache = mocker.patch(
+            "src.rag.cache.CacheManager.set_query_result", return_value=None
+        )
+        chunk = _make_chunk(1, "ACE inhibitors for hypertension", 0.85)
+        _setup_retrieval_mocks(mocker, [chunk], [chunk])
+
+        pipeline = ClassicalPipeline(
+            embedding_generator=mock_emb,
+            ollama_client=mock_llm,
+            reranker=None,
+            cached_chunks=[chunk],
+        )
+        result = await pipeline.run("What is the first-line for hypertension?")
+
+        assert result.confidence > 0.0
+        mock_set_cache.assert_called_once()
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_no_search_results_returns_no_relevant_results(self, mocker):
+        """When retriever returns empty list, answer says 'No relevant results'."""
+        mock_llm = mocker.AsyncMock()
+        mock_emb = mocker.AsyncMock()
+        mock_emb.generate_embeddings.return_value = [[0.1] * 768]
+        mocker.patch("src.rag.cache.CacheManager.get_query_result", return_value=None)
+        # Retriever returns no results
+        chunk = _make_chunk(1, "some content", 0.85)
+        _setup_retrieval_mocks(mocker, [chunk], [])
+
+        pipeline = ClassicalPipeline(
+            embedding_generator=mock_emb,
+            ollama_client=mock_llm,
+            reranker=None,
+            cached_chunks=[chunk],
+        )
+        result = await pipeline.run("What is the first-line for hypertension?")
+
+        assert "No relevant results" in result.answer
+        assert result.confidence == 0.0

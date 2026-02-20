@@ -17,13 +17,13 @@
 
 ## Overview
 
-MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system designed to surface evidence-based clinical answers from medical documentation. Built 100% with open-source models, achieving sub-2 second response times and 95%+ relevance while maintaining zero external API costs.
+MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system designed to surface evidence-based clinical answers from medical documentation. Built 100% with open-source models with zero external API costs. Cached queries respond in <200ms; cold CPU-only queries (MedGemma 4B, no GPU) take 25–30 s. Evaluation targets: ROUGE-L ≥0.60, hallucination <5% (unverified, pending indexed dataset).
 
 ### Key Features
 
 - **Dual RAG Pipelines**: Classical RAG (hybrid retrieval + reranking) and Agentic RAG (ReAct-style reasoning with query decomposition)
-- **Fast Responses**: Query latency p95 < 2 seconds, cached queries < 200ms
-- **High Accuracy**: ROUGE-L score >= 0.60, hallucination rate < 5%
+- **Fast Cached Responses**: Cached queries < 200ms; cold CPU-only queries 25–30 s (no GPU)
+- **Accuracy Targets**: ROUGE-L ≥ 0.60, hallucination rate < 5% (targets, unverified pending indexed dataset)
 - **Batch Document Upload**: Multi-file and folder upload with concurrent processing (3 parallel uploads)
 - **Comparison Mode**: Side-by-side comparison of Classical vs Agentic pipeline results
 - **HIPAA Compliant**: PII redaction, audit logging, row-level security
@@ -95,7 +95,7 @@ MedQuery provides two RAG pipeline implementations for different query complexit
 - "What are the contraindications for metformin?"
 - "Recommended dosage for ACE inhibitors in elderly patients"
 
-**Performance**: <2s p95, <200ms cached
+**Performance**: <200ms cached; 25–30 s cold on CPU-only (no GPU)
 
 ### Agentic RAG Pipeline
 
@@ -441,10 +441,11 @@ medquery/
 
 | Metric | Target | Description |
 |--------|--------|-------------|
-| Query Latency (p95) | < 2s | 95th percentile response time |
+| Cached Query Latency | < 200ms | Repeated query response time (Redis cache) |
+| Cold Query Latency (CPU) | 25–30 s | First query on CPU-only hardware (no GPU) |
 | Cache Hit Rate | > 70% | Embedding cache efficiency |
-| Hallucination Rate | < 5% | False citation detection |
-| ROUGE-L Score | ≥ 0.60 | Answer relevance |
+| Hallucination Rate | < 5% | False citation detection (target, unverified) |
+| ROUGE-L Score | ≥ 0.60 | Answer relevance (target, unverified) |
 
 ### Grafana Dashboards
 

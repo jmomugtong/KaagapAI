@@ -6,8 +6,14 @@ import pytest
 
 from src.pipelines.agentic import AgenticPipeline
 from src.pipelines.classical import PipelineResult
-from src.pipelines.prompts import DECOMPOSE_COUNTS, MAX_SUB_QUERIES, VALID_QUERY_TYPES
+from src.pipelines.prompts import (
+    DECOMPOSE_COUNTS,
+    MAX_SUB_QUERIES,
+    VALID_QUERY_TYPES,
+    build_synthesis_prompt,
+)
 from src.rag.retriever import ScoredChunk
+from src.security.pii_redaction import PIIRedactor
 
 
 def _make_chunk(chunk_id: int, content: str, score: float) -> ScoredChunk:
@@ -420,3 +426,301 @@ class TestPromptConstants:
         assert MAX_SUB_QUERIES == 4
         for count in DECOMPOSE_COUNTS.values():
             assert count <= MAX_SUB_QUERIES
+
+
+class TestBuildSynthesisPrompt:
+    """Tests for build_synthesis_prompt covering all query types."""
+
+    @pytest.mark.unit
+    def test_comparative_includes_special_instructions(self):
+        prompt = build_synthesis_prompt("Compare A vs B", "some context", "COMPARATIVE")
+        assert "SPECIAL INSTRUCTIONS" in prompt
+        assert "comparison" in prompt.lower()
+
+    @pytest.mark.unit
+    def test_multi_step_includes_special_instructions(self):
+        prompt = build_synthesis_prompt("Multi-step question", "context", "MULTI_STEP")
+        assert "SPECIAL INSTRUCTIONS" in prompt
+        assert "different sources" in prompt.lower()
+
+    @pytest.mark.unit
+    def test_temporal_includes_special_instructions(self):
+        prompt = build_synthesis_prompt("How has it changed?", "context", "TEMPORAL")
+        assert "SPECIAL INSTRUCTIONS" in prompt
+        assert "chronologically" in prompt.lower()
+
+    @pytest.mark.unit
+    def test_simple_has_no_special_instructions(self):
+        prompt = build_synthesis_prompt("Simple question", "context", "SIMPLE")
+        assert "SPECIAL INSTRUCTIONS" not in prompt
+
+    @pytest.mark.unit
+    def test_unknown_type_has_no_special_instructions(self):
+        prompt = build_synthesis_prompt("Question", "context", "UNKNOWN")
+        assert "SPECIAL INSTRUCTIONS" not in prompt
+
+    @pytest.mark.unit
+    def test_prompt_includes_question_and_context(self):
+        prompt = build_synthesis_prompt("test question", "test context", "SIMPLE")
+        assert "test question" in prompt
+        assert "test context" in prompt
+
+
+class TestSynthesize:
+    """Tests for the _synthesize method."""
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_synthesize_without_llm_returns_fallback(self):
+        pipeline = AgenticPipeline(None, None, None)
+        redactor = PIIRedactor()
+        chunks = [_make_chunk(1, "chunk content", 0.8)]
+        answer, confidence, citations, flagged = await pipeline._synthesize(
+            "test question", chunks, "SIMPLE", 0.7, redactor
+        )
+        assert "Found 1 relevant chunk" in answer
+        assert citations == []
+        assert not flagged
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_synthesize_without_llm_empty_chunks(self):
+        pipeline = AgenticPipeline(None, None, None)
+        redactor = PIIRedactor()
+        answer, confidence, citations, flagged = await pipeline._synthesize(
+            "test question", [], "SIMPLE", 0.7, redactor
+        )
+        assert confidence == 0.0
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_synthesize_with_llm_success(self, mocker):
+        mock_llm = mocker.AsyncMock()
+        mock_llm.generate.return_value = "The answer is X.\nConfidence: 0.90"
+        pipeline = AgenticPipeline(None, mock_llm, None)
+        redactor = PIIRedactor()
+        chunks = [_make_chunk(1, "relevant content", 0.85)]
+        answer, confidence, citations, flagged = await pipeline._synthesize(
+            "test question", chunks, "SIMPLE", 0.7, redactor
+        )
+        assert isinstance(answer, str)
+        assert isinstance(confidence, float)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_synthesize_with_llm_empty_response_falls_back(self, mocker):
+        mock_llm = mocker.AsyncMock()
+        mock_llm.generate.return_value = None
+        pipeline = AgenticPipeline(None, mock_llm, None)
+        redactor = PIIRedactor()
+        chunks = [_make_chunk(1, "content", 0.8)]
+        answer, confidence, citations, flagged = await pipeline._synthesize(
+            "test question", chunks, "SIMPLE", 0.7, redactor
+        )
+        assert "Found 1 relevant chunk" in answer
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_synthesize_with_llm_failure_falls_back(self, mocker):
+        mock_llm = mocker.AsyncMock()
+        mock_llm.generate.side_effect = Exception("LLM error")
+        pipeline = AgenticPipeline(None, mock_llm, None)
+        redactor = PIIRedactor()
+        chunks = [_make_chunk(1, "content", 0.8)]
+        answer, confidence, citations, flagged = await pipeline._synthesize(
+            "test question", chunks, "SIMPLE", 0.7, redactor
+        )
+        assert "Found 1 relevant chunk" in answer
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_synthesize_low_confidence_returns_snippets_message(self, mocker):
+        mock_llm = mocker.AsyncMock()
+        mock_llm.generate.return_value = "Uncertain answer.\nConfidence: 0.30"
+        pipeline = AgenticPipeline(None, mock_llm, None)
+        redactor = PIIRedactor()
+        chunks = [_make_chunk(1, "content", 0.8)]
+        answer, confidence, citations, flagged = await pipeline._synthesize(
+            "test question", chunks, "SIMPLE", 0.70, redactor
+        )
+        assert "Confidence too low" in answer or isinstance(answer, str)
+
+
+class TestAgenticFullRun:
+    """Tests for the full agentic pipeline run() covering retrieval and synthesis paths."""
+
+    def _make_session_mock(self, mocker, db_chunks):
+        """Helper to create a mock DB session that returns the given chunks."""
+        mock_session = mocker.AsyncMock()
+        mock_result = mocker.MagicMock()
+        mock_result.scalars.return_value.all.return_value = db_chunks
+        mock_session.execute.return_value = mock_result
+
+        mock_session_ctx = mocker.AsyncMock()
+        mock_session_ctx.__aenter__ = mocker.AsyncMock(return_value=mock_session)
+        mock_session_ctx.__aexit__ = mocker.AsyncMock(return_value=False)
+        return mock_session_ctx
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_full_pipeline_with_chunks_and_synthesis(self, mocker):
+        """Happy path: DB has chunks, retrieval finds results, LLM synthesizes."""
+        mock_emb = mocker.AsyncMock()
+        mock_emb.generate_embeddings.return_value = [[0.1] * 768]
+
+        mock_llm = mocker.AsyncMock()
+        mock_llm.generate.side_effect = [
+            "SIMPLE",                             # classify
+            "The dosage is 500mg.\nConfidence: 0.90",  # synthesize
+        ]
+
+        mock_db_chunk = mocker.MagicMock()
+        mock_db_chunk.chunk_id = 1
+        mock_db_chunk.content = "Amoxicillin dosage: 500mg three times daily"
+        mock_db_chunk.document_id = 1
+        mock_db_chunk.chunk_index = 0
+        mock_db_chunk.embedding = [0.1] * 768
+
+        session_ctx = self._make_session_mock(mocker, [mock_db_chunk])
+        mocker.patch("src.db.postgres.AsyncSessionLocal", return_value=session_ctx)
+
+        scored = _make_chunk(1, "Amoxicillin dosage: 500mg three times daily", 0.85)
+        mock_retriever = mocker.AsyncMock()
+        mock_retriever.search.return_value = [scored]
+        mocker.patch("src.rag.retriever.HybridRetriever", return_value=mock_retriever)
+
+        pipeline = AgenticPipeline(mock_emb, mock_llm, None)
+        result = await pipeline.run("What is the dosage for amoxicillin?")
+
+        assert result.pipeline == "agentic"
+        assert len(result.retrieved_chunks) > 0
+        step_names = [s["name"] for s in result.steps]
+        assert "deduplicate" in step_names
+        assert "synthesize" in step_names
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_full_pipeline_database_failure(self, mocker):
+        """Database exception produces error response."""
+        mock_emb = mocker.AsyncMock()
+        mock_emb.generate_embeddings.return_value = [[0.1] * 768]
+
+        mock_llm = mocker.AsyncMock()
+        mock_llm.generate.return_value = "SIMPLE"
+
+        mocker.patch(
+            "src.db.postgres.AsyncSessionLocal",
+            side_effect=Exception("DB connection refused"),
+        )
+
+        pipeline = AgenticPipeline(mock_emb, mock_llm, None)
+        result = await pipeline.run("What is the dosage?")
+
+        assert result.pipeline == "agentic"
+        assert "unavailable" in result.answer.lower() or result.confidence == 0.0
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_full_pipeline_empty_retrieval_returns_no_results(self, mocker):
+        """Retrieval returns zero results → 'No relevant results' response."""
+        mock_emb = mocker.AsyncMock()
+        mock_emb.generate_embeddings.return_value = [[0.1] * 768]
+
+        mock_llm = mocker.AsyncMock()
+        mock_llm.generate.return_value = "SIMPLE"
+
+        mock_db_chunk = mocker.MagicMock()
+        mock_db_chunk.chunk_id = 1
+        mock_db_chunk.content = "content"
+        mock_db_chunk.document_id = 1
+        mock_db_chunk.chunk_index = 0
+        mock_db_chunk.embedding = [0.1] * 768
+
+        session_ctx = self._make_session_mock(mocker, [mock_db_chunk])
+        mocker.patch("src.db.postgres.AsyncSessionLocal", return_value=session_ctx)
+
+        # Retriever returns no results
+        mock_retriever = mocker.AsyncMock()
+        mock_retriever.search.return_value = []
+        mocker.patch("src.rag.retriever.HybridRetriever", return_value=mock_retriever)
+
+        pipeline = AgenticPipeline(mock_emb, mock_llm, None)
+        result = await pipeline.run("What is the dosage?")
+
+        assert result.pipeline == "agentic"
+        assert result.confidence == 0.0
+        assert "No relevant results" in result.answer
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_full_pipeline_non_simple_decompose(self, mocker):
+        """Non-SIMPLE query triggers _decompose (covers line 93)."""
+        mock_emb = mocker.AsyncMock()
+        mock_emb.generate_embeddings.return_value = [[0.1] * 768]
+
+        mock_llm = mocker.AsyncMock()
+        mock_llm.generate.side_effect = [
+            "COMPARATIVE",          # classify
+            "1. knee protocol\n2. hip protocol",  # decompose
+            "The answer.\nConfidence: 0.85",       # synthesize
+        ]
+
+        mock_db_chunk = mocker.MagicMock()
+        mock_db_chunk.chunk_id = 1
+        mock_db_chunk.content = "clinical content"
+        mock_db_chunk.document_id = 1
+        mock_db_chunk.chunk_index = 0
+        mock_db_chunk.embedding = [0.1] * 768
+
+        session_ctx = self._make_session_mock(mocker, [mock_db_chunk])
+        mocker.patch("src.db.postgres.AsyncSessionLocal", return_value=session_ctx)
+
+        scored = _make_chunk(1, "clinical content", 0.80)
+        mock_retriever = mocker.AsyncMock()
+        mock_retriever.search.return_value = [scored]
+        mocker.patch("src.rag.retriever.HybridRetriever", return_value=mock_retriever)
+
+        pipeline = AgenticPipeline(mock_emb, mock_llm, None)
+        result = await pipeline.run("Compare knee vs hip pain protocols")
+
+        assert result.pipeline == "agentic"
+        step_names = [s["name"] for s in result.steps]
+        assert "classify" in step_names
+        assert "decompose" in step_names
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_full_pipeline_reflect_sufficient_path(self, mocker):
+        """High-confidence answer takes the 'else' branch in reflection (lines 333-340)."""
+        mock_emb = mocker.AsyncMock()
+        mock_emb.generate_embeddings.return_value = [[0.1] * 768]
+
+        mock_llm = mocker.AsyncMock()
+        mock_llm.generate.side_effect = [
+            "SIMPLE",
+            "Confident answer.\nConfidence: 0.95",
+        ]
+
+        mock_db_chunk = mocker.MagicMock()
+        mock_db_chunk.chunk_id = 1
+        mock_db_chunk.content = "content"
+        mock_db_chunk.document_id = 1
+        mock_db_chunk.chunk_index = 0
+        mock_db_chunk.embedding = [0.1] * 768
+
+        session_ctx = self._make_session_mock(mocker, [mock_db_chunk])
+        mocker.patch("src.db.postgres.AsyncSessionLocal", return_value=session_ctx)
+
+        scored = _make_chunk(1, "content", 0.95)
+        mock_retriever = mocker.AsyncMock()
+        mock_retriever.search.return_value = [scored]
+        mocker.patch("src.rag.retriever.HybridRetriever", return_value=mock_retriever)
+
+        pipeline = AgenticPipeline(mock_emb, mock_llm, None)
+        result = await pipeline.run("Simple question?", confidence_threshold=0.70)
+
+        assert result.pipeline == "agentic"
+        # High confidence → reflect step should say SUFFICIENT (no LLM call for reflect)
+        reflect_steps = [s for s in result.steps if s["name"] == "reflect"]
+        assert len(reflect_steps) == 1
+        assert reflect_steps[0]["detail"] == "SUFFICIENT"

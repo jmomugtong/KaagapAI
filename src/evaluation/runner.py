@@ -7,6 +7,7 @@ Runs evaluation metrics against a QA dataset:
 - Retrieval Recall: % correct doc in top-5 (target > 90%)
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -51,6 +52,29 @@ def compute_rouge_l(prediction: str, reference: str) -> float:
     return round(f1, 4)
 
 
+def _run_pipeline_for_question(question: str) -> object | None:
+    """Run the classical pipeline for a single question.
+
+    Returns a PipelineResult or None if the pipeline is unavailable.
+    """
+    try:
+        from src.pipelines.classical import ClassicalPipeline
+
+        pipeline = ClassicalPipeline(
+            embedding_generator=None,
+            ollama_client=None,
+            reranker=None,
+        )
+
+        async def _run():
+            return await pipeline.run(question)
+
+        return asyncio.run(_run())
+    except Exception as e:
+        logger.warning("Pipeline execution failed for question %r: %s", question, e)
+        return None
+
+
 class EvaluationRunner:
     """Runs evaluation suite against clinical QA datasets."""
 
@@ -80,34 +104,85 @@ class EvaluationRunner:
                 "metrics": {},
             }
 
-        rouge_scores = []
+        rouge_scores: list[float] = []
+        hallucination_flags: list[bool] = []
+        recall_hits: list[bool] = []
+        skipped = 0
+
         for q in questions:
+            query_text = q.get("query", q.get("question", ""))
             ground_truth = q.get("ground_truth", "")
-            # In a full pipeline, we'd query the system and compare
-            # For now, compute ROUGE-L against ground truth as a self-check
-            predicted = q.get("predicted", ground_truth)
+            expected_sources: list[str] = q.get("expected_sources", [])
+
+            # Run the pipeline to get a real prediction
+            result = _run_pipeline_for_question(query_text)
+
+            if result is None:
+                skipped += 1
+                logger.warning(
+                    "Skipping question %r — pipeline unavailable", q.get("id", "?")
+                )
+                continue
+
+            predicted = result.answer  # type: ignore[union-attr]
             score = compute_rouge_l(predicted, ground_truth)
             rouge_scores.append(score)
 
-        avg_rouge = sum(rouge_scores) / len(rouge_scores) if rouge_scores else 0.0
+            # Hallucination: flagged by the pipeline's own detection
+            hallucination_flags.append(bool(result.hallucination_flagged))  # type: ignore[union-attr]
+
+            # Retrieval recall: any expected source found in retrieved chunks
+            retrieved_sources = {
+                str(c.get("source", ""))
+                for c in (result.retrieved_chunks or [])  # type: ignore[union-attr]
+            }
+            hit = any(src in retrieved_sources for src in expected_sources)
+            recall_hits.append(hit)
+
+        evaluated = len(rouge_scores)
+
+        if evaluated == 0:
+            logger.warning(
+                "No questions could be evaluated. "
+                "Ensure the API is running and documents are indexed."
+            )
+            return {
+                "status": "no_results",
+                "message": (
+                    "All questions skipped — pipeline unavailable or no documents indexed. "
+                    "Start the API and upload documents before running evals."
+                ),
+                "skipped": skipped,
+                "metrics": {},
+            }
+
+        avg_rouge = sum(rouge_scores) / evaluated
+        hallucination_rate = sum(hallucination_flags) / evaluated
+        retrieval_recall = sum(recall_hits) / evaluated
 
         results = {
             "status": "completed",
             "total_questions": len(questions),
+            "evaluated": evaluated,
+            "skipped": skipped,
             "metrics": {
                 "rouge_l_avg": round(avg_rouge, 4),
                 "rouge_l_pass": avg_rouge >= ROUGE_L_THRESHOLD,
-                "hallucination_rate": 0.0,
-                "hallucination_pass": True,
-                "retrieval_recall": 1.0,
-                "retrieval_recall_pass": True,
+                "hallucination_rate": round(hallucination_rate, 4),
+                "hallucination_pass": hallucination_rate <= HALLUCINATION_THRESHOLD,
+                "retrieval_recall": round(retrieval_recall, 4),
+                "retrieval_recall_pass": retrieval_recall >= RETRIEVAL_RECALL_THRESHOLD,
             },
             "thresholds": {
                 "rouge_l": ROUGE_L_THRESHOLD,
                 "hallucination_rate": HALLUCINATION_THRESHOLD,
                 "retrieval_recall": RETRIEVAL_RECALL_THRESHOLD,
             },
-            "pass": avg_rouge >= ROUGE_L_THRESHOLD,
+            "pass": (
+                avg_rouge >= ROUGE_L_THRESHOLD
+                and hallucination_rate <= HALLUCINATION_THRESHOLD
+                and retrieval_recall >= RETRIEVAL_RECALL_THRESHOLD
+            ),
         }
 
         return results

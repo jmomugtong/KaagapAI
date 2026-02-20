@@ -1,201 +1,296 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MedQuery - Clinical RAG System</title>
-    <link rel="stylesheet" href="styles.css?v=6" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <title>MedQuery — Clinical RAG System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              brand: { 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb' }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* Timeline connector lines */
+      .timeline-item:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        left: 11px;
+        top: 28px;
+        width: 2px;
+        bottom: -8px;
+        background: #374151;
+      }
+      /* Scrollbar */
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: #111827; }
+      ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+    </style>
   </head>
-  <body>
-    <div class="container">
-      <header>
-        <h1>MedQuery</h1>
-        <p class="subtitle">Classical vs. Agentic RAG for Clinical Documentation</p>
-        <div class="status-bar" id="status-bar">
-          <span class="status-dot"></span>
-          <span id="status-text">Checking services...</span>
+  <body class="bg-gray-950 text-gray-100 min-h-screen font-sans antialiased">
+
+    <!-- Header -->
+    <header class="border-b border-gray-800 bg-gray-900/80 backdrop-blur sticky top-0 z-10">
+      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="text-xl font-bold text-white">MedQuery</span>
+          <span class="text-xs text-gray-500 hidden sm:block">Clinical RAG · v0.1.0</span>
         </div>
-      </header>
-
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="classical">Classical</button>
-        <button class="tab-btn" data-tab="agentic">Agentic</button>
-        <button class="tab-btn tab-compare" data-tab="compare">Compare</button>
-        <button class="tab-btn tab-upload" data-tab="upload">Upload</button>
+        <div id="status-badge" class="flex items-center gap-2 text-sm">
+          <span id="status-dot" class="w-2 h-2 rounded-full bg-gray-600 animate-pulse"></span>
+          <span id="status-text" class="text-gray-400">Checking…</span>
+        </div>
       </div>
+    </header>
 
-      <main>
-        <!-- Query Form (shared across Classical, Agentic, Compare) -->
-        <section id="query-form-section">
-          <form id="query-form">
-            <div class="form-group">
-              <label for="question">Clinical Question</label>
-              <textarea
-                id="question"
-                name="question"
-                rows="3"
-                placeholder="e.g., Compare pain protocols for knee vs hip replacement"
-                required
-              ></textarea>
+    <!-- Main layout -->
+    <div class="max-w-6xl mx-auto px-4 py-6">
+
+      <!-- Tab bar -->
+      <nav class="flex gap-1 mb-6 border-b border-gray-800 pb-0">
+        <button data-tab="query"   class="tab-btn px-4 py-2 text-sm font-medium rounded-t border-b-2 transition-colors">Query</button>
+        <button data-tab="agentic" class="tab-btn px-4 py-2 text-sm font-medium rounded-t border-b-2 transition-colors">Agentic</button>
+        <button data-tab="compare" class="tab-btn px-4 py-2 text-sm font-medium rounded-t border-b-2 transition-colors">Compare</button>
+        <button data-tab="upload"  class="tab-btn px-4 py-2 text-sm font-medium rounded-t border-b-2 transition-colors">Upload</button>
+        <button data-tab="monitor" class="tab-btn px-4 py-2 text-sm font-medium rounded-t border-b-2 transition-colors">Monitor</button>
+      </nav>
+
+      <!-- ======================================
+           TAB: Query (Classical RAG)
+      ====================================== -->
+      <section id="tab-query" class="tab-pane hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Form -->
+          <div class="lg:col-span-1">
+            <div class="bg-gray-900 rounded-xl border border-gray-800 p-5">
+              <h2 class="text-base font-semibold text-gray-200 mb-4">Classical RAG</h2>
+              <form id="query-form" class="space-y-4">
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Clinical Question</label>
+                  <textarea id="q-question" rows="4" placeholder="What is the first-line treatment for hypertension?"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs text-gray-400 mb-1">Max Results</label>
+                    <input type="range" id="q-max" min="1" max="10" value="5" class="w-full accent-blue-500" oninput="document.getElementById('q-max-val').textContent=this.value" />
+                    <span class="text-xs text-gray-500">n = <span id="q-max-val">5</span></span>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-400 mb-1">Confidence Threshold</label>
+                    <input type="range" id="q-conf" min="0" max="1" step="0.05" value="0.7" class="w-full accent-blue-500" oninput="document.getElementById('q-conf-val').textContent=parseFloat(this.value).toFixed(2)" />
+                    <span class="text-xs text-gray-500"><span id="q-conf-val">0.70</span></span>
+                  </div>
+                </div>
+                <button type="submit" id="q-btn"
+                  class="w-full bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white text-sm font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+                  <span id="q-btn-text">Submit Query</span>
+                  <svg id="q-spinner" class="hidden w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                  </svg>
+                </button>
+              </form>
             </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label for="max_results">Max Results</label>
-                <input
-                  type="number"
-                  id="max_results"
-                  name="max_results"
-                  value="5"
-                  min="1"
-                  max="10"
-                />
-              </div>
-              <div class="form-group">
-                <label for="confidence_threshold">Confidence Threshold</label>
-                <input
-                  type="number"
-                  id="confidence_threshold"
-                  name="confidence_threshold"
-                  value="0.7"
-                  step="0.05"
-                  min="0"
-                  max="1"
-                />
-              </div>
+          </div>
+          <!-- Result -->
+          <div class="lg:col-span-2">
+            <div id="query-result" class="hidden bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-4"></div>
+            <div id="query-placeholder" class="flex items-center justify-center h-48 text-gray-600 text-sm">
+              Submit a query to see results
             </div>
+          </div>
+        </div>
+      </section>
 
-            <button type="submit" class="btn primary" id="query-btn">
-              <span class="btn-text">Submit Query</span>
-              <span class="btn-spinner hidden"></span>
+      <!-- ======================================
+           TAB: Agentic RAG
+      ====================================== -->
+      <section id="tab-agentic" class="tab-pane hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Form -->
+          <div class="lg:col-span-1">
+            <div class="bg-gray-900 rounded-xl border border-gray-800 p-5">
+              <h2 class="text-base font-semibold text-gray-200 mb-4">Agentic RAG</h2>
+              <form id="agentic-form" class="space-y-4">
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Clinical Question</label>
+                  <textarea id="a-question" rows="4" placeholder="Compare hypertension vs diabetes first-line treatments"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs text-gray-400 mb-1">Max Results</label>
+                    <input type="range" id="a-max" min="1" max="10" value="5" class="w-full accent-blue-500" oninput="document.getElementById('a-max-val').textContent=this.value" />
+                    <span class="text-xs text-gray-500">n = <span id="a-max-val">5</span></span>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-400 mb-1">Confidence Threshold</label>
+                    <input type="range" id="a-conf" min="0" max="1" step="0.05" value="0.7" class="w-full accent-blue-500" oninput="document.getElementById('a-conf-val').textContent=parseFloat(this.value).toFixed(2)" />
+                    <span class="text-xs text-gray-500"><span id="a-conf-val">0.70</span></span>
+                  </div>
+                </div>
+                <button type="submit" id="a-btn"
+                  class="w-full bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white text-sm font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+                  <span id="a-btn-text">Submit Agentic Query</span>
+                  <svg id="a-spinner" class="hidden w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </div>
+          <!-- Result -->
+          <div class="lg:col-span-2 space-y-4">
+            <div id="agentic-result" class="hidden bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-4"></div>
+            <div id="agentic-steps-panel" class="hidden bg-gray-900 rounded-xl border border-gray-800 p-5">
+              <h3 class="text-sm font-semibold text-gray-300 mb-4">Reasoning Steps</h3>
+              <div id="agentic-steps"></div>
+            </div>
+            <div id="agentic-placeholder" class="flex items-center justify-center h-48 text-gray-600 text-sm">
+              Submit a query to see the reasoning trace
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================
+           TAB: Compare
+      ====================================== -->
+      <section id="tab-compare" class="tab-pane hidden">
+        <div class="bg-gray-900 rounded-xl border border-gray-800 p-5 mb-6">
+          <h2 class="text-base font-semibold text-gray-200 mb-4">Compare Classical vs Agentic</h2>
+          <form id="compare-form" class="flex flex-col sm:flex-row gap-3">
+            <textarea id="c-question" rows="2" placeholder="What are the contraindications for ACE inhibitors?"
+              class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
+            <button type="submit" id="c-btn"
+              class="sm:self-start bg-teal-700 hover:bg-teal-600 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap">
+              <span id="c-btn-text">Compare</span>
+              <svg id="c-spinner" class="hidden w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
             </button>
           </form>
-        </section>
+        </div>
 
-        <!-- Classical Results -->
-        <section id="classical" class="tab-content active">
-          <div id="classical-results" class="results-area hidden"></div>
-        </section>
+        <!-- Metrics bar -->
+        <div id="compare-metrics" class="hidden bg-gray-900 rounded-xl border border-gray-800 p-4 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center"></div>
 
-        <!-- Agentic Results -->
-        <section id="agentic" class="tab-content">
-          <div id="agentic-results" class="results-area hidden"></div>
-        </section>
-
-        <!-- Compare Results -->
-        <section id="compare" class="tab-content">
-          <div id="compare-results" class="results-area hidden">
-            <!-- Comparison summary bar -->
-            <div class="comparison-summary" id="comparison-summary"></div>
-            <!-- Side-by-side panels -->
-            <div class="compare-panels">
-              <div class="compare-panel classical-panel" id="compare-classical"></div>
-              <div class="compare-panel agentic-panel" id="compare-agentic"></div>
+        <!-- Side-by-side panels -->
+        <div id="compare-panels" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div id="compare-classical" class="bg-gray-900 rounded-xl border border-blue-900 p-5 space-y-4">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+              <span class="text-sm font-semibold text-blue-400">Classical RAG</span>
             </div>
           </div>
-        </section>
+          <div id="compare-agentic" class="bg-gray-900 rounded-xl border border-purple-900 p-5 space-y-4">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+              <span class="text-sm font-semibold text-purple-400">Agentic RAG</span>
+            </div>
+          </div>
+        </div>
+        <div id="compare-placeholder" class="flex items-center justify-center h-48 text-gray-600 text-sm">
+          Submit a question to compare both pipelines
+        </div>
+      </section>
 
-        <!-- Upload Section -->
-        <section id="upload" class="tab-content">
-          <form id="upload-form">
-            <div class="form-group">
-              <label>Select Documents (PDF)</label>
-              <div class="upload-mode-toggle">
-                <button type="button" class="mode-btn active" data-mode="files">Select Files</button>
-                <button type="button" class="mode-btn" data-mode="folder">Select Folder</button>
+      <!-- ======================================
+           TAB: Upload
+      ====================================== -->
+      <section id="tab-upload" class="tab-pane hidden">
+        <div class="max-w-xl">
+          <div class="bg-gray-900 rounded-xl border border-gray-800 p-5">
+            <h2 class="text-base font-semibold text-gray-200 mb-4">Upload Clinical Document</h2>
+            <form id="upload-form" class="space-y-4">
+              <!-- Drop zone -->
+              <div>
+                <label class="block text-xs text-gray-400 mb-2">PDF File</label>
+                <div id="drop-zone"
+                  class="border-2 border-dashed border-gray-700 rounded-lg p-8 text-center cursor-pointer hover:border-gray-500 transition-colors">
+                  <input type="file" id="file-input" accept=".pdf" multiple class="hidden" />
+                  <svg class="w-8 h-8 text-gray-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                  </svg>
+                  <p id="drop-label" class="text-sm text-gray-500">Click or drag PDF files here</p>
+                </div>
+                <div id="file-list" class="hidden mt-2 space-y-1"></div>
               </div>
-              <div class="file-drop-zone" id="file-drop-zone">
-                <input type="file" id="file-input-files" accept=".pdf" multiple class="file-input-hidden" />
-                <input type="file" id="file-input-folder" accept=".pdf" webkitdirectory class="file-input-hidden hidden" />
-                <div class="file-drop-text" id="file-drop-text">
-                  <span class="file-icon">&#128196;</span>
-                  <p id="drop-zone-label">Click to select or drag PDF files here</p>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Document Type</label>
+                  <select id="upload-type"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    <option value="protocol">Protocol</option>
+                    <option value="guideline">Guideline</option>
+                    <option value="reference">Reference</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Metadata (JSON)</label>
+                  <input type="text" id="upload-meta" value="{}" placeholder='{"dept":"cardiology"}'
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500" />
                 </div>
               </div>
-              <div class="file-list hidden" id="file-list">
-                <div class="file-list-header">
-                  <span id="file-list-count">0 files selected</span>
-                  <button type="button" class="btn-link" id="clear-files-btn">Clear all</button>
-                </div>
-                <div class="file-list-items" id="file-list-items"></div>
+
+              <button type="submit" id="upload-btn"
+                class="w-full bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+                <span id="upload-btn-text">Upload</span>
+                <svg id="upload-spinner" class="hidden w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+              </button>
+            </form>
+
+            <!-- Progress -->
+            <div id="upload-progress" class="hidden mt-4 space-y-2">
+              <div class="flex justify-between text-xs text-gray-400">
+                <span id="progress-label">Uploading…</span>
+                <span id="progress-pct">0%</span>
               </div>
+              <div class="w-full bg-gray-800 rounded-full h-2">
+                <div id="progress-bar" class="bg-emerald-500 h-2 rounded-full transition-all" style="width:0%"></div>
+              </div>
+              <div id="upload-file-statuses" class="space-y-1 mt-2"></div>
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label for="document_type">Document Type</label>
-                <select id="document_type" name="document_type">
-                  <option value="protocol">Protocol</option>
-                  <option value="guideline">Guideline</option>
-                  <option value="reference">Reference</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="department">Department</label>
-                <input
-                  type="text"
-                  id="department"
-                  name="department"
-                  placeholder="e.g., Orthopedics"
-                />
-              </div>
-            </div>
+            <!-- Summary -->
+            <div id="upload-summary" class="hidden mt-4 bg-gray-800 rounded-lg p-4 text-sm space-y-1"></div>
+          </div>
+        </div>
+      </section>
 
-            <button type="submit" class="btn secondary" id="upload-btn">
-              <span class="btn-text">Upload Documents</span>
-              <span class="btn-spinner hidden"></span>
+      <!-- ======================================
+           TAB: Monitor
+      ====================================== -->
+      <section id="tab-monitor" class="tab-pane hidden">
+        <div class="max-w-2xl">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-semibold text-gray-200">Service Status</h2>
+            <button id="refresh-btn"
+              class="text-xs text-gray-400 hover:text-gray-200 border border-gray-700 px-3 py-1 rounded-lg transition-colors">
+              Refresh
             </button>
-          </form>
-
-          <!-- Batch Progress -->
-          <div class="batch-progress hidden" id="batch-progress">
-            <div class="batch-progress-header">
-              <span id="batch-progress-label">Uploading 0 of 0...</span>
-              <span id="batch-progress-pct">0%</span>
-            </div>
-            <div class="batch-progress-bar-container">
-              <div class="batch-progress-bar" id="batch-progress-bar"></div>
-            </div>
-            <div class="file-list-items" id="batch-file-statuses"></div>
           </div>
+          <div id="service-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-4"></div>
+          <p id="monitor-updated" class="text-xs text-gray-600 mt-4"></p>
+        </div>
+      </section>
 
-          <!-- Batch Summary -->
-          <div id="upload-results" class="results-area hidden">
-            <div class="upload-success" id="upload-success">
-              <div class="success-icon">&#10003;</div>
-              <h3>Batch Upload Complete</h3>
-              <div class="upload-details">
-                <div class="detail-row">
-                  <span class="detail-label">Files Uploaded</span>
-                  <span class="detail-value" id="upload-file-count"></span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Total Chunks</span>
-                  <span class="detail-value" id="upload-chunks"></span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Total Time</span>
-                  <span class="detail-value" id="upload-time"></span>
-                </div>
-                <div class="detail-row hidden" id="upload-failures-row">
-                  <span class="detail-label">Failed</span>
-                  <span class="detail-value upload-failures-value" id="upload-failures"></span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
+    </div><!-- /max-w-6xl -->
 
-      <footer>
-        <p>MedQuery v0.1.0 &middot; Zero-cost clinical RAG &middot; HIPAA-oriented</p>
-      </footer>
-    </div>
-
-    <script src="app.js?v=6"></script>
+    <script src="app.js?v=7"></script>
   </body>
 </html>
