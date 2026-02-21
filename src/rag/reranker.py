@@ -35,6 +35,7 @@ class RerankedChunk:
     rerank_score: float
     final_score: float
     source: str
+    document_name: str = ""
 
 
 class Reranker:
@@ -95,6 +96,7 @@ class Reranker:
                         rerank_score=rr_score,
                         final_score=final_score,
                         source=chunk.source,  # Preserve original source (hybrid/bm25/vector)
+                        document_name=chunk.document_name,
                     )
                 )
 
@@ -119,6 +121,7 @@ class Reranker:
                 rerank_score=c.score,
                 final_score=c.score,
                 source=c.source,  # Preserve original source (hybrid/bm25/vector)
+                document_name=c.document_name,
             )
             for c in chunks
         ]

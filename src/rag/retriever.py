@@ -135,6 +135,7 @@ class ScoredChunk:
     chunk_index: int
     score: float
     source: str  # "bm25", "vector", or "hybrid"
+    document_name: str = ""  # Actual filename from clinical_docs
 
 
 # ============================================
@@ -292,9 +293,15 @@ VECTOR_WEIGHT = 0.6
 class HybridRetriever:
     """Combines BM25 and vector search with weighted fusion scoring."""
 
-    def __init__(self, chunks: list, session: AsyncSession):
+    def __init__(
+        self,
+        chunks: list,
+        session: AsyncSession,
+        doc_name_map: dict[int, str] | None = None,
+    ):
         self._bm25 = BM25Retriever(chunks)
         self._vector = VectorRetriever(session)
+        self._doc_name_map = doc_name_map or {}
 
     async def search(
         self,
@@ -342,14 +349,16 @@ class HybridRetriever:
             fusion_score = (
                 BM25_WEIGHT * data["bm25_score"] + VECTOR_WEIGHT * data["vector_score"]
             )
+            doc_id = data["document_id"]
             results.append(
                 ScoredChunk(
                     chunk_id=chunk_id,
                     content=data["content"],
-                    document_id=data["document_id"],
+                    document_id=doc_id,
                     chunk_index=data["chunk_index"],
                     score=fusion_score,
                     source="hybrid",
+                    document_name=self._doc_name_map.get(doc_id, ""),
                 )
             )
 
@@ -414,6 +423,7 @@ async def expand_context_window(
     chunks: list[ScoredChunk],
     session: AsyncSession,
     window: int = 1,
+    doc_name_map: dict[int, str] | None = None,
 ) -> list[ScoredChunk]:
     """Fetch adjacent chunks (chunk_index ± window) for each retrieved chunk.
 
@@ -453,6 +463,7 @@ async def expand_context_window(
         rows = result.fetchall()
 
         # Add adjacent chunks with a reduced score
+        _name_map = doc_name_map or {}
         expanded = list(chunks)
         for row in rows:
             if row.id not in existing_ids:
@@ -469,6 +480,7 @@ async def expand_context_window(
                         chunk_index=row.chunk_index,
                         score=parent_score * 0.5,  # Adjacent = half the parent score
                         source="context_expansion",
+                        document_name=_name_map.get(row.document_id, ""),
                     )
                 )
                 existing_ids.add(row.id)
@@ -550,6 +562,7 @@ def boost_entity_matches(
                     chunk_index=chunk.chunk_index,
                     score=min(chunk.score * multiplier, 1.0),
                     source=chunk.source,
+                    document_name=chunk.document_name,
                 )
             )
         else:

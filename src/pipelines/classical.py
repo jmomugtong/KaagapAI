@@ -41,11 +41,15 @@ class PipelineResult:
 class ClassicalPipeline:
     """Standard retrieve-rerank-synthesize RAG pipeline."""
 
-    def __init__(self, embedding_generator, ollama_client, reranker, cached_chunks=None):
+    def __init__(
+        self, embedding_generator, ollama_client, reranker, cached_chunks=None,
+        doc_name_map=None,
+    ):
         self.embedding_generator = embedding_generator
         self.ollama_client = ollama_client
         self.reranker = reranker
         self.cached_chunks = cached_chunks  # Pre-loaded chunks to avoid DB queries
+        self.doc_name_map = doc_name_map or {}
 
     async def run(
         self,
@@ -214,7 +218,9 @@ class ClassicalPipeline:
                         variant_embeddings = await self.embedding_generator.generate_embeddings(
                             [variant], is_query=True
                         )
-                        retriever = HybridRetriever(chunks, session)
+                        retriever = HybridRetriever(
+                            chunks, session, doc_name_map=self.doc_name_map
+                        )
                         variant_results = await retriever.search(
                             variant, variant_embeddings[0], top_k=max_results
                         )
@@ -236,7 +242,8 @@ class ClassicalPipeline:
 
                 # --- Context window expansion ---
                 search_results = await expand_context_window(
-                    search_results[:max_results], session, window=1
+                    search_results[:max_results], session, window=1,
+                    doc_name_map=self.doc_name_map,
                 )
 
         except Exception as e:
@@ -278,6 +285,7 @@ class ClassicalPipeline:
                         chunk_index=r.chunk_index,
                         score=r.final_score,
                         source=r.source,
+                        document_name=r.document_name,
                     )
                     for r in reranked
                 ]
@@ -295,6 +303,7 @@ class ClassicalPipeline:
         retrieved_chunks: list[dict[str, Any]] = []
         prompt_chunks: list[dict[str, Any]] = []
         for r in search_results:
+            doc_display = r.document_name or f"Document {r.document_id}"
             retrieved_chunks.append(
                 {
                     "chunk_id": r.chunk_id,
@@ -302,14 +311,14 @@ class ClassicalPipeline:
                     "document_id": r.document_id,
                     "chunk_index": r.chunk_index,
                     "relevance_score": round(r.score, 4),
-                    "source": r.source,
+                    "source": doc_display,
                 }
             )
             prompt_chunks.append(
                 {
                     "text": r.content,
                     "metadata": {
-                        "source": r.source,
+                        "source": doc_display,
                         "chunk_index": r.chunk_index,
                         "document_id": r.document_id,
                     },

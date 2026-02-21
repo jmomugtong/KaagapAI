@@ -40,10 +40,11 @@ MAX_ITERATIONS = 3
 class AgenticPipeline:
     """ReAct-style agentic RAG pipeline with classify/decompose/reflect."""
 
-    def __init__(self, embedding_generator, ollama_client, reranker):
+    def __init__(self, embedding_generator, ollama_client, reranker, doc_name_map=None):
         self.embedding_generator = embedding_generator
         self.ollama_client = ollama_client
         self.reranker = reranker
+        self.doc_name_map = doc_name_map or {}
 
     async def run(
         self,
@@ -183,7 +184,9 @@ class AgenticPipeline:
                             )
                             query_embedding = embeddings[0]
 
-                            retriever = HybridRetriever(db_chunks, session)
+                            retriever = HybridRetriever(
+                                db_chunks, session, doc_name_map=self.doc_name_map
+                            )
                             search_results = await retriever.search(
                                 variant, query_embedding, top_k=max_results
                             )
@@ -202,6 +205,7 @@ class AgenticPipeline:
                                             chunk_index=r.chunk_index,
                                             score=r.final_score,
                                             source=r.source,
+                                            document_name=r.document_name,
                                         )
                                         for r in reranked
                                     ]
@@ -226,7 +230,8 @@ class AgenticPipeline:
 
                 # Context window expansion
                 all_chunks = await expand_context_window(
-                    all_chunks[:max_results * 2], session, window=1
+                    all_chunks[:max_results * 2], session, window=1,
+                    doc_name_map=self.doc_name_map,
                 )
 
         except Exception as e:
@@ -320,6 +325,7 @@ class AgenticPipeline:
         # --- Format chunks for synthesis ---
         retrieved_chunks_dicts: list[dict[str, Any]] = []
         for r in final_chunks:
+            doc_display = r.document_name or f"Document {r.document_id}"
             retrieved_chunks_dicts.append(
                 {
                     "chunk_id": r.chunk_id,
@@ -327,7 +333,7 @@ class AgenticPipeline:
                     "document_id": r.document_id,
                     "chunk_index": r.chunk_index,
                     "relevance_score": round(r.score, 4),
-                    "source": r.source,
+                    "source": doc_display,
                 }
             )
 
@@ -373,7 +379,9 @@ class AgenticPipeline:
                                     [refined_query], is_query=True
                                 )
                             )
-                            retriever = HybridRetriever(db_chunks, session)
+                            retriever = HybridRetriever(
+                                db_chunks, session, doc_name_map=self.doc_name_map
+                            )
                             extra = await retriever.search(
                                 refined_query, embeddings[0], top_k=max_results
                             )
@@ -390,6 +398,7 @@ class AgenticPipeline:
                                             chunk_index=r.chunk_index,
                                             score=r.final_score,
                                             source=r.source,
+                                            document_name=r.document_name,
                                         )
                                         for r in reranked
                                     ]
@@ -422,7 +431,7 @@ class AgenticPipeline:
                                     "document_id": r.document_id,
                                     "chunk_index": r.chunk_index,
                                     "relevance_score": round(r.score, 4),
-                                    "source": r.source,
+                                    "source": r.document_name or f"Document {r.document_id}",
                                 }
                                 for r in final_chunks
                             ]
@@ -554,8 +563,8 @@ class AgenticPipeline:
         # Build context string
         context_parts = []
         for i, chunk in enumerate(chunks, 1):
-            source = getattr(chunk, "source", "Unknown")
-            context_parts.append(f"[Source {i}: {source}]\n{chunk.content}")
+            doc_name = getattr(chunk, "document_name", "") or f"Document {getattr(chunk, 'document_id', i)}"
+            context_parts.append(f"[Source {i}: {doc_name}]\n{chunk.content}")
         context = "\n\n".join(context_parts)
 
         if not self.ollama_client:
@@ -575,7 +584,10 @@ class AgenticPipeline:
             if raw_response:
                 parser = ResponseParser()
                 retrieved_for_validation = [
-                    {"text": c.content, "source": getattr(c, "source", "")}
+                    {
+                        "text": c.content,
+                        "source": getattr(c, "document_name", "") or f"Document {getattr(c, 'document_id', 0)}",
+                    }
                     for c in chunks
                 ]
                 parsed = parser.parse(raw_response, retrieved_for_validation)
