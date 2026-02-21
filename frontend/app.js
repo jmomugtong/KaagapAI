@@ -378,6 +378,9 @@ document.getElementById('upload-form').addEventListener('submit', async e => {
   const summary = document.getElementById('upload-summary');
 
   setLoading('upload-btn', 'upload-spinner', 'upload-btn-text', true, 'Upload');
+  progressBar.style.width = '0%';
+  progressPct.textContent = '0%';
+  progressLabel.textContent = `Uploading 0 of ${selectedFiles.length}…`;
   progressEl.classList.remove('hidden');
   summary.classList.add('hidden');
   fileStatuses.innerHTML = selectedFiles.map(f =>
