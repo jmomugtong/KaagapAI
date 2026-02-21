@@ -585,7 +585,7 @@ async def upload_endpoint(
             rows = [
                 {
                     "document_id": doc.id,
-                    "content": chunk.content,
+                    "chunk_text": chunk.content,
                     "chunk_index": i,
                     "embedding": embeddings[i] if i < len(embeddings) else None,
                 }

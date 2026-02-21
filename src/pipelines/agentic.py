@@ -4,6 +4,14 @@ Agentic RAG Pipeline for MedQuery
 ReAct-style agent loop that classifies queries, decomposes complex ones
 into sub-queries, performs iterative retrieval, and self-reflects on
 answer completeness before returning.
+
+Enhanced with:
+- Conditional routing: GENERAL queries skip retrieval, get direct LLM answers
+- Multi-query retrieval: LLM reformulations for broader recall
+- Context window expansion: adjacent chunk fetching
+- Entity-aware boosting: medical entity score boosting
+- Extractive fallback: sentence extraction when LLM confidence is low
+- Web search fallback: DuckDuckGo when no local results match
 """
 
 import logging
@@ -17,6 +25,7 @@ from src.pipelines.prompts import (
     CLASSIFY_PROMPT,
     DECOMPOSE_COUNTS,
     DECOMPOSE_PROMPT,
+    GENERAL_ANSWER_PROMPT,
     MAX_SUB_QUERIES,
     REFLECT_PROMPT,
     VALID_QUERY_TYPES,
@@ -85,6 +94,31 @@ class AgenticPipeline:
             }
         )
 
+        # --- Conditional routing: GENERAL queries skip retrieval ---
+        if query_type == "GENERAL":
+            step_start = time.time()
+            answer, confidence = await self._direct_answer(question)
+            steps.append(
+                {
+                    "name": "direct_answer",
+                    "duration_ms": round((time.time() - step_start) * 1000, 1),
+                    "detail": "General knowledge — no retrieval needed",
+                }
+            )
+            steps.append({"name": "complete", "duration_ms": 0, "detail": "Done"})
+
+            elapsed = (time.time() - start_time) * 1000
+            return PipelineResult(
+                answer=answer,
+                confidence=confidence,
+                citations=[],
+                retrieved_chunks=[],
+                query_id=str(uuid.uuid4())[:8],
+                processing_time_ms=round(elapsed, 1),
+                pipeline="agentic",
+                steps=steps,
+            )
+
         # --- Step 2: Decompose ---
         step_start = time.time()
         if query_type == "SIMPLE":
@@ -99,12 +133,19 @@ class AgenticPipeline:
             }
         )
 
-        # --- Step 3: Iterative retrieval per sub-query ---
+        # --- Step 3: Multi-query + iterative retrieval per sub-query ---
         from sqlalchemy import select
 
         from src.db.models import DocumentChunk
         from src.db.postgres import AsyncSessionLocal
-        from src.rag.retriever import HybridRetriever, ScoredChunk
+        from src.rag.retriever import (
+            HybridRetriever,
+            ScoredChunk,
+            boost_entity_matches,
+            expand_context_window,
+            extract_medical_entities,
+            generate_query_variants,
+        )
 
         all_chunks: list[ScoredChunk] = []
         try:
@@ -125,40 +166,49 @@ class AgenticPipeline:
                         steps=steps,
                     )
 
+                # Extract medical entities for boosting
+                entities = extract_medical_entities(question)
+
                 for i, sq in enumerate(sub_queries):
                     step_start = time.time()
                     try:
-                        embeddings = await self.embedding_generator.generate_embeddings(
-                            [sq], is_query=True
-                        )
-                        query_embedding = embeddings[0]
-
-                        retriever = HybridRetriever(db_chunks, session)
-                        search_results = await retriever.search(
-                            sq, query_embedding, top_k=max_results
+                        # Generate multi-query variants for each sub-query
+                        variants = await generate_query_variants(
+                            sq, self.ollama_client, n=2
                         )
 
-                        # Rerank
-                        if self.reranker and search_results:
-                            try:
-                                reranked = await self.reranker.rerank(
-                                    sq, search_results, top_k=max_results
-                                )
-                                search_results = [
-                                    ScoredChunk(
-                                        chunk_id=r.chunk_id,
-                                        content=r.content,
-                                        document_id=r.document_id,
-                                        chunk_index=r.chunk_index,
-                                        score=r.final_score,
-                                        source=r.source,
+                        for variant in variants:
+                            embeddings = await self.embedding_generator.generate_embeddings(
+                                [variant], is_query=True
+                            )
+                            query_embedding = embeddings[0]
+
+                            retriever = HybridRetriever(db_chunks, session)
+                            search_results = await retriever.search(
+                                variant, query_embedding, top_k=max_results
+                            )
+
+                            # Rerank
+                            if self.reranker and search_results:
+                                try:
+                                    reranked = await self.reranker.rerank(
+                                        variant, search_results, top_k=max_results
                                     )
-                                    for r in reranked
-                                ]
-                            except Exception as e:
-                                logger.warning("Reranking failed for sub-query: %s", e)
+                                    search_results = [
+                                        ScoredChunk(
+                                            chunk_id=r.chunk_id,
+                                            content=r.content,
+                                            document_id=r.document_id,
+                                            chunk_index=r.chunk_index,
+                                            score=r.final_score,
+                                            source=r.source,
+                                        )
+                                        for r in reranked
+                                    ]
+                                except Exception as e:
+                                    logger.warning("Reranking failed for variant: %s", e)
 
-                        all_chunks.extend(search_results)
+                            all_chunks.extend(search_results)
                     except Exception as e:
                         logger.warning("Retrieval failed for sub-query '%s': %s", sq, e)
 
@@ -166,9 +216,19 @@ class AgenticPipeline:
                         {
                             "name": "retrieve",
                             "duration_ms": round((time.time() - step_start) * 1000, 1),
-                            "detail": f"Sub-query {i + 1}: {sq}",
+                            "detail": f"Sub-query {i + 1}: {sq} ({len(variants)} variants)",
                         }
                     )
+
+                # Entity-aware boosting on combined results
+                if entities:
+                    all_chunks = boost_entity_matches(all_chunks, entities)
+
+                # Context window expansion
+                all_chunks = await expand_context_window(
+                    all_chunks[:max_results * 2], session, window=1
+                )
+
         except Exception as e:
             logger.warning("Database query failed: %s", e)
             elapsed = (time.time() - start_time) * 1000
@@ -199,6 +259,52 @@ class AgenticPipeline:
         )
 
         if not final_chunks:
+            # --- Web search fallback ---
+            step_start = time.time()
+            try:
+                from src.rag.web_search import (
+                    format_web_results_as_context,
+                    search_web,
+                    web_results_to_chunks,
+                )
+
+                web_results = await search_web(question, max_results=3)
+                if web_results:
+                    steps.append(
+                        {
+                            "name": "web_search_fallback",
+                            "duration_ms": round((time.time() - step_start) * 1000, 1),
+                            "detail": f"Found {len(web_results)} web results",
+                        }
+                    )
+                    web_chunk_dicts = web_results_to_chunks(web_results)
+
+                    if self.ollama_client:
+                        web_context = format_web_results_as_context(web_results)
+                        prompt = build_synthesis_prompt(question, web_context, query_type)
+                        raw = await self.ollama_client.generate(prompt)
+                        if raw:
+                            from src.llm.response_parser import ResponseParser
+
+                            parser = ResponseParser()
+                            parsed = parser.parse(raw, [])
+                            elapsed = (time.time() - start_time) * 1000
+                            return PipelineResult(
+                                answer=(
+                                    "**Note: Answer based on web sources, not indexed clinical documents.**\n\n"
+                                    + parsed.answer
+                                ),
+                                confidence=round(parsed.confidence * 0.7, 4),
+                                citations=[],
+                                retrieved_chunks=web_chunk_dicts,
+                                query_id=str(uuid.uuid4())[:8],
+                                processing_time_ms=round(elapsed, 1),
+                                pipeline="agentic",
+                                steps=steps,
+                            )
+            except Exception as e:
+                logger.warning("Web search fallback failed: %s", e)
+
             elapsed = (time.time() - start_time) * 1000
             return PipelineResult(
                 answer="No relevant results found for your query.",
@@ -359,6 +465,39 @@ class AgenticPipeline:
     # Internal methods
     # ------------------------------------------------------------------
 
+    async def _direct_answer(self, question: str) -> tuple[str, float]:
+        """Generate a direct answer for GENERAL queries without retrieval.
+
+        Returns (answer, confidence). Used for general medical knowledge
+        questions that don't need specific clinical documents.
+        """
+        if not self.ollama_client:
+            return (
+                "General medical knowledge query, but LLM is unavailable.",
+                0.0,
+            )
+
+        try:
+            prompt = GENERAL_ANSWER_PROMPT.format(question=question)
+            raw = await self.ollama_client.generate(prompt)
+            if raw:
+                from src.llm.response_parser import ResponseParser
+
+                parser = ResponseParser()
+                parsed = parser.parse(raw, [])
+                disclaimer = (
+                    "**Note: This is general medical knowledge, not from indexed clinical documents. "
+                    "Consult institutional protocols for clinical decisions.**\n\n"
+                )
+                return (disclaimer + parsed.answer, round(parsed.confidence, 4))
+        except Exception as e:
+            logger.warning("Direct answer failed: %s", e)
+
+        return (
+            "Unable to generate a response. Please try again.",
+            0.0,
+        )
+
     async def _classify(self, question: str) -> str:
         """Classify the query type using the LLM."""
         if not self.ollama_client:
@@ -442,10 +581,23 @@ class AgenticPipeline:
                 parsed = parser.parse(raw_response, retrieved_for_validation)
 
                 if parsed.confidence < confidence_threshold:
-                    answer = (
-                        "Confidence too low for synthesis. "
-                        "Relevant snippets are provided in retrieved_chunks."
-                    )
+                    # Extractive fallback: return key sentences from docs
+                    from src.rag.reranker import RerankedChunk, build_extractive_answer
+
+                    extractive_chunks = [
+                        RerankedChunk(
+                            chunk_id=getattr(c, "chunk_id", 0),
+                            content=c.content,
+                            document_id=getattr(c, "document_id", 0),
+                            chunk_index=getattr(c, "chunk_index", 0),
+                            retrieval_score=c.score,
+                            rerank_score=c.score,
+                            final_score=c.score,
+                            source=getattr(c, "source", "unknown"),
+                        )
+                        for c in chunks
+                    ]
+                    answer = build_extractive_answer(extractive_chunks, question)
                 else:
                     answer = parsed.answer
 

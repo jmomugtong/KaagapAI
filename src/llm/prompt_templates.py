@@ -12,7 +12,7 @@ from typing import Any
 class PromptTemplate:
     """Builds prompts for clinical question answering."""
 
-    TEMPLATE = """You are a medical information assistant. Given the following context from clinical documents, answer the user's question accurately and cite your sources.
+    TEMPLATE = """You are a medical information assistant with strict grounding rules. Given ONLY the context below, answer the user's question. You MUST NOT use any knowledge outside the provided context.
 
 CONTEXT:
 {context}
@@ -20,12 +20,18 @@ CONTEXT:
 QUESTION:
 {question}
 
-INSTRUCTIONS:
-1. Answer concisely and accurately based ONLY on the provided context
-2. Cite sources using [Document Name, Section, p. Page] format
-3. If uncertain, state your limitations clearly
-4. Do not add information not present in the context
-5. Assign a confidence score (0.0-1.0) on the last line as "Confidence: X.XX"
+STRICT GROUNDING RULES:
+1. Answer ONLY using information explicitly stated in the CONTEXT above
+2. Quote or closely paraphrase exact phrases from the sources — do not rephrase medical facts in your own words
+3. Cite every factual claim using [Document Name, Section, p. Page] format
+4. If the context does NOT contain enough information to answer, respond: "The indexed documents do not contain sufficient information to answer this question."
+5. Do NOT add medical advice, dosages, drug interactions, or treatment recommendations not explicitly present in the context
+6. If multiple sources provide conflicting information, note the discrepancy
+7. Assign a confidence score (0.0-1.0) based on how well the context supports your answer:
+   - 0.90-1.0: Direct, explicit answer found in context
+   - 0.70-0.89: Answer partially supported, some inference needed
+   - Below 0.70: Weak support, mostly inference
+8. Write the confidence on the last line as "Confidence: X.XX"
 
 RESPONSE:
 """

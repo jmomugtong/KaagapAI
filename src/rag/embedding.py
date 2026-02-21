@@ -29,11 +29,27 @@ def _load_st_model(model_name: str):
     from sentence_transformers import SentenceTransformer
 
     logger.info("Loading sentence-transformers model: %s", model_name)
+
+    # Try direct load first (sentence-transformers >= 2.3 forwards trust_remote_code)
     try:
         model = SentenceTransformer(model_name, trust_remote_code=True)
+        logger.info("Model loaded — dimension: %d", model.get_sentence_embedding_dimension())
+        return model
     except TypeError:
-        # sentence-transformers < 2.3 doesn't support trust_remote_code
-        model = SentenceTransformer(model_name)
+        pass  # older sentence-transformers doesn't accept the kwarg
+
+    # Fallback: load via modules so trust_remote_code reaches AutoModel directly.
+    # Works with sentence-transformers 2.2.x.
+    logger.info("Retrying via st_models.Transformer with trust_remote_code=True")
+    from sentence_transformers import models as st_models
+
+    word_embedding = st_models.Transformer(
+        model_name,
+        model_args={"trust_remote_code": True},
+        tokenizer_args={"trust_remote_code": True},
+    )
+    pooling = st_models.Pooling(word_embedding.get_word_embedding_dimension())
+    model = SentenceTransformer(modules=[word_embedding, pooling])
     logger.info("Model loaded — dimension: %d", model.get_sentence_embedding_dimension())
     return model
 

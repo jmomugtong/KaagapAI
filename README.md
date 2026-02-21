@@ -17,17 +17,25 @@
 
 ## Overview
 
-MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system designed to surface evidence-based clinical answers from medical documentation. Built 100% with open-source models with zero external API costs. Cached queries respond in <200ms; cold CPU-only queries (MedGemma 4B, no GPU) take 25–30 s. Evaluation targets: ROUGE-L ≥0.60, hallucination <5% (unverified, pending indexed dataset).
+MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system designed to surface evidence-based clinical answers from medical documentation. Built 100% with open-source models with zero external API costs. Cached queries respond in <200ms; cold CPU-only queries (MedGemma 4B, no GPU) take 25-30 s. Evaluation targets: ROUGE-L >= 0.60, hallucination < 5% (unverified, pending indexed dataset).
+
+The retrieval pipeline incorporates techniques from **10 open-source RAG projects** (see [Inspirations](#inspirations)) including multi-query retrieval, context window expansion, entity-aware boosting, sentence-level extraction, extractive fallback, web search fallback, conditional routing, and strict grounding prompts.
 
 ### Key Features
 
-- **Dual RAG Pipelines**: Classical RAG (hybrid retrieval + reranking) and Agentic RAG (ReAct-style reasoning with query decomposition)
-- **Fast Cached Responses**: Cached queries < 200ms; cold CPU-only queries 25–30 s (no GPU)
-- **Accuracy Targets**: ROUGE-L ≥ 0.60, hallucination rate < 5% (targets, unverified pending indexed dataset)
-- **Batch Document Upload**: Multi-file and folder upload with concurrent processing (3 parallel uploads)
+- **Dual RAG Pipelines**: Classical RAG (multi-query hybrid retrieval + reranking) and Agentic RAG (ReAct-style reasoning with query decomposition and self-reflection)
+- **Multi-Query Retrieval**: LLM generates query reformulations for broader recall across both pipelines
+- **Context Window Expansion**: Fetches adjacent chunks from the same document for richer LLM context
+- **Entity-Aware Boosting**: Extracts medical entities (drugs, conditions, procedures) and boosts matching chunks
+- **Sentence-Level Extraction**: Two-stage ranking — chunk-level then sentence-level BM25 for focused context
+- **Extractive Fallback**: When LLM confidence is low, returns key sentences directly from documents instead of generating
+- **Web Search Fallback**: DuckDuckGo search when no local documents match, clearly marked as web-sourced
+- **Conditional Routing**: General medical knowledge queries skip retrieval and get direct LLM answers
+- **Strict Grounding**: Prompts enforce context-only answering with mandatory citations and "I don't know" when unsupported
 - **Comparison Mode**: Side-by-side comparison of Classical vs Agentic pipeline results
+- **Batch Document Upload**: Multi-file upload with concurrent processing (3 parallel workers)
 - **HIPAA Compliant**: PII redaction, audit logging, row-level security
-- **Zero API Cost**: 100% open-source stack (local embeddings, Ollama, FlashRank, pgvector)
+- **Zero API Cost**: 100% open-source stack (local embeddings, Ollama, FlashRank, pgvector, DuckDuckGo)
 - **Medical-Domain LLM**: MedGemma 4B fine-tuned on clinical QA and FHIR EHR data
 - **Full Observability**: Prometheus metrics, Grafana dashboards, OpenTelemetry tracing
 
@@ -36,86 +44,105 @@ MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system desig
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     CLIENT LAYER                                │
-│  Web Frontend (HTML/JS/CSS): Query Interface + Results Display │
-└────────────────────┬────────────────────────────────────────────┘
-                     │ REST API + JWT Authentication
-                     ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     API GATEWAY LAYER                           │
-│  FastAPI Application Server                                    │
-│  - POST /api/v1/query (Classical RAG pipeline)                 │
-│  - POST /api/v1/agent/query (Agentic RAG pipeline)            │
-│  - POST /api/v1/compare (Compare both pipelines)               │
-│  - POST /api/v1/upload (async batch document ingestion)        │
-│  - GET /api/v1/evals (evaluation suite execution)              │
-│  - GET /metrics (Prometheus endpoint)                          │
-└────────────────────┬────────────────────────────────────────────┘
-                     │
-        ┌────────────┴────────────┐
-        ▼                         ▼
-┌───────────────┐       ┌──────────────────┐
-│  Celery Queue │       │  RAG Pipeline    │
-│  - Embedding  │       │  - Chunking      │
-│  - Indexing   │       │  - Retrieval     │
-│  - Evaluation │       │  - Reranking     │
-└───────┬───────┘       └────────┬─────────┘
-        │                        │
-        └──────────┬─────────────┘
-                   ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                   DATA LAYER                                    │
-│  PostgreSQL + pgvector  │  Redis Cache  │  Ollama LLM          │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                        CLIENT LAYER                                  │
+│  Tailwind Dark Theme UI: Query / Agentic / Compare / Upload / Monitor│
+└──────────────────────┬───────────────────────────────────────────────┘
+                       │ REST API + JWT Authentication
+                       ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                        API GATEWAY LAYER                             │
+│  FastAPI Application Server                                         │
+│  POST /api/v1/query      → Classical RAG pipeline                   │
+│  POST /api/v1/agent/query → Agentic RAG pipeline (conditional route)│
+│  POST /api/v1/compare    → Run both pipelines side-by-side          │
+│  POST /api/v1/upload     → Async batch document ingestion           │
+│  GET  /api/v1/evals      → Evaluation suite                        │
+│  GET  /metrics           → Prometheus endpoint                      │
+└──────────────────────┬───────────────────────────────────────────────┘
+                       │
+          ┌────────────┴────────────┐
+          ▼                         ▼
+┌─────────────────┐     ┌─────────────────────────────────────────────┐
+│  Celery Queue   │     │  Enhanced RAG Pipeline                      │
+│  - Embedding    │     │  1. Multi-Query Generation (LLM variants)   │
+│  - Indexing     │     │  2. Hybrid Retrieval (BM25 + pgvector)      │
+│  - Evaluation   │     │  3. Entity-Aware Boosting                   │
+│                 │     │  4. Context Window Expansion (adjacent ±1)  │
+│                 │     │  5. FlashRank Reranking                     │
+│                 │     │  6. Sentence-Level Extraction                │
+│                 │     │  7. LLM Synthesis (strict grounding)        │
+│                 │     │  8. Extractive Fallback (low confidence)    │
+│                 │     │  9. Web Search Fallback (DuckDuckGo)        │
+└────────┬────────┘     └────────────────┬────────────────────────────┘
+         │                               │
+         └──────────┬────────────────────┘
+                    ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                      DATA LAYER                                      │
+│  PostgreSQL + pgvector  │  Redis Cache  │  Ollama LLM  │  DuckDuckGo│
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## RAG Pipelines
 
-MedQuery provides two RAG pipeline implementations for different query complexity levels:
+MedQuery provides two RAG pipeline implementations for different query complexity levels, both enhanced with techniques drawn from 10 open-source RAG projects.
 
 ### Classical RAG Pipeline
 
 **Best for**: Single-concept queries, straightforward clinical questions
 
 **Flow**:
-1. PII Redaction → Query Preprocessing
-2. Cache Check (Redis, 1-hour TTL)
-3. Embedding Generation (sentence-transformers, ~160ms)
-4. Hybrid Retrieval (BM25 + pgvector fusion: 0.4 × BM25 + 0.6 × cosine)
-5. FlashRank Reranking (<100ms batch cross-encoder)
-6. LLM Synthesis (MedGemma 4B via Ollama)
-7. Confidence Scoring + Hallucination Detection
-8. Result Caching
+1. **PII Redaction** → Query preprocessing
+2. **Cache Check** (Redis, 1-hour TTL)
+3. **Multi-Query Generation** → LLM generates 2 query reformulations for broader recall
+4. **Embedding Generation** (sentence-transformers nomic-embed-text-v1.5, ~160ms)
+5. **Hybrid Retrieval** per variant (BM25 + pgvector fusion: 0.4 BM25 + 0.6 cosine) → merge and deduplicate
+6. **Entity-Aware Boosting** → extract medical entities from query, boost matching chunks
+7. **Context Window Expansion** → fetch adjacent chunks (index ±1) from same document
+8. **FlashRank Reranking** (<100ms batch cross-encoder)
+9. **LLM Synthesis** (MedGemma 4B via Ollama, strict grounding prompt)
+10. **Confidence Routing**:
+    - High confidence (>= 0.70): return synthesized answer with citations
+    - Low confidence (< 0.70): **extractive fallback** — return key sentences from documents
+11. **Web Search Fallback** → if no local results, search DuckDuckGo (clearly marked)
+12. **Hallucination Detection** + result caching
 
 **Example queries**:
 - "What is the first-line treatment for hypertension?"
 - "What are the contraindications for metformin?"
 - "Recommended dosage for ACE inhibitors in elderly patients"
 
-**Performance**: <200ms cached; 25–30 s cold on CPU-only (no GPU)
+**Performance**: <200ms cached; 25-30 s cold on CPU-only (no GPU)
 
 ### Agentic RAG Pipeline
 
 **Best for**: Comparative, multi-step, temporal, or complex queries requiring reasoning
 
 **Flow**:
-1. PII Redaction → Query Classification (SIMPLE/COMPARATIVE/MULTI_STEP/TEMPORAL)
-2. Query Decomposition (max 4 sub-queries based on type)
-3. Per-Sub-Query Retrieval (parallel hybrid retrieval for each sub-query)
-4. Deduplication Across Sub-Queries (by chunk ID)
-5. LLM Synthesis with Sub-Query Context
-6. Self-Reflection (sufficiency check, optional retry up to 3 iterations)
-7. Result with Step Trace
+1. **PII Redaction** → Query preprocessing
+2. **Query Classification** (SIMPLE / COMPARATIVE / MULTI_STEP / TEMPORAL / GENERAL)
+3. **Conditional Routing**:
+   - **GENERAL** queries (e.g., "What is hypertension?") → skip retrieval, direct LLM answer with disclaimer
+   - All other types → proceed to retrieval
+4. **Query Decomposition** (max 4 sub-queries based on type)
+5. **Per-Sub-Query Multi-Query Retrieval** → for each sub-query, generate 2 LLM variants, run hybrid search for each variant, merge all results
+6. **Entity-Aware Boosting** across combined result pool
+7. **Context Window Expansion** (adjacent chunks ±1)
+8. **Deduplication** across all sub-queries (by chunk ID, keep highest score)
+9. **LLM Synthesis** with type-specific instructions (strict grounding prompt)
+10. **Self-Reflection** → if confidence low, evaluate sufficiency, optionally retry with refined query (up to 3 iterations)
+11. **Extractive Fallback** when confidence remains low
+12. **Web Search Fallback** when no local results match
+13. Result with **full step trace** visible in UI
 
 **Example queries**:
-- "Compare first-line treatments for hypertension vs diabetes"
-- "What changed between 2020 and 2023 diabetes guidelines?"
-- "Step-by-step protocol for acute MI management"
-
-**Performance**: <5s for complex queries, step-by-step trace visible in UI
+- "Compare first-line treatments for hypertension vs diabetes" → COMPARATIVE
+- "What changed between 2020 and 2023 diabetes guidelines?" → TEMPORAL
+- "Step-by-step protocol for acute MI management" → MULTI_STEP
+- "What is hypertension?" → GENERAL (no retrieval needed)
 
 ### Comparison Mode
 
@@ -383,49 +410,45 @@ make check
 medquery/
 ├── src/
 │   ├── pipelines/        # RAG pipeline implementations
-│   │   ├── classical.py  # Classical RAG (hybrid retrieval + reranking)
-│   │   ├── agentic.py    # Agentic RAG (ReAct-style reasoning)
-│   │   └── prompts.py    # Agent prompt templates
+│   │   ├── classical.py  # Classical RAG (multi-query + entity boost + extractive fallback)
+│   │   ├── agentic.py    # Agentic RAG (conditional routing + ReAct reasoning)
+│   │   └── prompts.py    # Agent prompt templates (classify, decompose, reflect, general)
 │   ├── rag/              # RAG pipeline components
-│   │   ├── chunker.py    # Document chunking (SmartChunker)
-│   │   ├── embedding.py  # Local embedding (sentence-transformers)
-│   │   ├── retriever.py  # Hybrid retrieval (BM25 + pgvector)
-│   │   ├── reranker.py   # FlashRank cross-encoder reranking
-│   │   └── cache.py      # Caching logic
+│   │   ├── chunker.py    # Document chunking (SmartChunker + SemanticChunker)
+│   │   ├── embedding.py  # Local embedding (sentence-transformers nomic-embed-text-v1.5)
+│   │   ├── retriever.py  # Hybrid retrieval + multi-query + context expansion + entity boost
+│   │   ├── reranker.py   # FlashRank reranking + sentence-level extraction
+│   │   ├── web_search.py # DuckDuckGo web search fallback
+│   │   └── cache.py      # Redis caching (embeddings + query results)
 │   ├── llm/              # LLM integration
-│   │   ├── ollama_client.py    # Ollama API client
-│   │   └── prompt_templates.py # Prompt engineering
+│   │   ├── ollama_client.py     # Ollama API client (retry, streaming, warmup)
+│   │   ├── prompt_templates.py  # Strict grounding prompt templates
+│   │   └── response_parser.py   # Response parsing + hallucination detection
 │   ├── security/         # Security modules
-│   │   ├── pii_redaction.py   # PII detection & redaction
-│   │   ├── input_validation.py # Input sanitization
-│   │   └── rate_limiter.py    # Rate limiting
+│   │   ├── pii_redaction.py    # PII detection & redaction
+│   │   ├── input_validation.py # Input sanitization (SQL/XSS prevention)
+│   │   └── rate_limiter.py     # Rate limiting (10 req/min per user)
 │   ├── db/               # Database layer
-│   │   ├── postgres.py   # PostgreSQL + pgvector
-│   │   └── models.py     # SQLAlchemy models
+│   │   ├── postgres.py   # PostgreSQL + pgvector (async)
+│   │   └── models.py     # SQLAlchemy models (ClinicalDoc, DocumentChunk, QueryLog)
+│   ├── evaluation/       # Evaluation framework
+│   │   └── runner.py     # ROUGE-L, hallucination rate, retrieval recall
 │   ├── observability/    # Monitoring & logging
-│   │   ├── telemetry.py  # OpenTelemetry setup
 │   │   └── metrics.py    # Prometheus metrics
-│   └── main.py           # Application entry point
-├── frontend/             # Web UI
-│   ├── index.html        # Main HTML (4 tabs: Classical, Agentic, Compare, Upload)
-│   ├── app.js            # Frontend logic (batch upload, comparison UI)
-│   └── styles.css        # Dark clinical theme
-├── tests/                # Test suite
+│   └── main.py           # FastAPI application entry point
+├── frontend/             # Web UI (Tailwind CDN, dark theme)
+│   ├── index.html        # 5 tabs: Query, Agentic, Compare, Upload, Monitor
+│   └── app.js            # Frontend logic (batch upload, step timeline, comparison)
+├── tests/                # Test suite (370 tests, 87% coverage)
+│   ├── test_rag_enhancements.py    # Multi-query, entity boost, sentence extraction, web search
 │   ├── test_classical_pipeline.py  # Classical pipeline tests
 │   ├── test_agentic_pipeline.py    # Agentic pipeline tests
-│   ├── test_compare_endpoint.py    # Compare endpoint tests
-│   └── ...               # Other tests
+│   ├── test_api_extended.py        # Extended API tests
+│   └── ...                         # Other tests (retriever, reranker, security, worker, etc.)
 ├── scripts/              # Utility scripts
-│   ├── download_documents.sh       # Download public clinical PDFs
-│   ├── deduplicate_documents.py    # Clean duplicate documents
-│   └── ...               # Other scripts
-├── documents/            # Clinical document corpus
-│   ├── clinical_guidelines/   # 6 VA/DoD + WHO guidelines
-│   ├── clinical_protocols/    # 6 CDC/NIH/NICE/WHO protocols
-│   └── clinical_references/   # 5 CDC/WHO reference materials
-├── datasets/             # Evaluation datasets
-├── k6/                   # Load test scripts
-├── docker-compose.yml    # Docker services
+├── documents/            # Clinical document corpus (17 public PDFs)
+├── datasets/             # Evaluation datasets (25 + 50 Q&A pairs)
+├── docker-compose.yml    # 7 Docker services
 ├── Dockerfile            # Container build
 ├── Makefile              # Development commands
 ├── pyproject.toml        # Project configuration
@@ -559,19 +582,22 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) for deta
 
 ## Technology Stack
 
-The open-source model choices were informed by research from 10+ AI practitioners and engineers. Each component was selected for optimal clinical RAG performance on CPU-only, 16 GB RAM deployments with zero API cost.
+Every component is open-source and runs locally with zero API cost. Choices were informed by research from 10+ AI practitioners and the 10 RAG projects listed in [Inspirations](#inspirations).
 
 | Component | Technology | Why |
 |-----------|-----------|-----|
-| **LLM** | [MedGemma 4B](https://ollama.com/alibayram/medgemma) | Google's medical-domain model (clinical QA + FHIR EHR data), 40% less RAM than 7B |
-| **Embedding** | [sentence-transformers](https://sbert.net/) (nomic-embed-text-v1.5) | 60× faster than Ollama HTTP (10s → 0.16s per batch), local inference, 768-dim vectors |
-| **Reranker** | [FlashRank](https://github.com/PrithivirajDamodaran/FlashRank) | <100ms batch reranking on CPU, 4MB model, no torch dependency |
-| **Chunking** | [LangChain SmartChunker](https://python.langchain.com/) + medical separators | Section-aware boundaries (1500 chars, 200 overlap), faster than SemanticChunker |
-| **Retrieval** | BM25 + pgvector hybrid | 0.4 BM25 + 0.6 cosine similarity fusion, dual-mode fallback |
-| **Vector DB** | PostgreSQL + pgvector | 768-dim vectors with IVFFlat indexing, CAST to vector type |
-| **LLM Runtime** | [Ollama](https://ollama.ai/) | Local inference for LLM, zero API cost |
+| **LLM** | [MedGemma 4B](https://ollama.com/alibayram/medgemma) via Ollama | Google's medical-domain model (clinical QA + FHIR EHR data), 40% less RAM than 7B |
+| **Embedding** | [sentence-transformers](https://sbert.net/) (nomic-embed-text-v1.5) | 60x faster than Ollama HTTP (10s to 0.16s per batch), local inference, 768-dim vectors |
+| **Reranker** | [FlashRank](https://github.com/PrithivirajDamodaran/FlashRank) | <100ms batch cross-encoder on CPU, 4MB model |
+| **Sentence Extraction** | rank-bm25 (sentence-level) | Two-stage: chunk reranking then BM25 sentence ranking for focused context |
+| **Chunking** | [LangChain SmartChunker](https://python.langchain.com/) + medical separators | Section-aware boundaries (1500 chars, 200 overlap) |
+| **Retrieval** | Multi-query + BM25 + pgvector hybrid | LLM reformulations, 0.4 BM25 + 0.6 cosine fusion, entity-aware boosting |
+| **Context Expansion** | Adjacent chunk fetching | Expands retrieval window with neighboring chunks (index +/-1) |
+| **Vector DB** | PostgreSQL + pgvector | 768-dim vectors with IVFFlat indexing |
+| **Web Fallback** | [DuckDuckGo](https://pypi.org/project/duckduckgo-search/) | Zero-cost web search when no local results match |
 | **Cache** | Redis | Two-tier: embedding (7d TTL) + query (1h TTL) |
 | **Framework** | [FastAPI](https://fastapi.tiangolo.com/) | Async Python web framework with concurrent upload support |
+| **Frontend** | [Tailwind CSS CDN](https://tailwindcss.com/) | Dark theme, no build step, 5-tab UI |
 
 ### Research References
 
@@ -593,15 +619,72 @@ Model and architecture decisions were guided by recommendations from these AI pr
 
 ---
 
+## Inspirations
+
+MedQuery's enhanced retrieval pipeline draws techniques from **10 open-source RAG projects** curated by [Chorouk Malmoum](https://www.linkedin.com/in/chorouk-malmoum). Each project contributed specific techniques that were adapted for clinical document retrieval:
+
+| # | Project | Technique Adopted | How It's Used in MedQuery |
+|---|---------|-------------------|---------------------------|
+| 1 | **Multi-Modal Document Comprehension** | Multi-model pipeline design | Architecture pattern for chaining embedding, retrieval, and synthesis stages |
+| 2 | **Self-RAG with Self-Grading** | Self-reflection + grounding | Strict grounding prompts ("answer ONLY from context"), agentic self-reflection step |
+| 3 | **IBM RAG with Advanced Retrievers** | Multi-query retrieval, parent document pattern | `generate_query_variants()` generates LLM reformulations; `expand_context_window()` fetches adjacent chunks |
+| 4 | **GraphRAG with Knowledge Graphs** | Entity extraction + relationship boosting | `extract_medical_entities()` detects drugs, conditions, procedures; `boost_entity_matches()` raises scores |
+| 5 | **Building & Evaluating Advanced RAG** | Evaluation framework + retrieval metrics | ROUGE-L, hallucination rate, retrieval recall metrics in `evaluation/runner.py` |
+| 6 | **Adaptive RAG with Conditional Routing** | Query routing to skip unnecessary retrieval | GENERAL queries skip retrieval entirely, get direct LLM answer with disclaimer |
+| 7 | **Corrective RAG with Web Search** | Web search fallback | `web_search.py` queries DuckDuckGo when no local documents match |
+| 8 | **Two-Stage Ranking + Sentence Extraction** | Chunk-then-sentence ranking, extractive fallback | `extract_key_sentences()` runs sentence-level BM25; `build_extractive_answer()` for low-confidence results |
+| 9 | **LLM-Powered Autonomous Agents** | ReAct agent loop with tool use | Agentic pipeline's classify/decompose/retrieve/synthesize/reflect cycle |
+| 10 | **LangChain Agent with Tool Orchestration** | Multi-query + conditional routing | Combined multi-query generation with conditional GENERAL routing |
+
+### Technique Integration Map
+
+```
+Query Input
+    │
+    ▼
+[Conditional Routing]──── GENERAL ────→ Direct LLM Answer (Project 6, 10)
+    │
+    │ (needs retrieval)
+    ▼
+[Multi-Query Generation] ← Project 3, 10
+    │ (original + 2 LLM variants)
+    ▼
+[Hybrid Retrieval] × N variants
+    │ (BM25 + pgvector, merge, deduplicate)
+    ▼
+[Entity-Aware Boosting] ← Project 4
+    │ (boost chunks matching medical entities)
+    ▼
+[Context Window Expansion] ← Project 3
+    │ (fetch adjacent chunks ±1)
+    ▼
+[FlashRank Reranking]
+    │
+    ▼
+[Sentence-Level Extraction] ← Project 8
+    │ (BM25 across sentences for focused context)
+    ▼
+[LLM Synthesis + Strict Grounding] ← Project 2, 5
+    │
+    ├─ High confidence → Cited answer
+    ├─ Low confidence  → Extractive fallback (Project 8)
+    └─ No results      → Web search (Project 7)
+```
+
+---
+
 ## Acknowledgments
 
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
-- [Ollama](https://ollama.ai/) - Local LLM and embedding inference
+- [Ollama](https://ollama.ai/) - Local LLM inference
 - [MedGemma](https://ollama.com/alibayram/medgemma) - Medical-domain LLM
 - [nomic-embed-text-v1.5](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) - Embedding model (local, via sentence-transformers)
-- [FlashRank](https://github.com/PrithivirajDamodaran/FlashRank) - Lightweight reranker
-- [pgvector](https://github.com/pgvector/pgvector) - Vector similarity search
-- [LangChain](https://python.langchain.com/) - Document processing & semantic chunking
+- [FlashRank](https://github.com/PrithivirajDamodaran/FlashRank) - Lightweight cross-encoder reranker
+- [pgvector](https://github.com/pgvector/pgvector) - Vector similarity search for PostgreSQL
+- [LangChain](https://python.langchain.com/) - Document processing & text splitting
+- [DuckDuckGo Search](https://pypi.org/project/duckduckgo-search/) - Zero-cost web search fallback
+- [rank-bm25](https://github.com/dorianbrown/rank_bm25) - BM25 keyword search (chunk + sentence level)
+- [Chorouk Malmoum](https://www.linkedin.com/in/chorouk-malmoum) - Curated the 10 RAG projects that inspired MedQuery's enhanced retrieval pipeline
 
 ---
 

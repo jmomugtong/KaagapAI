@@ -3,6 +3,11 @@ Hybrid Retrieval System for MedQuery
 
 Combines BM25 keyword search with pgvector cosine similarity search
 using a weighted fusion strategy: 0.4 * BM25 + 0.6 * cosine.
+
+Enhanced with:
+- Multi-query retrieval: LLM generates query reformulations for broader recall
+- Context window expansion: fetches adjacent chunks for richer context
+- Entity-aware boosting: boosts chunks containing medical entities from the query
 """
 
 import logging
@@ -351,3 +356,204 @@ class HybridRetriever:
         # Sort by score descending, return top_k
         results.sort(key=lambda x: x.score, reverse=True)
         return results[:top_k]
+
+
+# ============================================
+# Multi-Query Retrieval
+# ============================================
+
+MULTI_QUERY_PROMPT = """Generate {n} alternative phrasings of this medical query for better document retrieval. Each variant should preserve the original meaning but use different medical terminology, synonyms, or phrasing.
+
+Original query: {query}
+
+Return each variant on its own line, numbered 1-{n}. No other text."""
+
+
+async def generate_query_variants(
+    query: str,
+    ollama_client,
+    n: int = 3,
+) -> list[str]:
+    """Generate query reformulations via LLM for multi-query retrieval.
+
+    Returns the original query plus up to n variants. Falls back to
+    just the original query if LLM is unavailable.
+    """
+    if not ollama_client:
+        return [query]
+
+    try:
+        prompt = MULTI_QUERY_PROMPT.format(query=query, n=n)
+        raw = await ollama_client.generate(prompt)
+        if not raw:
+            return [query]
+
+        variants = []
+        for line in raw.strip().split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            cleaned = re.sub(r"^\d+[\.\)\:]\s*", "", line)
+            if cleaned and cleaned.lower() != query.lower():
+                variants.append(cleaned)
+
+        # Return original + variants (deduplicated)
+        result = [query] + variants[:n]
+        return result
+    except Exception as e:
+        logger.warning("Multi-query generation failed: %s", e)
+        return [query]
+
+
+# ============================================
+# Context Window Expansion
+# ============================================
+
+
+async def expand_context_window(
+    chunks: list[ScoredChunk],
+    session: AsyncSession,
+    window: int = 1,
+) -> list[ScoredChunk]:
+    """Fetch adjacent chunks (chunk_index ± window) for each retrieved chunk.
+
+    Expands context by fetching neighboring chunks from the same document,
+    giving the LLM more surrounding context for synthesis.
+    """
+    if not chunks:
+        return chunks
+
+    # Collect (document_id, chunk_index) pairs to fetch
+    existing_ids = {c.chunk_id for c in chunks}
+    fetch_pairs: list[tuple[int, int]] = []
+    for chunk in chunks:
+        for offset in range(-window, window + 1):
+            if offset == 0:
+                continue
+            neighbor_idx = chunk.chunk_index + offset
+            if neighbor_idx >= 0:
+                fetch_pairs.append((chunk.document_id, neighbor_idx))
+
+    if not fetch_pairs:
+        return chunks
+
+    # Batch-fetch adjacent chunks
+    try:
+        # Build WHERE clause for all pairs
+        conditions = " OR ".join(
+            f"(document_id = {doc_id} AND chunk_index = {idx})"
+            for doc_id, idx in fetch_pairs
+        )
+        sql = text(
+            f"SELECT id, chunk_text, document_id, chunk_index "
+            f"FROM embeddings_cache "
+            f"WHERE ({conditions}) AND id NOT IN ({','.join(str(i) for i in existing_ids)})"
+        )
+        result = await session.execute(sql)
+        rows = result.fetchall()
+
+        # Add adjacent chunks with a reduced score
+        expanded = list(chunks)
+        for row in rows:
+            if row.id not in existing_ids:
+                # Adjacent chunks get a fraction of the nearest retrieved chunk's score
+                parent_score = next(
+                    (c.score for c in chunks if c.document_id == row.document_id),
+                    0.3,
+                )
+                expanded.append(
+                    ScoredChunk(
+                        chunk_id=row.id,
+                        content=row.chunk_text,
+                        document_id=row.document_id,
+                        chunk_index=row.chunk_index,
+                        score=parent_score * 0.5,  # Adjacent = half the parent score
+                        source="context_expansion",
+                    )
+                )
+                existing_ids.add(row.id)
+
+        return expanded
+    except Exception as e:
+        logger.warning("Context window expansion failed: %s", e)
+        return chunks
+
+
+# ============================================
+# Entity-Aware Retrieval Boost
+# ============================================
+
+# Medical entity patterns for extraction (drug names, conditions, procedures)
+MEDICAL_ENTITY_PATTERNS = [
+    # Drug-like terms (capitalized multi-word or specific suffixes)
+    r"\b[A-Z][a-z]+(?:mycin|cillin|olol|pril|sartan|statin|azole|prazole|mab|nib|tinib)\b",
+    # Dosage patterns
+    r"\b\d+\s*(?:mg|mcg|ml|g|units?|IU)\b",
+    # Common procedure terms
+    r"\b(?:biopsy|endoscopy|colonoscopy|MRI|CT scan|X-ray|ultrasound|echocardiogram|catheterization|angiography|transplant)\b",
+]
+
+
+def extract_medical_entities(query: str) -> list[str]:
+    """Extract medical entities from a query string.
+
+    Returns a list of medical terms found (drug names, conditions,
+    procedures, dosages) using pattern matching + abbreviation dictionary.
+    """
+    entities = []
+
+    # Check for known medical abbreviations
+    preprocessor = QueryPreprocessor()
+    for abbr, expansion in preprocessor._abbreviations.items():
+        if re.search(r"\b" + re.escape(abbr) + r"\b", query):
+            entities.append(abbr.lower())
+            entities.append(expansion.lower())
+
+    # Check for medical entity patterns
+    for pattern in MEDICAL_ENTITY_PATTERNS:
+        for match in re.finditer(pattern, query, re.IGNORECASE):
+            entities.append(match.group(0).lower())
+
+    # Extract capitalized multi-word terms (likely medical terms)
+    for match in re.finditer(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b", query):
+        term = match.group(0).lower()
+        if term not in STOP_WORDS and len(term) > 3:
+            entities.append(term)
+
+    return list(set(entities))
+
+
+def boost_entity_matches(
+    chunks: list[ScoredChunk],
+    entities: list[str],
+    boost_factor: float = 1.15,
+) -> list[ScoredChunk]:
+    """Boost scores of chunks containing medical entities from the query.
+
+    Chunks matching more entities get progressively higher boosts.
+    """
+    if not entities or not chunks:
+        return chunks
+
+    boosted = []
+    for chunk in chunks:
+        content_lower = chunk.content.lower()
+        matches = sum(1 for entity in entities if entity in content_lower)
+        if matches > 0:
+            # Progressive boost: each entity match adds boost_factor multiplier
+            multiplier = 1.0 + (boost_factor - 1.0) * min(matches, 3)
+            boosted.append(
+                ScoredChunk(
+                    chunk_id=chunk.chunk_id,
+                    content=chunk.content,
+                    document_id=chunk.document_id,
+                    chunk_index=chunk.chunk_index,
+                    score=min(chunk.score * multiplier, 1.0),
+                    source=chunk.source,
+                )
+            )
+        else:
+            boosted.append(chunk)
+
+    boosted.sort(key=lambda x: x.score, reverse=True)
+    return boosted

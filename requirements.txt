@@ -38,7 +38,7 @@ amqp==5.2.0
 # ============================================
 # AI/ML - Embeddings & Retrieval
 # ============================================
-sentence-transformers==2.2.2
+sentence-transformers==2.7.0
 torch==2.1.1
 transformers==4.35.2
 tokenizers==0.15.0
@@ -71,6 +71,11 @@ Pillow==10.1.0
 httpx==0.25.2
 # httpcore, h11, anyio versions managed by dependencies
 sniffio==1.3.0
+
+# ============================================
+# Web Search Fallback
+# ============================================
+duckduckgo-search>=4.0
 
 # ============================================
 # Security & Authentication

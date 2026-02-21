@@ -356,8 +356,8 @@ class TestClassicalPipelineLLMSynthesis:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_low_confidence_returns_snippets_message(self, mocker):
-        """When LLM confidence < threshold, answer says 'Confidence too low'."""
+    async def test_low_confidence_returns_extractive_answer(self, mocker):
+        """When LLM confidence < threshold, answer uses extractive fallback."""
         mock_llm = mocker.AsyncMock()
         mock_llm.generate.return_value = (
             "I am not sure about this.\nConfidence: 0.30"
@@ -368,7 +368,7 @@ class TestClassicalPipelineLLMSynthesis:
             confidence_threshold=0.70,
         )
 
-        assert "Confidence too low" in result.answer
+        assert "Based on the most relevant passages" in result.answer
         assert result.pipeline == "classical"
 
     @pytest.mark.unit

@@ -5,12 +5,13 @@ Dedicated cross-encoder reranking using FlashRank for sub-100ms
 reranking on CPU. Falls back to retrieval ordering if FlashRank
 is unavailable.
 
-Replaces the previous LLM-based reranker that called Ollama per-chunk
-(5 LLM calls per query = 15-40s). FlashRank reranks all chunks in a
-single batch call in <100ms.
+Enhanced with sentence-level extraction: after chunk-level reranking,
+extracts the most relevant sentences from top chunks for more focused
+LLM context.
 """
 
 import logging
+import re
 from dataclasses import dataclass
 
 from src.rag.retriever import ScoredChunk
@@ -132,3 +133,94 @@ def assess_confidence(confidence: float) -> str:
     elif confidence >= MEDIUM_CONFIDENCE:
         return "medium"
     return "low"
+
+
+# ============================================
+# Sentence-Level Extraction
+# ============================================
+
+# Sentence boundary regex (handles abbreviations better than split("."))
+SENTENCE_BOUNDARY = re.compile(
+    r"(?<=[.!?])\s+(?=[A-Z])"
+    r"|(?<=\n)\s*(?=\S)"
+)
+
+
+def _split_sentences(text: str) -> list[str]:
+    """Split text into sentences, handling medical text patterns."""
+    # First split on clear boundaries
+    sentences = SENTENCE_BOUNDARY.split(text.strip())
+    # Filter out tiny fragments
+    return [s.strip() for s in sentences if len(s.strip()) > 20]
+
+
+def extract_key_sentences(
+    chunks: list[RerankedChunk],
+    query: str,
+    max_sentences: int = 10,
+) -> list[str]:
+    """Extract the most relevant sentences from reranked chunks.
+
+    Uses BM25 at the sentence level to pick the most query-relevant
+    sentences from across all top chunks. Returns up to max_sentences.
+    """
+    if not chunks:
+        return []
+
+    # Collect all sentences with their source chunk score
+    all_sentences: list[tuple[str, float]] = []
+    for chunk in chunks:
+        sentences = _split_sentences(chunk.content)
+        for sent in sentences:
+            all_sentences.append((sent, chunk.final_score))
+
+    if not all_sentences:
+        return [c.content for c in chunks[:3]]
+
+    # Use BM25 to rank sentences by relevance to query
+    try:
+        from rank_bm25 import BM25Okapi
+
+        corpus = [s[0].lower().split() for s in all_sentences]
+        if not corpus or all(len(doc) == 0 for doc in corpus):
+            return [s[0] for s in all_sentences[:max_sentences]]
+
+        bm25 = BM25Okapi(corpus)
+        query_tokens = query.lower().split()
+        scores = bm25.get_scores(query_tokens)
+
+        # Combine BM25 sentence score with chunk-level score
+        scored = []
+        for i, (sent, chunk_score) in enumerate(all_sentences):
+            combined = 0.4 * (scores[i] / max(max(scores), 1.0)) + 0.6 * chunk_score
+            scored.append((sent, combined))
+
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return [s[0] for s in scored[:max_sentences]]
+    except Exception as e:
+        logger.warning("Sentence-level extraction failed: %s", e)
+        return [s[0] for s in all_sentences[:max_sentences]]
+
+
+def build_extractive_answer(
+    chunks: list[RerankedChunk],
+    query: str,
+    max_sentences: int = 5,
+) -> str:
+    """Build an extractive answer from the top sentences of reranked chunks.
+
+    Used as a fallback when LLM confidence is low — returns real text
+    from the documents rather than generated content.
+    """
+    sentences = extract_key_sentences(chunks, query, max_sentences=max_sentences)
+    if not sentences:
+        return "No relevant information found in the indexed documents."
+
+    parts = []
+    for i, sent in enumerate(sentences, 1):
+        parts.append(f"{i}. {sent}")
+
+    return (
+        "Based on the most relevant passages from indexed documents:\n\n"
+        + "\n\n".join(parts)
+    )

@@ -3,6 +3,14 @@ Classical RAG Pipeline for MedQuery
 
 Encapsulates the standard retrieve-rerank-synthesize flow as a callable unit.
 Extracted from src/main.py to allow side-by-side comparison with the agentic pipeline.
+
+Enhanced with:
+- Multi-query retrieval: generates query reformulations for broader recall
+- Context window expansion: fetches adjacent chunks for richer context
+- Entity-aware boosting: boosts chunks containing medical entities
+- Sentence-level extraction: extracts key sentences for focused context
+- Extractive fallback: returns real document sentences when LLM confidence is low
+- Web search fallback: searches the web when no local documents match
 """
 
 import logging
@@ -146,13 +154,34 @@ class ClassicalPipeline:
             }
         )
 
-        # --- Hybrid retrieval ---
+        # --- Multi-query generation ---
+        step_start = time.time()
+        from src.rag.retriever import (
+            HybridRetriever,
+            ScoredChunk,
+            boost_entity_matches,
+            expand_context_window,
+            extract_medical_entities,
+            generate_query_variants,
+        )
+
+        query_variants = await generate_query_variants(
+            question, self.ollama_client, n=2
+        )
+        steps.append(
+            {
+                "name": "multi_query",
+                "duration_ms": round((time.time() - step_start) * 1000, 1),
+                "detail": f"Generated {len(query_variants)} query variants",
+            }
+        )
+
+        # --- Hybrid retrieval (multi-query) ---
         step_start = time.time()
         from sqlalchemy import select
 
         from src.db.models import DocumentChunk
         from src.db.postgres import AsyncSessionLocal
-        from src.rag.retriever import HybridRetriever, ScoredChunk
 
         try:
             # Use cached chunks if available, otherwise load from DB
@@ -178,11 +207,38 @@ class ClassicalPipeline:
                     steps=steps,
                 )
 
+            all_results: list[ScoredChunk] = []
             async with AsyncSessionLocal() as session:
-                retriever = HybridRetriever(chunks, session)
-                search_results = await retriever.search(
-                    question, query_embedding, top_k=max_results
+                for variant in query_variants:
+                    try:
+                        variant_embeddings = await self.embedding_generator.generate_embeddings(
+                            [variant], is_query=True
+                        )
+                        retriever = HybridRetriever(chunks, session)
+                        variant_results = await retriever.search(
+                            variant, variant_embeddings[0], top_k=max_results
+                        )
+                        all_results.extend(variant_results)
+                    except Exception as e:
+                        logger.warning("Retrieval failed for variant '%s': %s", variant, e)
+
+                # Deduplicate by chunk_id, keeping highest score
+                seen: dict[int, ScoredChunk] = {}
+                for chunk in all_results:
+                    if chunk.chunk_id not in seen or chunk.score > seen[chunk.chunk_id].score:
+                        seen[chunk.chunk_id] = chunk
+                search_results = sorted(seen.values(), key=lambda x: x.score, reverse=True)
+
+                # --- Entity-aware boosting ---
+                entities = extract_medical_entities(question)
+                if entities:
+                    search_results = boost_entity_matches(search_results, entities)
+
+                # --- Context window expansion ---
+                search_results = await expand_context_window(
+                    search_results[:max_results], session, window=1
                 )
+
         except Exception as e:
             logger.warning("Database query failed: %s", e)
             elapsed = (time.time() - start_time) * 1000
@@ -200,7 +256,10 @@ class ClassicalPipeline:
             {
                 "name": "retrieve",
                 "duration_ms": round((time.time() - step_start) * 1000, 1),
-                "detail": f"Retrieved {len(search_results)} chunks via hybrid search",
+                "detail": (
+                    f"Retrieved {len(search_results)} chunks via multi-query hybrid search "
+                    f"({len(query_variants)} variants, {len(entities)} entities boosted)"
+                ),
             }
         )
 
@@ -258,6 +317,60 @@ class ClassicalPipeline:
             )
 
         if not search_results:
+            # --- Web search fallback ---
+            step_start = time.time()
+            try:
+                from src.rag.web_search import (
+                    format_web_results_as_context,
+                    search_web,
+                    web_results_to_chunks,
+                )
+
+                web_results = await search_web(question, max_results=3)
+                if web_results:
+                    steps.append(
+                        {
+                            "name": "web_search_fallback",
+                            "duration_ms": round((time.time() - step_start) * 1000, 1),
+                            "detail": f"Found {len(web_results)} web results",
+                        }
+                    )
+                    web_context = format_web_results_as_context(web_results)
+                    web_chunk_dicts = web_results_to_chunks(web_results)
+
+                    # Try LLM synthesis with web context
+                    if self.ollama_client and web_context:
+                        from src.llm.prompt_templates import PromptTemplate
+
+                        template = PromptTemplate()
+                        web_prompt_chunks = [
+                            {"text": r.snippet, "metadata": {"source": r.title}}
+                            for r in web_results
+                        ]
+                        prompt = template.build(question=question, chunks=web_prompt_chunks)
+                        raw_response = await self.ollama_client.generate(prompt)
+                        if raw_response:
+                            from src.llm.response_parser import ResponseParser
+
+                            parser = ResponseParser()
+                            parsed = parser.parse(raw_response, [])
+                            elapsed = (time.time() - start_time) * 1000
+                            return PipelineResult(
+                                answer=(
+                                    "**Note: Answer based on web sources, not indexed clinical documents.**\n\n"
+                                    + parsed.answer
+                                ),
+                                confidence=round(parsed.confidence * 0.7, 4),  # Discount web confidence
+                                citations=[],
+                                retrieved_chunks=web_chunk_dicts,
+                                query_id=str(uuid.uuid4())[:8],
+                                processing_time_ms=round(elapsed, 1),
+                                pipeline="classical",
+                                steps=steps,
+                            )
+            except Exception as e:
+                logger.warning("Web search fallback failed: %s", e)
+
             elapsed = (time.time() - start_time) * 1000
             return PipelineResult(
                 answer="No relevant results found for your query.",
@@ -292,10 +405,23 @@ class ClassicalPipeline:
                     )
 
                     if parsed.confidence < confidence_threshold:
-                        answer = (
-                            "Confidence too low for synthesis. "
-                            "Relevant snippets are provided in retrieved_chunks."
-                        )
+                        # Extractive fallback: return key sentences from docs
+                        from src.rag.reranker import RerankedChunk, build_extractive_answer
+
+                        extractive_chunks = [
+                            RerankedChunk(
+                                chunk_id=r.chunk_id,
+                                content=r.content,
+                                document_id=r.document_id,
+                                chunk_index=r.chunk_index,
+                                retrieval_score=r.score,
+                                rerank_score=r.score,
+                                final_score=r.score,
+                                source=r.source,
+                            )
+                            for r in search_results
+                        ]
+                        answer = build_extractive_answer(extractive_chunks, question)
                     else:
                         answer = parsed.answer
 

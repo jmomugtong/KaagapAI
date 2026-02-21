@@ -42,7 +42,7 @@ dependencies = [
     "celery==5.3.4",
     
     # AI/ML
-    "sentence-transformers==2.2.2",
+    "sentence-transformers==2.7.0",
     "torch==2.1.1",
     "transformers==4.35.2",
     "rank-bm25==0.2.2",
@@ -55,6 +55,9 @@ dependencies = [
     
     # LLM Client
     "httpx==0.25.2",
+
+    # Web Search Fallback
+    "duckduckgo-search>=4.0",
     
     # Security
     "python-jose[cryptography]==3.3.0",

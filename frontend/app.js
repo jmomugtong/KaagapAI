@@ -57,7 +57,7 @@ function resultCard(data) {
       ${processingTime(data.processing_time_ms)}
       ${hallTag}${cachedTag}
     </div>
-    <div class="text-sm text-gray-100 leading-relaxed">${data.answer || '<em class="text-gray-500">No answer</em>'}</div>
+    <div class="text-sm text-gray-100 leading-relaxed whitespace-pre-line">${(data.answer || '<em class="text-gray-500">No answer</em>').replace(/\*\*(.+?)\*\*/g, '<strong class="text-yellow-300">$1</strong>')}</div>
     ${data.citations && data.citations.length ? `<div><span class="text-xs text-gray-500 block mb-1">Citations</span>${citationBadges(data.citations)}</div>` : ''}
     <details class="group">
       <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-300 select-none">
@@ -176,7 +176,9 @@ function stepsTimeline(steps) {
     const icon = {
       pii_redact_input: '🔒', cache_check: '💾', cache_hit: '⚡',
       classify: '🏷', decompose: '✂', embed: '🔢', retrieve: '🔍',
-      rerank: '📊', synthesize: '✍', reflect: '🤔', retry: '🔄',
+      multi_query: '🔀', rerank: '📊', synthesize: '✍', reflect: '🤔',
+      retry: '🔄', retry_retrieve: '🔄', deduplicate: '🧹',
+      web_search_fallback: '🌐', direct_answer: '💡', complete: '✅',
     }[s.name] || '⚙';
     return `
       <div class="timeline-item relative pl-8 pb-3" style="position:relative">
