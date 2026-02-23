@@ -12,12 +12,17 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from src import __version__
+from src.api.auth import (
+    LoginRequest,
+    RegisterRequest,
+    get_current_user as _get_current_user,
+)
 from src.security.rate_limiter import RateLimitMiddleware
 
 # Configure logging
@@ -201,12 +206,76 @@ async def readiness_check() -> dict[str, Any]:
 
 
 # ============================================
+# Auth Routes
+# ============================================
+
+
+@app.post("/api/v1/auth/register", tags=["Auth"])
+async def register_endpoint(body: RegisterRequest) -> dict[str, Any]:
+    """Register a new user and return an access token."""
+    from sqlalchemy import select
+
+    from src.api.auth import create_access_token, hash_password
+    from src.db.models import User
+    from src.db.postgres import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as session:
+        # Check for duplicate email
+        existing = await session.execute(
+            select(User).where(User.email == body.email)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Email already registered",
+            )
+
+        user = User(
+            email=body.email,
+            hashed_password=hash_password(body.password),
+            full_name=body.full_name,
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+
+    token = create_access_token({"sub": user.email, "user_id": user.id})
+    return {"access_token": token, "token_type": "bearer"}
+
+
+@app.post("/api/v1/auth/login", tags=["Auth"])
+async def login_endpoint(body: LoginRequest) -> dict[str, Any]:
+    """Authenticate a user and return an access token."""
+    from sqlalchemy import select
+
+    from src.api.auth import create_access_token, verify_password
+    from src.db.models import User
+    from src.db.postgres import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(User).where(User.email == body.email)
+        )
+        user = result.scalar_one_or_none()
+
+    if not user or not verify_password(body.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = create_access_token({"sub": user.email, "user_id": user.id})
+    return {"access_token": token, "token_type": "bearer"}
+
+
+# ============================================
 # API v1 Routes
 # ============================================
 
 
 @app.post("/api/v1/query", tags=["Query"])
-async def query_endpoint(request: Request) -> dict[str, Any]:
+async def query_endpoint(request: Request, user: dict[str, Any] | None = Depends(_get_current_user)) -> dict[str, Any]:
     """
     Submit a clinical query.
 
@@ -256,7 +325,7 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
 
 
 @app.post("/api/v1/query/stream", tags=["Query"])
-async def query_stream_endpoint(request: Request):
+async def query_stream_endpoint(request: Request, user: dict[str, Any] | None = Depends(_get_current_user)):
     """
     Submit a clinical query and stream the LLM response as Server-Sent Events.
 
@@ -385,7 +454,7 @@ async def query_stream_endpoint(request: Request):
 
 
 @app.post("/api/v1/agent/query", tags=["Query"])
-async def agent_query_endpoint(request: Request) -> dict[str, Any]:
+async def agent_query_endpoint(request: Request, user: dict[str, Any] | None = Depends(_get_current_user)) -> dict[str, Any]:
     """
     Submit a clinical query using the agentic RAG pipeline.
 
@@ -416,6 +485,7 @@ async def agent_query_endpoint(request: Request) -> dict[str, Any]:
         ollama_client=getattr(app.state, "ollama_client", None),
         reranker=getattr(app.state, "reranker", None),
         doc_name_map=getattr(app.state, "doc_name_map", None),
+        cached_chunks=getattr(app.state, "cached_chunks", None),
     )
     result = await pipeline.run(question, max_results, confidence_threshold)
 
@@ -433,7 +503,7 @@ async def agent_query_endpoint(request: Request) -> dict[str, Any]:
 
 
 @app.post("/api/v1/compare", tags=["Query"])
-async def compare_endpoint(request: Request) -> dict[str, Any]:
+async def compare_endpoint(request: Request, user: dict[str, Any] | None = Depends(_get_current_user)) -> dict[str, Any]:
     """
     Run both classical and agentic pipelines concurrently and return
     a side-by-side comparison of their results.
@@ -467,7 +537,9 @@ async def compare_endpoint(request: Request) -> dict[str, Any]:
     classical = ClassicalPipeline(
         embedding_gen, ollama_client, reranker, cached_chunks, doc_name_map
     )
-    agentic = AgenticPipeline(embedding_gen, ollama_client, reranker, doc_name_map)
+    agentic = AgenticPipeline(
+        embedding_gen, ollama_client, reranker, doc_name_map, cached_chunks
+    )
 
     # Run both concurrently
     classical_result, agentic_result = await asyncio.gather(
@@ -533,6 +605,7 @@ async def upload_endpoint(
     file: UploadFile = File(...),
     document_type: str = Form("protocol"),
     metadata: str = Form("{}"),
+    user: dict[str, Any] | None = Depends(_get_current_user),
 ) -> dict[str, Any]:
     """Upload a clinical document for indexing."""
     start_time = time.time()

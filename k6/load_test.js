@@ -80,7 +80,9 @@ function getRandomQuery() {
 // Test Scenarios
 // ============================================
 
-export default function () {
+export default function (data) {
+    const authHeader = data.token ? { 'Authorization': `Bearer ${data.token}` } : {};
+
     group('Query Endpoint Load Test', function () {
         const query = {
             question: getRandomQuery(),
@@ -89,11 +91,9 @@ export default function () {
         };
 
         const params = {
-            headers: {
+            headers: Object.assign({
                 'Content-Type': 'application/json',
-                // Add auth header when implemented
-                // 'Authorization': `Bearer ${__ENV.API_TOKEN}`,
-            },
+            }, authHeader),
             tags: { name: 'query' },
         };
 
@@ -161,21 +161,96 @@ export function healthCheck() {
 }
 
 // ============================================
+// Auth Endpoint Scenario
+// ============================================
+
+export function authTest() {
+    group('Auth Endpoints', function () {
+        // Register a unique user
+        const email = `k6_auth_${__VU}_${__ITER}_${Date.now()}@test.com`;
+        const regPayload = JSON.stringify({
+            email: email,
+            password: 'TestPassword123!',
+            full_name: 'Auth Test User',
+        });
+
+        const regRes = http.post(`${BASE_URL}/api/v1/auth/register`, regPayload, {
+            headers: { 'Content-Type': 'application/json' },
+        });
+
+        check(regRes, {
+            'register returns 200': (r) => r.status === 200,
+            'register returns token': (r) => r.json().access_token !== undefined,
+        });
+
+        // Login with the same credentials
+        const loginPayload = JSON.stringify({
+            email: email,
+            password: 'TestPassword123!',
+        });
+
+        const loginRes = http.post(`${BASE_URL}/api/v1/auth/login`, loginPayload, {
+            headers: { 'Content-Type': 'application/json' },
+        });
+
+        check(loginRes, {
+            'login returns 200': (r) => r.status === 200,
+            'login returns token': (r) => r.json().access_token !== undefined,
+        });
+
+        // Use the token to make an authenticated query
+        if (loginRes.status === 200) {
+            const token = loginRes.json().access_token;
+            const queryRes = http.post(
+                `${BASE_URL}/api/v1/query`,
+                JSON.stringify({ question: 'What is the pain management protocol?' }),
+                { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } }
+            );
+
+            check(queryRes, {
+                'authenticated query returns 200': (r) => r.status === 200,
+            });
+        }
+    });
+}
+
+// ============================================
 // Setup and Teardown
 // ============================================
 
 export function setup() {
     // Verify API is available before starting test
-    const response = http.get(`${BASE_URL}/health`);
+    const healthRes = http.get(`${BASE_URL}/health`);
 
-    if (response.status !== 200) {
-        throw new Error(`API health check failed: ${response.status}`);
+    if (healthRes.status !== 200) {
+        throw new Error(`API health check failed: ${healthRes.status}`);
     }
 
-    console.log('API is healthy, starting load test...');
+    console.log('API is healthy, registering test user...');
+
+    // Register a test user and obtain a JWT token
+    const uniqueEmail = `k6_loadtest_${Date.now()}@test.com`;
+    const regPayload = JSON.stringify({
+        email: uniqueEmail,
+        password: 'K6LoadTest!2024',
+        full_name: 'k6 Load Tester',
+    });
+
+    const regRes = http.post(`${BASE_URL}/api/v1/auth/register`, regPayload, {
+        headers: { 'Content-Type': 'application/json' },
+    });
+
+    let token = null;
+    if (regRes.status === 200 || regRes.status === 201) {
+        token = regRes.json().access_token;
+        console.log('Test user registered, token obtained.');
+    } else {
+        console.warn(`Registration returned ${regRes.status} — running without auth.`);
+    }
 
     return {
         startTime: new Date().toISOString(),
+        token: token,
     };
 }
 

@@ -40,11 +40,15 @@ MAX_ITERATIONS = 3
 class AgenticPipeline:
     """ReAct-style agentic RAG pipeline with classify/decompose/reflect."""
 
-    def __init__(self, embedding_generator, ollama_client, reranker, doc_name_map=None):
+    def __init__(
+        self, embedding_generator, ollama_client, reranker,
+        doc_name_map=None, cached_chunks=None,
+    ):
         self.embedding_generator = embedding_generator
         self.ollama_client = ollama_client
         self.reranker = reranker
         self.doc_name_map = doc_name_map or {}
+        self.cached_chunks = cached_chunks
 
     async def run(
         self,
@@ -150,26 +154,33 @@ class AgenticPipeline:
 
         all_chunks: list[ScoredChunk] = []
         try:
+            # Use cached chunks if available, otherwise load from DB
+            if self.cached_chunks is not None:
+                db_chunks = self.cached_chunks
+                logger.info("Using cached chunks: %d chunks", len(db_chunks))
+            else:
+                logger.info("Loading chunks from database (cache not available)")
+                async with AsyncSessionLocal() as session:
+                    result = await session.execute(select(DocumentChunk))
+                    db_chunks = result.scalars().all()
+
+            if not db_chunks:
+                elapsed = (time.time() - start_time) * 1000
+                return PipelineResult(
+                    answer="No documents indexed yet. Upload documents first.",
+                    confidence=0.0,
+                    citations=[],
+                    retrieved_chunks=[],
+                    query_id="no_docs",
+                    processing_time_ms=round(elapsed, 1),
+                    pipeline="agentic",
+                    steps=steps,
+                )
+
+            # Extract medical entities for boosting
+            entities = extract_medical_entities(question)
+
             async with AsyncSessionLocal() as session:
-                result = await session.execute(select(DocumentChunk))
-                db_chunks = result.scalars().all()
-
-                if not db_chunks:
-                    elapsed = (time.time() - start_time) * 1000
-                    return PipelineResult(
-                        answer="No documents indexed yet. Upload documents first.",
-                        confidence=0.0,
-                        citations=[],
-                        retrieved_chunks=[],
-                        query_id="no_docs",
-                        processing_time_ms=round(elapsed, 1),
-                        pipeline="agentic",
-                        steps=steps,
-                    )
-
-                # Extract medical entities for boosting
-                entities = extract_medical_entities(question)
-
                 for i, sq in enumerate(sub_queries):
                     step_start = time.time()
                     try:
@@ -371,8 +382,11 @@ class AgenticPipeline:
                 step_start = time.time()
                 try:
                     async with AsyncSessionLocal() as session:
-                        result = await session.execute(select(DocumentChunk))
-                        db_chunks = result.scalars().all()
+                        if self.cached_chunks is not None:
+                            db_chunks = self.cached_chunks
+                        else:
+                            result = await session.execute(select(DocumentChunk))
+                            db_chunks = result.scalars().all()
                         if db_chunks:
                             embeddings = (
                                 await self.embedding_generator.generate_embeddings(
