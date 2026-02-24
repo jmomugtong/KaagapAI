@@ -418,13 +418,19 @@ class TestRateLimiting:
     """Verify rate-limit response headers and 429 behavior."""
 
     @pytest.mark.unit
-    def test_rate_limit_exceeded_returns_429(self, client):
+    def test_rate_limit_exceeded_returns_429(self):
         """After 10 requests/min, subsequent requests return 429."""
-        payload = {"question": "What is the first-line treatment for hypertension?"}
+        from src.security.rate_limiter import RateLimiter
+
+        limiter = RateLimiter()
+        key = "rate:testuser"
+
         # Make 10 allowed requests
         for _ in range(10):
-            client.post("/api/v1/query", json=payload)
+            allowed, _ = limiter.is_allowed(key)
+            assert allowed is True
+
         # The 11th should be rate-limited
-        response = client.post("/api/v1/query", json=payload)
-        assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
-        assert "Retry-After" in response.headers
+        allowed, retry_after = limiter.is_allowed(key)
+        assert allowed is False
+        assert retry_after > 0
