@@ -47,6 +47,7 @@ def _load_st_model(model_name: str):
         model_name,
         model_args={"trust_remote_code": True},
         tokenizer_args={"trust_remote_code": True},
+        config_args={"trust_remote_code": True},
     )
     pooling = st_models.Pooling(word_embedding.get_word_embedding_dimension())
     model = SentenceTransformer(modules=[word_embedding, pooling])
