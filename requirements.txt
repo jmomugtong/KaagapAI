@@ -39,11 +39,11 @@ amqp==5.2.0
 # AI/ML - Embeddings & Retrieval
 # ============================================
 sentence-transformers==2.7.0
-torch==2.1.1
+torch==2.2.2
 transformers==4.35.2
-tokenizers==0.15.0
+tokenizers==0.15.2
 huggingface-hub==0.19.4
-safetensors==0.4.1
+safetensors==0.4.5
 einops==0.7.0
 rank-bm25==0.2.2
 flashrank==0.2.10
@@ -79,11 +79,8 @@ sniffio==1.3.0
 duckduckgo-search>=4.0
 
 # ============================================
-# Security & Authentication
+# Security
 # ============================================
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-bcrypt==4.1.1
 cryptography==41.0.7
 
 # ============================================
@@ -135,5 +132,3 @@ pre-commit==3.6.0
 # Type Stubs
 # ============================================
 types-redis==4.6.0.11
-types-passlib==1.7.7.13
-types-python-jose==3.3.4.8
