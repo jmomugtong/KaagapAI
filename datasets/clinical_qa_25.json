@@ -1,206 +1,206 @@
 {
   "version": "1.0",
-  "description": "Clinical QA evaluation dataset (25 questions)",
+  "description": "Philippine clinical QA evaluation dataset (25 questions) - based on DOH, PSMID, PIDSP, and Philippine medical society guidelines for conditions prevalent in remote Philippine hospitals and RHUs",
   "questions": [
     {
       "id": "q001",
-      "query": "What is the post-operative pain protocol for knee replacement?",
-      "ground_truth": "Administer acetaminophen 1000mg every 6 hours, combined with oxycodone 5-10mg every 4-6 hours as needed for breakthrough pain. Apply ice packs for 20 minutes every 2 hours.",
-      "expected_sources": ["Post-Op Pain Management Protocol v3.2"],
-      "category": "pain_management",
+      "query": "What is the DOTS protocol for drug-susceptible pulmonary TB?",
+      "ground_truth": "The DOH NTP DOTS protocol for drug-susceptible pulmonary TB consists of an intensive phase of 2 months (RHZE: rifampicin, isoniazid, pyrazinamide, ethambutol daily) followed by a continuation phase of 4 months (RH: rifampicin and isoniazid daily). All doses must be directly observed by a trained treatment partner.",
+      "expected_sources": ["PH TB NTP Manual of Procedures 6th Edition"],
+      "category": "tuberculosis",
       "difficulty": "easy"
     },
     {
       "id": "q002",
-      "query": "What are the guidelines for DVT prophylaxis after hip surgery?",
-      "ground_truth": "Enoxaparin 40mg subcutaneous daily starting 12 hours post-op, continue for 28-35 days. Mechanical prophylaxis with graduated compression stockings.",
-      "expected_sources": ["DVT Prophylaxis Guideline v2.1"],
-      "category": "prophylaxis",
-      "difficulty": "easy"
+      "query": "How should a new TB patient with concurrent diabetes be managed?",
+      "ground_truth": "TB-DM patients receive the standard 6-month DOTS regimen (2RHZE/4RH) but require closer monitoring: monthly sputum examinations, blood glucose monitoring at baseline and monthly, and coordination between TB-DOTS and diabetes clinics. Rifampicin may reduce the effectiveness of oral hypoglycemics, requiring dose adjustments.",
+      "expected_sources": ["PH TB NTP Manual of Procedures 6th Edition"],
+      "category": "tuberculosis",
+      "difficulty": "medium"
     },
     {
       "id": "q003",
-      "query": "How should hypertensive crisis be managed in the emergency department?",
-      "ground_truth": "Administer IV labetalol 20mg bolus, may repeat every 10 minutes up to 300mg. Target blood pressure reduction of 25% within first hour. Continuous monitoring required.",
-      "expected_sources": ["Emergency Hypertension Protocol v4.0"],
-      "category": "emergency",
-      "difficulty": "medium"
+      "query": "What are the diagnostic criteria for TB in a presumptive TB patient at an RHU?",
+      "ground_truth": "At the RHU level, presumptive TB patients undergo sputum smear microscopy (two specimens: spot and early morning). A patient is bacteriologically confirmed if at least one specimen is smear-positive for acid-fast bacilli. GeneXpert MTB/RIF is recommended as the initial diagnostic test where available, especially for retreatment cases, children, and PLHIV.",
+      "expected_sources": ["PH TB NTP Manual of Procedures 6th Edition"],
+      "category": "tuberculosis",
+      "difficulty": "easy"
     },
     {
       "id": "q004",
-      "query": "What is the antibiotic protocol for community-acquired pneumonia?",
-      "ground_truth": "Amoxicillin 500mg three times daily for 5 days for mild cases. For moderate cases, amoxicillin-clavulanate plus azithromycin. Reassess at 48-72 hours.",
-      "expected_sources": ["CAP Treatment Guideline v3.0"],
-      "category": "infectious_disease",
-      "difficulty": "easy"
+      "query": "What is the standard regimen for drug-resistant TB in the Philippines?",
+      "ground_truth": "For rifampicin-resistant or MDR-TB, the NTP recommends the shorter standardized regimen (9-11 months) or the longer individualized regimen (18-20 months) based on drug susceptibility testing. The shorter regimen includes an intensive phase with bedaquiline, linezolid, levofloxacin, clofazimine, and pyrazinamide, followed by a continuation phase.",
+      "expected_sources": ["PH TB NTP Manual of Procedures 6th Edition"],
+      "category": "tuberculosis",
+      "difficulty": "hard"
     },
     {
       "id": "q005",
-      "query": "What are the monitoring requirements for patients on warfarin?",
-      "ground_truth": "INR monitoring weekly until stable, then monthly. Target INR 2.0-3.0 for most indications. Check for drug interactions at each visit.",
-      "expected_sources": ["Anticoagulation Management Protocol v2.5"],
-      "category": "medication_monitoring",
-      "difficulty": "easy"
-    },
-    {
-      "id": "q006",
-      "query": "How is diabetic ketoacidosis managed in adults?",
-      "ground_truth": "IV insulin infusion at 0.1 units/kg/hour. Normal saline bolus 1-2L in first hour. Monitor blood glucose hourly, potassium every 2 hours. Switch to subcutaneous insulin when gap closes.",
-      "expected_sources": ["DKA Management Protocol v3.1"],
-      "category": "endocrine",
+      "query": "How should TB contacts be managed at the community level?",
+      "ground_truth": "All household contacts of bacteriologically confirmed TB patients must be screened. Symptomatic contacts undergo sputum examination. Children under 5 who are contacts of smear-positive cases should receive TB preventive therapy (TPT) with isoniazid for 6 months if active TB is excluded. Contact tracing and screening are done by barangay health workers under supervision of the RHU.",
+      "expected_sources": ["PH TB NTP Manual of Procedures 6th Edition"],
+      "category": "tuberculosis",
       "difficulty": "medium"
     },
     {
+      "id": "q006",
+      "query": "What are the dengue warning signs that require hospitalization in children?",
+      "ground_truth": "Dengue warning signs requiring hospitalization include: abdominal pain or tenderness, persistent vomiting (3 or more episodes in 24 hours), clinical fluid accumulation (pleural effusion, ascites), mucosal bleeding, lethargy or restlessness, liver enlargement >2 cm, and rising hematocrit concurrent with rapid decrease in platelet count. Any patient with one or more warning signs requires hospital admission for close monitoring.",
+      "expected_sources": ["PH Dengue CPG 2017"],
+      "category": "dengue",
+      "difficulty": "easy"
+    },
+    {
       "id": "q007",
-      "query": "What is the protocol for managing acute myocardial infarction?",
-      "ground_truth": "Aspirin 325mg chewed immediately. Heparin bolus followed by infusion. Emergent PCI within 90 minutes of arrival for STEMI. Morphine for pain if needed.",
-      "expected_sources": ["STEMI Protocol v5.0", "Chest Pain Pathway v2.0"],
-      "category": "cardiology",
+      "query": "What is the recommended fluid management for dengue with warning signs?",
+      "ground_truth": "For dengue with warning signs, start isotonic crystalloid solution (0.9% NaCl or Lactated Ringer's) at 5-7 mL/kg/hour for 1-2 hours, then reduce to 3-5 mL/kg/hour for 2-4 hours, then 2-3 mL/kg/hour based on clinical response. Monitor hematocrit before and after fluid boluses. Reduce IV fluids when hematocrit decreases, urine output improves, and vital signs stabilize.",
+      "expected_sources": ["PH Dengue CPG 2017"],
+      "category": "dengue",
       "difficulty": "medium"
     },
     {
       "id": "q008",
-      "query": "What are the guidelines for blood transfusion thresholds?",
-      "ground_truth": "Restrictive strategy: transfuse when hemoglobin below 7 g/dL for stable patients. Liberal threshold of 9 g/dL for acute coronary syndrome patients.",
-      "expected_sources": ["Blood Transfusion Guideline v3.0"],
-      "category": "hematology",
-      "difficulty": "easy"
+      "query": "When should platelet transfusion be given in dengue?",
+      "ground_truth": "Prophylactic platelet transfusion is NOT recommended in dengue regardless of platelet count. Platelet transfusion should only be considered in cases of significant clinical bleeding that is uncontrolled. A low platelet count alone is not an indication for transfusion. The focus should be on maintaining adequate fluid resuscitation and monitoring for bleeding.",
+      "expected_sources": ["PH Dengue CPG 2017"],
+      "category": "dengue",
+      "difficulty": "medium"
     },
     {
       "id": "q009",
-      "query": "How should acute asthma exacerbation be treated?",
-      "ground_truth": "Continuous nebulized albuterol 2.5-5mg every 20 minutes for 3 doses. Ipratropium bromide 0.5mg with first 3 albuterol treatments. Systemic corticosteroids within first hour.",
-      "expected_sources": ["Asthma Exacerbation Protocol v2.8"],
-      "category": "pulmonology",
+      "query": "How is dengue classified by severity?",
+      "ground_truth": "The WHO/PIDSP classification divides dengue into three categories: (1) Dengue without warning signs — fever with two or more of nausea/vomiting, rash, aches, leukopenia, positive tourniquet test; (2) Dengue with warning signs — abdominal pain, persistent vomiting, fluid accumulation, mucosal bleeding, lethargy, hepatomegaly, rising hematocrit with dropping platelets; (3) Severe dengue — severe plasma leakage leading to shock or fluid accumulation with respiratory distress, severe bleeding, or severe organ impairment.",
+      "expected_sources": ["PH Dengue CPG 2017"],
+      "category": "dengue",
       "difficulty": "easy"
     },
     {
       "id": "q010",
-      "query": "What is the sepsis management bundle?",
-      "ground_truth": "Within 1 hour: obtain lactate, blood cultures before antibiotics, broad-spectrum antibiotics, 30 mL/kg crystalloid for hypotension. Reassess volume status and lactate at 4 hours.",
-      "expected_sources": ["Sepsis Bundle Protocol v4.2"],
-      "category": "critical_care",
-      "difficulty": "medium"
+      "query": "What is the first-line antihypertensive drug recommended by the Philippine Hypertension CPG?",
+      "ground_truth": "The Philippine CPG on Hypertension recommends any of the five major drug classes as first-line therapy: ACE inhibitors, ARBs, calcium channel blockers (CCBs), thiazide diuretics, or beta-blockers. For uncomplicated hypertension, CCBs (amlodipine) or ARBs (losartan) are preferred as initial monotherapy. The choice depends on compelling indications, comorbidities, and drug availability.",
+      "expected_sources": ["PH Hypertension CPG 2020"],
+      "category": "hypertension",
+      "difficulty": "easy"
     },
     {
       "id": "q011",
-      "query": "What are the guidelines for managing atrial fibrillation?",
-      "ground_truth": "Rate control with beta-blockers or calcium channel blockers. CHA2DS2-VASc score for anticoagulation decision. Consider rhythm control for symptomatic patients.",
-      "expected_sources": ["AFib Management Guideline v3.5"],
-      "category": "cardiology",
+      "query": "What are the blood pressure targets for hypertensive Filipino patients with diabetes?",
+      "ground_truth": "For hypertensive patients with diabetes, the Philippine CPG recommends a target blood pressure of <130/80 mmHg. An ACE inhibitor or ARB is the preferred first-line agent due to renoprotective effects. Combination therapy is usually required, and a CCB or thiazide diuretic can be added as second-line. Lifestyle modifications including dietary sodium restriction and weight management are integral.",
+      "expected_sources": ["PH Hypertension CPG 2020"],
+      "category": "hypertension",
       "difficulty": "medium"
     },
     {
       "id": "q012",
-      "query": "How is acute kidney injury classified and managed?",
-      "ground_truth": "KDIGO staging based on creatinine rise and urine output. Optimize volume status, avoid nephrotoxins, adjust medication doses. Consider renal replacement if severe.",
-      "expected_sources": ["AKI Management Protocol v2.0"],
-      "category": "nephrology",
+      "query": "How should hypertensive urgency be managed at the RHU level?",
+      "ground_truth": "Hypertensive urgency (severely elevated BP >180/120 mmHg without acute target organ damage) should be managed with oral antihypertensives. Oral amlodipine 5-10 mg or captopril 25 mg sublingual can be given. The goal is to reduce BP gradually over 24-48 hours, not acutely. The patient should be observed for 2-6 hours at the RHU. Referral to a higher-level facility is indicated if BP does not respond or if symptoms of target organ damage develop.",
+      "expected_sources": ["PH Hypertension CPG 2020"],
+      "category": "hypertension",
       "difficulty": "medium"
     },
     {
       "id": "q013",
-      "query": "What is the protocol for stroke assessment?",
-      "ground_truth": "CT head within 25 minutes of arrival. NIH Stroke Scale assessment. tPA within 4.5 hours of symptom onset if eligible. Monitor neurological status every 15 minutes.",
-      "expected_sources": ["Acute Stroke Protocol v4.0"],
-      "category": "neurology",
-      "difficulty": "medium"
+      "query": "What is the screening protocol for Type 2 diabetes in the Philippines?",
+      "ground_truth": "The Philippine UNITE CPG recommends screening for Type 2 DM in all adults aged 40 and above, and in younger adults with risk factors: BMI >= 23 kg/m2, family history of diabetes, history of gestational diabetes, hypertension, dyslipidemia, or polycystic ovary syndrome. Screening is done with fasting blood sugar (FBS). Diabetes is diagnosed with FBS >= 126 mg/dL (confirmed on repeat), random blood sugar >= 200 mg/dL with symptoms, or HbA1c >= 6.5%.",
+      "expected_sources": ["PH Diabetes UNITE CPG"],
+      "category": "diabetes",
+      "difficulty": "easy"
     },
     {
       "id": "q014",
-      "query": "What are the guidelines for perioperative beta-blocker use?",
-      "ground_truth": "Continue beta-blockers in patients already on them. Do not initiate high-dose beta-blockers on the day of surgery. Titrate to heart rate 60-80 bpm.",
-      "expected_sources": ["Perioperative Cardiac Guideline v2.3"],
-      "category": "surgery",
-      "difficulty": "hard"
+      "query": "What is the recommended first-line drug for newly diagnosed Type 2 diabetes?",
+      "ground_truth": "Metformin is the recommended first-line pharmacologic therapy for newly diagnosed Type 2 DM, starting at 500 mg once daily with meals, titrated to 500 mg twice daily after 1-2 weeks, up to a maximum of 2000 mg/day. It is preferred due to its efficacy, weight neutrality, low hypoglycemia risk, and low cost. Metformin is contraindicated in patients with eGFR <30 mL/min or in conditions predisposing to lactic acidosis.",
+      "expected_sources": ["PH Diabetes UNITE CPG"],
+      "category": "diabetes",
+      "difficulty": "easy"
     },
     {
       "id": "q015",
-      "query": "How should opioid withdrawal be managed?",
-      "ground_truth": "Buprenorphine induction when COWS score >= 8. Start at 2-4mg sublingual, may repeat every 2 hours up to 8mg on day 1. Symptomatic treatment with clonidine and antiemetics.",
-      "expected_sources": ["Opioid Withdrawal Protocol v2.0"],
-      "category": "addiction_medicine",
-      "difficulty": "hard"
+      "query": "What are the HbA1c targets for Filipino diabetic patients?",
+      "ground_truth": "The UNITE CPG recommends an HbA1c target of <7.0% for most adult patients with Type 2 DM. A more stringent target of <6.5% may be considered for newly diagnosed patients without significant comorbidities. A less stringent target of <8.0% is acceptable for elderly patients, those with long disease duration, limited life expectancy, or significant comorbidities where the risk of hypoglycemia outweighs the benefit of tight control.",
+      "expected_sources": ["PH Diabetes UNITE CPG"],
+      "category": "diabetes",
+      "difficulty": "medium"
     },
     {
       "id": "q016",
-      "query": "What is the ventilator weaning protocol?",
-      "ground_truth": "Daily spontaneous breathing trial if FiO2 <= 40%, PEEP <= 8, adequate cough. T-piece or PSV trial for 30-120 minutes. Extubate if passed with stable vitals.",
-      "expected_sources": ["Ventilator Weaning Protocol v3.0"],
-      "category": "critical_care",
-      "difficulty": "hard"
+      "query": "What is the empiric antibiotic for low-risk community-acquired pneumonia in adults?",
+      "ground_truth": "For low-risk (outpatient) community-acquired pneumonia in adults, the PSMID CPG recommends amoxicillin 1g three times daily for 5-7 days as first-line. For penicillin-allergic patients or atypical coverage, azithromycin 500 mg on day 1 then 250 mg daily for 4 more days, or doxycycline 100 mg twice daily for 7 days. Co-amoxiclav 625 mg three times daily is an alternative if there are comorbidities.",
+      "expected_sources": ["PH CAP Adults CPG 2016"],
+      "category": "pneumonia",
+      "difficulty": "easy"
     },
     {
       "id": "q017",
-      "query": "What are the guidelines for insulin management in hospitalized patients?",
-      "ground_truth": "Basal-bolus insulin preferred over sliding scale alone. Target glucose 140-180 mg/dL for most patients. Adjust doses based on carbohydrate intake and activity.",
-      "expected_sources": ["Inpatient Glycemic Management v3.2"],
-      "category": "endocrine",
-      "difficulty": "easy"
+      "query": "How is the severity of community-acquired pneumonia assessed in the Philippine setting?",
+      "ground_truth": "The PSMID CPG recommends using the CRB-65 score for outpatient settings (no lab needed): Confusion, Respiratory rate >= 30, Blood pressure (systolic <90 or diastolic <= 60), and age >= 65. Score 0: outpatient treatment. Score 1-2: consider hospital admission. Score 3-4: urgent hospital admission, assess for ICU. The CURB-65 score (adds BUN > 7 mmol/L) is used in hospitals where labs are available.",
+      "expected_sources": ["PH CAP Adults CPG 2016"],
+      "category": "pneumonia",
+      "difficulty": "medium"
     },
     {
       "id": "q018",
-      "query": "How is congestive heart failure exacerbation treated?",
-      "ground_truth": "IV furosemide 40mg bolus, titrate to urine output. Supplemental oxygen to maintain SpO2 > 94%. Daily weights and strict I&O monitoring. Consider BiPAP if respiratory distress.",
-      "expected_sources": ["CHF Exacerbation Protocol v2.5"],
-      "category": "cardiology",
-      "difficulty": "medium"
+      "query": "What is the recommended prophylaxis for leptospirosis during flooding?",
+      "ground_truth": "Doxycycline 200 mg given once weekly is recommended as chemoprophylaxis for leptospirosis during flooding or high-risk exposure in endemic areas. Prophylaxis should begin before exposure if possible and continued weekly during the exposure period. It is contraindicated in pregnant women and children under 8 years. For these groups, azithromycin may be considered as an alternative.",
+      "expected_sources": ["PH Leptospirosis CPG 2010"],
+      "category": "leptospirosis",
+      "difficulty": "easy"
     },
     {
       "id": "q019",
-      "query": "What is the protocol for managing anaphylaxis?",
-      "ground_truth": "Epinephrine 0.3-0.5mg IM into lateral thigh immediately. Repeat every 5-15 minutes if needed. IV fluids for hypotension. Observe for minimum 4 hours for biphasic reaction.",
-      "expected_sources": ["Anaphylaxis Protocol v3.0"],
-      "category": "emergency",
-      "difficulty": "easy"
+      "query": "What are the clinical features and initial management of leptospirosis?",
+      "ground_truth": "Leptospirosis presents with sudden onset of high fever, severe headache, myalgia (especially calf muscles), conjunctival suffusion, and jaundice in severe cases. Initial management: for mild cases, oral doxycycline 100 mg twice daily or amoxicillin 500 mg three times daily for 7 days. For severe cases (Weil disease with jaundice, renal failure, hemorrhage), IV penicillin G 1.5 million units every 6 hours or ceftriaxone 1g IV daily. Supportive care with fluid resuscitation and monitoring of renal and hepatic function.",
+      "expected_sources": ["PH Leptospirosis CPG 2010"],
+      "category": "leptospirosis",
+      "difficulty": "medium"
     },
     {
       "id": "q020",
-      "query": "What are the guidelines for surgical site infection prevention?",
-      "ground_truth": "Prophylactic antibiotics within 60 minutes of incision. Cefazolin 2g IV for most procedures. Clip hair, do not shave. Maintain normothermia and glucose control.",
-      "expected_sources": ["Surgical Site Infection Prevention v4.1"],
-      "category": "surgery",
-      "difficulty": "easy"
+      "query": "What are the components of Basic Emergency Obstetric and Newborn Care (BEmONC)?",
+      "ground_truth": "The DOH MNCHN strategy defines BEmONC signal functions that must be available at RHUs: (1) parenteral antibiotics, (2) parenteral oxytocics (oxytocin for PPH prevention and management), (3) parenteral anticonvulsants (magnesium sulfate for eclampsia), (4) manual removal of placenta, (5) removal of retained products, (6) assisted vaginal delivery (vacuum extraction), and (7) newborn resuscitation with bag and mask. All RHUs and lying-in clinics are expected to provide these 7 signal functions 24/7.",
+      "expected_sources": ["PH MNCHN Strategy MOP"],
+      "category": "maternal_health",
+      "difficulty": "medium"
     },
     {
       "id": "q021",
-      "query": "How is pulmonary embolism diagnosed and treated?",
-      "ground_truth": "CT pulmonary angiography for diagnosis. Start anticoagulation with heparin. Transition to oral anticoagulation. Consider thrombolysis for massive PE with hemodynamic instability.",
-      "expected_sources": ["PE Diagnosis and Treatment v3.0"],
-      "category": "pulmonology",
-      "difficulty": "medium"
+      "query": "What is the recommended antenatal care schedule per DOH guidelines?",
+      "ground_truth": "The DOH MNCHN guidelines recommend a minimum of 4 focused ANC visits: first visit as early as possible in the 1st trimester, second visit at 24-28 weeks, third visit at 32 weeks, and fourth visit at 36-38 weeks. Each visit includes BP monitoring, weight check, fundal height measurement, fetal heart rate assessment, urine testing for protein and glucose, hemoglobin determination, and screening for syphilis and HIV. Iron and folic acid supplementation should be provided throughout pregnancy.",
+      "expected_sources": ["PH MNCHN Strategy MOP"],
+      "category": "maternal_health",
+      "difficulty": "easy"
     },
     {
       "id": "q022",
-      "query": "What is the protocol for managing hyperkalemia?",
-      "ground_truth": "Calcium gluconate 1g IV for cardiac membrane stabilization if ECG changes. Insulin 10 units with dextrose 50% 25g IV. Sodium bicarbonate if acidotic. Kayexalate or patiromer for ongoing management.",
-      "expected_sources": ["Hyperkalemia Management Protocol v2.0"],
-      "category": "nephrology",
-      "difficulty": "medium"
+      "query": "What is the Philippine EPI immunization schedule for infants?",
+      "ground_truth": "The PIDSP/DOH Expanded Programme on Immunization schedule: BCG at birth; Hepatitis B within 24 hours of birth; Pentavalent (DPT-HepB-Hib) at 6, 10, and 14 weeks; OPV at 6, 10, and 14 weeks; IPV at 14 weeks; PCV at 6, 10, and 14 weeks; MMR at 9 and 12 months; Japanese Encephalitis at 9 months. All EPI vaccines are provided free at government health facilities including RHUs and barangay health stations.",
+      "expected_sources": ["PH Immunization Schedule 2024"],
+      "category": "immunization",
+      "difficulty": "easy"
     },
     {
       "id": "q023",
-      "query": "What are the guidelines for palliative sedation?",
-      "ground_truth": "Only for refractory symptoms at end of life. Requires informed consent and ethics consultation. Start midazolam 0.5-1mg/hour IV titrated to comfort. Document rationale thoroughly.",
-      "expected_sources": ["Palliative Care Guideline v2.5"],
-      "category": "palliative_care",
-      "difficulty": "hard"
+      "query": "What is the catch-up vaccination protocol for children who missed their scheduled vaccines?",
+      "ground_truth": "For children who missed scheduled vaccinations, the PIDSP recommends catch-up vaccination at the earliest opportunity. Key principles: there is no need to restart a series regardless of the interval since the last dose; minimum intervals between doses must be observed; multiple vaccines can be given simultaneously at different injection sites. For children starting late, give all age-appropriate vaccines at the first visit and schedule subsequent doses at minimum intervals.",
+      "expected_sources": ["PH Immunization Schedule 2024"],
+      "category": "immunization",
+      "difficulty": "medium"
     },
     {
       "id": "q024",
-      "query": "How should COPD exacerbation be managed?",
-      "ground_truth": "Short-acting bronchodilators every 4-6 hours. Systemic corticosteroids for 5 days. Antibiotics if increased sputum purulence. Supplemental oxygen targeting SpO2 88-92%.",
-      "expected_sources": ["COPD Exacerbation Protocol v3.0"],
-      "category": "pulmonology",
+      "query": "What essential medicines should be available at Rural Health Units?",
+      "ground_truth": "Per the Philippine National Formulary for Primary Healthcare, RHUs must maintain essential medicines including: amoxicillin, co-amoxiclav, metronidazole, cotrimoxazole (antibiotics); paracetamol, ibuprofen, mefenamic acid (analgesics); amlodipine, losartan, hydrochlorothiazide (antihypertensives); metformin, glibenclamide (antidiabetics); salbutamol nebule and MDI (respiratory); oral rehydration salts, zinc sulfate (diarrheal disease); oxytocin (obstetric); and ferrous sulfate plus folic acid (nutritional supplements).",
+      "expected_sources": ["PH Formulary Primary Healthcare"],
+      "category": "essential_medicines",
       "difficulty": "easy"
     },
     {
       "id": "q025",
-      "query": "What is the protocol for rapid sequence intubation?",
-      "ground_truth": "Preoxygenate for 3-5 minutes. Induction with propofol 1.5-2.5 mg/kg or ketamine 1-2 mg/kg. Paralytic with succinylcholine 1.5 mg/kg or rocuronium 1.2 mg/kg. Confirm placement with ETCO2.",
-      "expected_sources": ["RSI Protocol v4.0"],
-      "category": "emergency",
-      "difficulty": "hard"
+      "query": "Which drugs are on the Philippine National Formulary Essential Medicines List for infectious diseases?",
+      "ground_truth": "The PNF Essential Medicines List includes key infectious disease drugs: amoxicillin, ampicillin, co-amoxiclav, azithromycin, ceftriaxone, doxycycline, metronidazole, ciprofloxacin (antibacterials); isoniazid, rifampicin, pyrazinamide, ethambutol, streptomycin (anti-TB); chloroquine, primaquine, artemether-lumefantrine (antimalarials); fluconazole (antifungal); albendazole, mebendazole (antihelminthics); and acyclovir, oseltamivir (antivirals). These are prioritized for procurement by government health facilities through PhilHealth reimbursement.",
+      "expected_sources": ["PH National Formulary EML 2022"],
+      "category": "essential_medicines",
+      "difficulty": "medium"
     }
   ]
 }

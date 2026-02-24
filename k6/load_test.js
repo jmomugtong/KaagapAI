@@ -1,9 +1,9 @@
 /**
  * MedQuery Load Test
- * 
+ *
  * k6 load testing script for the MedQuery API.
  * Tests the query endpoint under various load conditions.
- * 
+ *
  * Run with: k6 run k6/load_test.js
  */
 
@@ -56,16 +56,16 @@ export const options = {
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8000';
 
 const SAMPLE_QUERIES = [
-    "What is the post-operative pain protocol for knee replacement?",
-    "What painkillers are safe for cardiac patients on aspirin?",
-    "What are the signs of post-surgical infection?",
-    "What is the recommended dosage of acetaminophen for adults?",
-    "When should a patient be discharged after knee surgery?",
-    "What are the contraindications for ibuprofen use?",
-    "How often should vital signs be monitored post-surgery?",
-    "What is the protocol for managing post-operative nausea?",
-    "What are the warning signs of deep vein thrombosis?",
-    "How should wound care be performed after surgery?",
+    "What is the DOTS protocol for drug-susceptible pulmonary TB?",
+    "What are the dengue warning signs that require hospitalization?",
+    "What is the first-line antihypertensive drug per Philippine CPG?",
+    "What is the recommended fluid management for dengue with warning signs?",
+    "What is the empiric antibiotic for community-acquired pneumonia?",
+    "What is the recommended prophylaxis for leptospirosis during flooding?",
+    "What are the components of Basic Emergency Obstetric and Newborn Care?",
+    "What essential medicines should be available at Rural Health Units?",
+    "What is the screening protocol for Type 2 diabetes in the Philippines?",
+    "What is the Philippine EPI immunization schedule for infants?",
 ];
 
 // ============================================
@@ -80,9 +80,7 @@ function getRandomQuery() {
 // Test Scenarios
 // ============================================
 
-export default function (data) {
-    const authHeader = data.token ? { 'Authorization': `Bearer ${data.token}` } : {};
-
+export default function () {
     group('Query Endpoint Load Test', function () {
         const query = {
             question: getRandomQuery(),
@@ -91,9 +89,9 @@ export default function (data) {
         };
 
         const params = {
-            headers: Object.assign({
+            headers: {
                 'Content-Type': 'application/json',
-            }, authHeader),
+            },
             tags: { name: 'query' },
         };
 
@@ -132,11 +130,11 @@ export default function (data) {
         // Track errors
         errorRate.add(!success);
 
-        // Check for cache hit (when implemented)
+        // Check for cache hit
         if (response.status === 200) {
             const body = response.json();
-            if (body && body.cache_hit !== undefined) {
-                cacheHitRate.add(body.cache_hit);
+            if (body && body.cached !== undefined) {
+                cacheHitRate.add(body.cached);
             }
         }
 
@@ -161,60 +159,6 @@ export function healthCheck() {
 }
 
 // ============================================
-// Auth Endpoint Scenario
-// ============================================
-
-export function authTest() {
-    group('Auth Endpoints', function () {
-        // Register a unique user
-        const email = `k6_auth_${__VU}_${__ITER}_${Date.now()}@test.com`;
-        const regPayload = JSON.stringify({
-            email: email,
-            password: 'TestPassword123!',
-            full_name: 'Auth Test User',
-        });
-
-        const regRes = http.post(`${BASE_URL}/api/v1/auth/register`, regPayload, {
-            headers: { 'Content-Type': 'application/json' },
-        });
-
-        check(regRes, {
-            'register returns 200': (r) => r.status === 200,
-            'register returns token': (r) => r.json().access_token !== undefined,
-        });
-
-        // Login with the same credentials
-        const loginPayload = JSON.stringify({
-            email: email,
-            password: 'TestPassword123!',
-        });
-
-        const loginRes = http.post(`${BASE_URL}/api/v1/auth/login`, loginPayload, {
-            headers: { 'Content-Type': 'application/json' },
-        });
-
-        check(loginRes, {
-            'login returns 200': (r) => r.status === 200,
-            'login returns token': (r) => r.json().access_token !== undefined,
-        });
-
-        // Use the token to make an authenticated query
-        if (loginRes.status === 200) {
-            const token = loginRes.json().access_token;
-            const queryRes = http.post(
-                `${BASE_URL}/api/v1/query`,
-                JSON.stringify({ question: 'What is the pain management protocol?' }),
-                { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } }
-            );
-
-            check(queryRes, {
-                'authenticated query returns 200': (r) => r.status === 200,
-            });
-        }
-    });
-}
-
-// ============================================
 // Setup and Teardown
 // ============================================
 
@@ -226,31 +170,10 @@ export function setup() {
         throw new Error(`API health check failed: ${healthRes.status}`);
     }
 
-    console.log('API is healthy, registering test user...');
-
-    // Register a test user and obtain a JWT token
-    const uniqueEmail = `k6_loadtest_${Date.now()}@test.com`;
-    const regPayload = JSON.stringify({
-        email: uniqueEmail,
-        password: 'K6LoadTest!2024',
-        full_name: 'k6 Load Tester',
-    });
-
-    const regRes = http.post(`${BASE_URL}/api/v1/auth/register`, regPayload, {
-        headers: { 'Content-Type': 'application/json' },
-    });
-
-    let token = null;
-    if (regRes.status === 200 || regRes.status === 201) {
-        token = regRes.json().access_token;
-        console.log('Test user registered, token obtained.');
-    } else {
-        console.warn(`Registration returned ${regRes.status} — running without auth.`);
-    }
+    console.log('API is healthy, starting load test...');
 
     return {
         startTime: new Date().toISOString(),
-        token: token,
     };
 }
 

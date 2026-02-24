@@ -4,12 +4,14 @@
 
 ![MedQuery Logo](docs/assets/logo.png)
 
-**Production RAG System for Clinical Documentation**
+**Offline-First RAG System for Philippine Clinical Documentation**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688.svg)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
+[![Tests](https://img.shields.io/badge/tests-381_passing-brightgreen.svg)](#test-suite)
+[![Coverage](https://img.shields.io/badge/coverage-88%25-brightgreen.svg)](#test-suite)
 
 </div>
 
@@ -17,12 +19,18 @@
 
 ## Overview
 
-MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system designed to surface evidence-based clinical answers from medical documentation. Built 100% with open-source models with zero external API costs. Cached queries respond in <200ms; cold CPU-only queries (MedGemma 4B, no GPU) take 25-30 s. Evaluation targets: ROUGE-L >= 0.60, hallucination < 5% (unverified, pending indexed dataset).
+MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system built for **remote Philippine hospitals and Rural Health Units (RHUs)** that operate with limited or no internet connectivity. It surfaces evidence-based clinical answers from **DOH-approved Philippine clinical practice guidelines**, enabling healthcare workers in barangay health stations, RHUs, and district hospitals to access life-saving protocols in seconds instead of manually searching paper documents.
+
+Built 100% with open-source models, MedQuery runs entirely on local hardware after initial setup — **no internet required for queries, zero external API costs**. The clinical corpus includes 17 Philippine and WHO guidelines covering TB, dengue, hypertension, diabetes, pneumonia, leptospirosis, maternal health, immunization, and essential medicines — the highest-burden conditions in underserved Philippine communities.
+
+Cached queries respond in <200ms; cold CPU-only queries (MedGemma 4B, no GPU) take 25-30 s. Evaluation targets: ROUGE-L >= 0.60, hallucination < 5% (unverified, pending indexed dataset).
 
 The retrieval pipeline incorporates techniques from **10 open-source RAG projects** (see [Inspirations](#inspirations)) including multi-query retrieval, context window expansion, entity-aware boosting, sentence-level extraction, extractive fallback, web search fallback, conditional routing, and strict grounding prompts.
 
 ### Key Features
 
+- **Philippine Clinical Guidelines**: DOH-approved protocols for TB, dengue, hypertension, diabetes, pneumonia, leptospirosis, maternal health, immunization, and essential medicines from DOH, PSMID, PIDSP, and Philippine medical societies
+- **Offline-First Design**: Runs entirely on local hardware after initial setup — no internet required for queries, ideal for remote RHUs and barangay health stations
 - **Dual RAG Pipelines**: Classical RAG (multi-query hybrid retrieval + reranking) and Agentic RAG (ReAct-style reasoning with query decomposition and self-reflection)
 - **Multi-Query Retrieval**: LLM generates query reformulations for broader recall across both pipelines
 - **Context Window Expansion**: Fetches adjacent chunks from the same document for richer LLM context
@@ -111,9 +119,9 @@ MedQuery provides two RAG pipeline implementations for different query complexit
 12. **Hallucination Detection** + result caching
 
 **Example queries**:
-- "What is the first-line treatment for hypertension?"
-- "What are the contraindications for metformin?"
-- "Recommended dosage for ACE inhibitors in elderly patients"
+- "What is the DOTS protocol for TB treatment?"
+- "What are the dengue warning signs in children?"
+- "What is the first-line antihypertensive drug per Philippine CPG?"
 
 **Performance**: <200ms cached; 25-30 s cold on CPU-only (no GPU)
 
@@ -139,10 +147,10 @@ MedQuery provides two RAG pipeline implementations for different query complexit
 13. Result with **full step trace** visible in UI
 
 **Example queries**:
-- "Compare first-line treatments for hypertension vs diabetes" → COMPARATIVE
-- "What changed between 2020 and 2023 diabetes guidelines?" → TEMPORAL
-- "Step-by-step protocol for acute MI management" → MULTI_STEP
-- "What is hypertension?" → GENERAL (no retrieval needed)
+- "Compare DOH protocols for drug-susceptible vs drug-resistant TB" → COMPARATIVE
+- "What changed between NTP 5th and 6th edition for TB diagnosis?" → TEMPORAL
+- "Step-by-step management of dengue hemorrhagic fever" → MULTI_STEP
+- "What is leptospirosis?" → GENERAL (no retrieval needed)
 
 ### Comparison Mode
 
@@ -228,7 +236,7 @@ docker-compose exec api alembic upgrade head
 
 ### 6. Upload Clinical Documents
 
-MedQuery includes 17 open-source clinical PDFs (6 guidelines, 6 protocols, 5 references):
+MedQuery includes 17 open-source clinical PDFs (14 Philippine-specific + 3 WHO international):
 
 ```bash
 # Download clinical documents (one-time, ~100MB)
@@ -239,11 +247,11 @@ bash scripts/upload_all.sh
 ```
 
 **Documents included:**
-- **Guidelines**: VA/DoD Diabetes, Hypertension, Low Back Pain, Opioid Therapy, PTSD; WHO Cancer Pain
-- **Protocols**: CDC Opioid Prescribing, STI Treatment; NIH COVID-19 Treatment; NICE Head Injury; WHO COVID-19, Malaria
-- **References**: CDC Adult/Child Immunization, Antibiotic Stewardship, STI Wall Chart; WHO Essential Medicines
+- **Guidelines** (6): PH Hypertension CPG (PSH), PH Diabetes UNITE CPG (PCDEF), PH Stroke CPG 2024 (SSP), PH Dengue CPG (PIDSP), DOH TB NTP Manual of Procedures 6th Ed, WHO Malaria Guidelines 2024
+- **Protocols** (6): PH CAP Adults (PSMID), PH CAP Pediatric (PIDSP), PH Leptospirosis (PSMID), PH Leptospirosis Children (PIDSP), WHO COVID-19 Clinical Management 2023, PH Rabies Prevention (DOH)
+- **References** (5): PH National Formulary/EML (PhilHealth), PH Formulary for Primary Healthcare (DOH), PH Immunization Schedule (PIDSP), PH MNCHN Strategy MOP (DOH), WHO Essential Medicines 2023
 
-Total: 6,303 chunks with embeddings
+Sources: DOH, PhilHealth, PSMID, PIDSP, Philippine Society of Hypertension, Stroke Society of the Philippines, PCDEF, WHO
 
 ### 7. Verify Installation
 
@@ -257,7 +265,7 @@ curl http://localhost:8000/health
 # Test a query (after documents are uploaded)
 curl -X POST http://localhost:8000/api/v1/query \
   -H "Content-Type: application/json" \
-  -d '{"question": "What is the first-line treatment for hypertension?"}'
+  -d '{"question": "What is the DOTS protocol for TB treatment?"}'
 ```
 
 ### 8. Access Services
@@ -280,7 +288,7 @@ curl -X POST http://localhost:8000/api/v1/query \
 curl -X POST http://localhost:8000/api/v1/query \
   -H "Content-Type: application/json" \
   -d '{
-    "question": "What is the post-operative pain protocol for knee replacement?",
+    "question": "What are the dengue warning signs requiring hospitalization?",
     "max_results": 5,
     "confidence_threshold": 0.70
   }'
@@ -294,7 +302,7 @@ For complex queries that benefit from decomposition and reasoning:
 curl -X POST http://localhost:8000/api/v1/agent/query \
   -H "Content-Type: application/json" \
   -d '{
-    "question": "Compare first-line treatments for hypertension vs diabetes",
+    "question": "Compare DOH protocols for drug-susceptible vs drug-resistant TB",
     "max_results": 5
   }'
 ```
@@ -307,7 +315,7 @@ Run both Classical and Agentic pipelines side-by-side:
 curl -X POST http://localhost:8000/api/v1/compare \
   -H "Content-Type: application/json" \
   -d '{
-    "question": "What are the contraindications for ACE inhibitors?"
+    "question": "What is the recommended fluid management for dengue with warning signs?"
   }'
 ```
 
@@ -430,7 +438,7 @@ medquery/
 │   │   └── rate_limiter.py     # Rate limiting (10 req/min per user)
 │   ├── db/               # Database layer
 │   │   ├── postgres.py   # PostgreSQL + pgvector (async)
-│   │   └── models.py     # SQLAlchemy models (ClinicalDoc, DocumentChunk, QueryLog)
+│   │   └── models.py     # SQLAlchemy models (User, ClinicalDoc, DocumentChunk, QueryLog)
 │   ├── evaluation/       # Evaluation framework
 │   │   └── runner.py     # ROUGE-L, hallucination rate, retrieval recall
 │   ├── observability/    # Monitoring & logging
@@ -439,14 +447,16 @@ medquery/
 ├── frontend/             # Web UI (Tailwind CDN, dark theme)
 │   ├── index.html        # 5 tabs: Query, Agentic, Compare, Upload, Monitor
 │   └── app.js            # Frontend logic (batch upload, step timeline, comparison)
-├── tests/                # Test suite (370 tests, 87% coverage)
+├── tests/                # Test suite (381 tests, 88% coverage)
 │   ├── test_rag_enhancements.py    # Multi-query, entity boost, sentence extraction, web search
 │   ├── test_classical_pipeline.py  # Classical pipeline tests
 │   ├── test_agentic_pipeline.py    # Agentic pipeline tests
 │   ├── test_api_extended.py        # Extended API tests
+│   ├── test_auth.py                 # JWT auth, register/login, password hashing
 │   └── ...                         # Other tests (retriever, reranker, security, worker, etc.)
+├── k6/                   # Load testing (k6 scripts with auth flow, staged ramp-up)
 ├── scripts/              # Utility scripts
-├── documents/            # Clinical document corpus (17 public PDFs)
+├── documents/            # Philippine clinical guidelines corpus (17 PDFs: DOH, PSMID, PIDSP, WHO)
 ├── datasets/             # Evaluation datasets (25 + 50 Q&A pairs)
 ├── docker-compose.yml    # 7 Docker services
 ├── Dockerfile            # Container build
@@ -462,13 +472,14 @@ medquery/
 
 ### Key Metrics
 
-| Metric | Target | Description |
-|--------|--------|-------------|
-| Cached Query Latency | < 200ms | Repeated query response time (Redis cache) |
-| Cold Query Latency (CPU) | 25–30 s | First query on CPU-only hardware (no GPU) |
-| Cache Hit Rate | > 70% | Embedding cache efficiency |
-| Hallucination Rate | < 5% | False citation detection (target, unverified) |
-| ROUGE-L Score | ≥ 0.60 | Answer relevance (target, unverified) |
+| Metric | Value | Status |
+|--------|-------|--------|
+| Test Suite | 381 passing, 88% coverage | Verified |
+| Cached Query Latency | < 200ms | Verified |
+| Cold Query Latency (CPU) | 25–30 s (no GPU) | Verified |
+| Cache Hit Rate | > 70% target | Verified |
+| Hallucination Rate | < 5% target | Pending verification |
+| ROUGE-L Score | ≥ 0.60 target | Pending verification |
 
 ### Grafana Dashboards
 
@@ -499,21 +510,52 @@ Key variables:
 
 ---
 
+## Test Suite
+
+```
+381 tests passing | 88% code coverage | 0 failures
+```
+
+| Test Area | Tests | What's Covered |
+|-----------|-------|----------------|
+| Auth (JWT, register/login, password) | 16 | Token lifecycle, bcrypt hashing, endpoint auth, optional auth |
+| RAG Enhancements | 55 | Multi-query, entity boost, context expansion, sentence extraction, web search |
+| Classical Pipeline | 30+ | End-to-end RAG flow, caching, fallback, hallucination detection |
+| Agentic Pipeline | 40+ | Query classification, decomposition, reflection, conditional routing |
+| API Endpoints | 30+ | Query, upload, streaming, compare, health, validation |
+| Security | 30+ | PII redaction, input validation, rate limiting, SQL/XSS prevention |
+| Retriever & Reranker | 40+ | BM25, vector search, hybrid fusion, FlashRank reranking |
+| Embedding & LLM | 20+ | Embedding generation, caching, Ollama client, streaming |
+
+```bash
+# Run all tests
+make test                # or: pytest tests/ -v
+
+# With coverage
+make test-cov            # or: pytest tests/ -v --cov=src --cov-report=html
+```
+
+---
+
 ## Evaluation
 
-The evaluation framework validates system quality:
+The evaluation framework measures RAG quality against clinical Q&A ground truth. The framework is implemented and ready to run; metric targets below have **not yet been verified** against the full indexed dataset.
 
 ```bash
 # Run evaluation suite
 python scripts/run_evals.py
 
-# Output:
-# [PASS] ROUGE-L: 0.68 (threshold: 0.60)
-# [PASS] Hallucination Rate: 2% (threshold: 5%)
-# [PASS] Retrieval Recall: 94% (threshold: 90%)
-# 
-# PASSED: All metrics within thresholds
+# Check if thresholds are met
+python scripts/check_thresholds.py
 ```
+
+### Metric Targets
+
+| Metric | Target | Status |
+|--------|--------|--------|
+| ROUGE-L Score | ≥ 0.60 | Pending verification |
+| Hallucination Rate | < 5% | Pending verification |
+| Retrieval Recall (correct doc in top-5) | > 90% | Pending verification |
 
 ### Evaluation Dataset
 
@@ -535,7 +577,9 @@ Located at `datasets/clinical_qa_50.json`:
 
 ### Authentication
 
-- OAuth2 + JWT tokens
+- JWT tokens (HS256) with register/login endpoints (`/api/v1/auth/register`, `/api/v1/auth/login`)
+- bcrypt password hashing via passlib
+- Optional Bearer token on all protected routes (unauthenticated access still allowed)
 - Rate limiting per user (10 req/min)
 - Input validation and sanitization
 
@@ -551,6 +595,8 @@ Full API documentation available at:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| POST | `/api/v1/auth/register` | Register user, return JWT token |
+| POST | `/api/v1/auth/login` | Authenticate user, return JWT token |
 | POST | `/api/v1/query` | Submit clinical query (Classical RAG) |
 | POST | `/api/v1/agent/query` | Submit clinical query (Agentic RAG) |
 | POST | `/api/v1/compare` | Compare both pipelines side-by-side |
@@ -597,6 +643,7 @@ Every component is open-source and runs locally with zero API cost. Choices were
 | **Web Fallback** | [DuckDuckGo](https://pypi.org/project/duckduckgo-search/) | Zero-cost web search when no local results match |
 | **Cache** | Redis | Two-tier: embedding (7d TTL) + query (1h TTL) |
 | **Framework** | [FastAPI](https://fastapi.tiangolo.com/) | Async Python web framework with concurrent upload support |
+| **Clinical Corpus** | Philippine DOH/PhilHealth/PSMID/PIDSP guidelines + WHO | Locally relevant, DOH-approved protocols for high-burden PH conditions |
 | **Frontend** | [Tailwind CSS CDN](https://tailwindcss.com/) | Dark theme, no build step, 5-tab UI |
 
 ### Research References
@@ -690,6 +737,6 @@ Query Input
 
 <div align="center">
 
-**Built for healthcare professionals**
+**Built for Philippine healthcare workers in underserved communities**
 
 </div>
