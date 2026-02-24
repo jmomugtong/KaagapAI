@@ -371,11 +371,9 @@ class HybridRetriever:
 # Multi-Query Retrieval
 # ============================================
 
-MULTI_QUERY_PROMPT = """Generate {n} alternative phrasings of this medical query for better document retrieval. Each variant should preserve the original meaning but use different medical terminology, synonyms, or phrasing.
+MULTI_QUERY_PROMPT = """Rephrase this medical query {n} ways using different terminology. One per line, numbered 1-{n}. No other text.
 
-Original query: {query}
-
-Return each variant on its own line, numbered 1-{n}. No other text."""
+Query: {query}"""
 
 
 async def generate_query_variants(
