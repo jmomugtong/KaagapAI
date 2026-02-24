@@ -26,6 +26,7 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - OLLAMA_URL=http://ollama:11434
       - OLLAMA_MODEL=${OLLAMA_MODEL:-alibayram/medgemma}
+      - LLM_NUM_CTX=${LLM_NUM_CTX:-1024}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text}
       - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-10}
     depends_on:
@@ -135,6 +136,9 @@ services:
     container_name: medquery-ollama
     ports:
       - "11434:11434"
+    environment:
+      - OLLAMA_NUM_PARALLEL=1
+      - OLLAMA_FLASH_ATTENTION=1
     volumes:
       - ollama_data:/root/.ollama
     networks:
