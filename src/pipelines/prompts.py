@@ -5,26 +5,24 @@ Prompt templates for the agent's classification, decomposition,
 self-reflection, and synthesis stages.
 """
 
-CLASSIFY_PROMPT = """Classify this clinical query into exactly one category:
+CLASSIFY_PROMPT = """Classify this query into one category. Reply with ONLY the category name.
 
-- SIMPLE: Direct factual lookup (e.g., "What is the dosage for amoxicillin?")
-- COMPARATIVE: Comparing two or more things (e.g., "Compare pain protocols for knee vs hip")
-- MULTI_STEP: Requires combining info from multiple sources (e.g., "What are the contraindications for patients with both diabetes and hypertension?")
-- TEMPORAL: About changes over time (e.g., "How has the antibiotic protocol changed?")
-- GENERAL: General medical knowledge that doesn't need specific clinical documents (e.g., "What is hypertension?", "Explain the mechanism of action of metformin")
+SIMPLE = direct factual lookup
+COMPARATIVE = comparing two or more things
+MULTI_STEP = needs info from multiple sources
+TEMPORAL = about changes over time
+GENERAL = general knowledge, no documents needed
 
 Query: {question}
 
-Respond with ONLY the category name (SIMPLE, COMPARATIVE, MULTI_STEP, TEMPORAL, or GENERAL)."""
+Category:"""
 
 VALID_QUERY_TYPES = {"SIMPLE", "COMPARATIVE", "MULTI_STEP", "TEMPORAL", "GENERAL"}
 
-DECOMPOSE_PROMPT = """Break this clinical query into {n} focused sub-queries that can each be answered independently.
+DECOMPOSE_PROMPT = """Split this query into {n} independent sub-queries, one per line, numbered 1-{n}. No other text.
 
-Original query: {question}
-Query type: {query_type}
-
-Return each sub-query on its own line, numbered 1-{n}. No other text."""
+Query: {question}
+Type: {query_type}"""
 
 # How many sub-queries to generate per query type
 DECOMPOSE_COUNTS = {
@@ -38,31 +36,19 @@ DECOMPOSE_COUNTS = {
 MAX_SUB_QUERIES = 4
 
 # Direct-answer prompt for GENERAL queries (no retrieval needed)
-GENERAL_ANSWER_PROMPT = """You are a medical information assistant. Answer this general medical knowledge question concisely and accurately.
+GENERAL_ANSWER_PROMPT = """Answer this general medical knowledge question briefly. State that this is general knowledge, not from clinical documents. Do not give specific dosages. End with "Confidence: X.XX"
 
 Question: {question}
 
-IMPORTANT DISCLAIMERS:
-- Clearly state this is general medical knowledge, NOT from specific clinical documents
-- Recommend consulting specific institutional protocols for clinical decisions
-- Do not provide specific dosages or treatment plans — only general educational information
-- Assign a confidence score on the last line as "Confidence: X.XX"
-
-RESPONSE:
+Answer:
 """
 
-REFLECT_PROMPT = """You answered a clinical question. Evaluate your answer:
+REFLECT_PROMPT = """Does this answer fully address the question? Reply ONLY "SUFFICIENT" or "INSUFFICIENT: <what's missing>" with a refined search query on the next line.
 
-ORIGINAL QUESTION: {question}
-QUERY TYPE: {query_type}
-YOUR ANSWER: {answer}
-CONFIDENCE: {confidence}
-
-Does this answer fully address the original question?
-- If YES: respond "SUFFICIENT"
-- If NO: respond "INSUFFICIENT: <what's missing>" followed by a refined search query on the next line
-
-Respond with ONLY "SUFFICIENT" or "INSUFFICIENT: ..." and optionally the refined query."""
+Question: {question}
+Type: {query_type}
+Answer: {answer}
+Confidence: {confidence}"""
 
 
 def build_synthesis_prompt(
@@ -72,44 +58,30 @@ def build_synthesis_prompt(
 ) -> str:
     """Build a synthesis prompt with type-specific instructions."""
     type_instructions = {
-        "COMPARATIVE": (
-            "Structure your answer as a clear comparison. "
-            "Address each item separately, then summarize key differences."
-        ),
-        "MULTI_STEP": (
-            "Connect the information from different sources to form a complete answer."
-        ),
-        "TEMPORAL": (
-            "Present the information chronologically. "
-            "Highlight what changed and when."
-        ),
+        "COMPARATIVE": "Compare each item, then summarize differences.",
+        "MULTI_STEP": "Combine information from different sources into one answer.",
+        "TEMPORAL": "Present chronologically. Highlight what changed and when.",
         "SIMPLE": "",
     }
 
     specific = type_instructions.get(query_type, "")
     if specific:
-        specific = f"\nSPECIAL INSTRUCTIONS:\n{specific}\n"
+        specific = f"\nNote: {specific}\n"
 
-    return f"""You are a medical information assistant with strict grounding rules. You have been given context retrieved through multiple targeted searches to answer a {query_type} question. You MUST NOT use any knowledge outside the provided context.
+    return f"""Answer the question using ONLY the context below. Do not add outside knowledge.
 
 CONTEXT:
 {context}
 
-ORIGINAL QUESTION:
+QUESTION:
 {question}
 {specific}
-STRICT GROUNDING RULES:
-1. Answer ONLY using information explicitly stated in the CONTEXT above
-2. Quote or closely paraphrase exact phrases from the sources — do not invent medical facts
-3. Cite EVERY factual claim using [Document Name, Section, p. Page] format
-4. If the context does NOT contain enough information, say: "The indexed documents do not contain sufficient information to fully answer this question." Then share what IS available.
-5. Do NOT add medical advice, dosages, drug interactions, or treatment recommendations not in the context
-6. For comparative questions, use clear structure (bullet points or table)
-7. If sources conflict, explicitly note the discrepancy
-8. Assign a confidence score (0.0-1.0) on the last line as "Confidence: X.XX"
-   - 0.90-1.0: Direct, explicit answer found in context
-   - 0.70-0.89: Partially supported, some inference
-   - Below 0.70: Weak support
+RULES:
+- Use only facts from the context
+- Cite sources as [Document Name, Section, p. Page]
+- If the context lacks enough information, say so and share what IS available
+- Do not invent dosages, drugs, or treatments not in the context
+- End with "Confidence: X.XX" (0.0-1.0)
 
-RESPONSE:
+ANSWER:
 """
