@@ -59,9 +59,6 @@ dependencies = [
     # Web Search Fallback
     "duckduckgo-search>=4.0",
     
-    # Security
-    "python-jose[cryptography]==3.3.0",
-    "passlib[bcrypt]==1.7.4",
     
     # Observability
     "opentelemetry-api==1.21.0",

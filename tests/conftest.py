@@ -89,8 +89,8 @@ async def async_session():
     )
 
     database_url = os.environ.get(
-        "DATABASE_URL",
-        "postgresql+asyncpg://medquery_user:change_this_password@localhost:5432/medquery",
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://medquery_user:medquery_password@localhost:5432/medquery_test",
     )
 
     from src.db.models import Base

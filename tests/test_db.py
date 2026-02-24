@@ -8,8 +8,8 @@ from sqlalchemy.orm import sessionmaker
 from src.db.models import Base, ClinicalDoc, DocumentChunk
 
 TEST_DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://medquery_user:medquery_password@localhost:5432/medquery",
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://medquery_user:medquery_password@localhost:5432/medquery_test",
 )
 
 pytestmark = [pytest.mark.requires_db, pytest.mark.integration]

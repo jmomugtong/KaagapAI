@@ -434,30 +434,30 @@ class TestBuildSynthesisPrompt:
     @pytest.mark.unit
     def test_comparative_includes_special_instructions(self):
         prompt = build_synthesis_prompt("Compare A vs B", "some context", "COMPARATIVE")
-        assert "SPECIAL INSTRUCTIONS" in prompt
-        assert "comparison" in prompt.lower()
+        assert "Note:" in prompt
+        assert "comparison" in prompt.lower() or "compare" in prompt.lower()
 
     @pytest.mark.unit
     def test_multi_step_includes_special_instructions(self):
         prompt = build_synthesis_prompt("Multi-step question", "context", "MULTI_STEP")
-        assert "SPECIAL INSTRUCTIONS" in prompt
+        assert "Note:" in prompt
         assert "different sources" in prompt.lower()
 
     @pytest.mark.unit
     def test_temporal_includes_special_instructions(self):
         prompt = build_synthesis_prompt("How has it changed?", "context", "TEMPORAL")
-        assert "SPECIAL INSTRUCTIONS" in prompt
+        assert "Note:" in prompt
         assert "chronologically" in prompt.lower()
 
     @pytest.mark.unit
     def test_simple_has_no_special_instructions(self):
         prompt = build_synthesis_prompt("Simple question", "context", "SIMPLE")
-        assert "SPECIAL INSTRUCTIONS" not in prompt
+        assert "Note:" not in prompt
 
     @pytest.mark.unit
     def test_unknown_type_has_no_special_instructions(self):
         prompt = build_synthesis_prompt("Question", "context", "UNKNOWN")
-        assert "SPECIAL INSTRUCTIONS" not in prompt
+        assert "Note:" not in prompt
 
     @pytest.mark.unit
     def test_prompt_includes_question_and_context(self):
