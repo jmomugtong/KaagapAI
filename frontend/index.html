@@ -291,6 +291,17 @@
 
     </div><!-- /max-w-6xl -->
 
-    <script src="app.js?v=7"></script>
+    <!-- PDF Viewer Modal -->
+    <div id="pdf-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div class="relative w-full max-w-4xl h-[85vh] mx-4 bg-gray-900 rounded-xl border border-gray-700 overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-gray-900">
+          <span id="pdf-modal-title" class="text-sm font-medium text-gray-200 truncate"></span>
+          <button onclick="closePdfViewer()" class="text-gray-400 hover:text-white text-lg px-2">&times;</button>
+        </div>
+        <iframe id="pdf-modal-frame" class="flex-1 w-full bg-gray-800" src=""></iframe>
+      </div>
+    </div>
+
+    <script src="app.js?v=8"></script>
   </body>
 </html>

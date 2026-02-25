@@ -3,6 +3,29 @@
 const API = 'http://localhost:8000';
 
 // ============================================================
+// PDF Viewer
+// ============================================================
+
+function openPdfViewer(source) {
+  const url = `${API}/api/v1/documents/${encodeURIComponent(source)}`;
+  const displayName = source.replace(/^PH_/, '').replace(/_/g, ' ').replace(/\.pdf$/i, '');
+  document.getElementById('pdf-modal-title').textContent = displayName;
+  document.getElementById('pdf-modal-frame').src = url;
+  document.getElementById('pdf-modal').classList.remove('hidden');
+}
+
+function closePdfViewer() {
+  document.getElementById('pdf-modal').classList.add('hidden');
+  document.getElementById('pdf-modal-frame').src = '';
+}
+
+// Close on Escape key or clicking backdrop
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePdfViewer(); });
+document.getElementById('pdf-modal').addEventListener('click', e => {
+  if (e.target.id === 'pdf-modal') closePdfViewer();
+});
+
+// ============================================================
 // Utilities
 // ============================================================
 
@@ -41,8 +64,16 @@ function resultCard(data) {
   const chunkList = chunks.length
     ? chunks.map(c => {
         const text = c.text || c.content || '';
-        const score = c.relevance_score != null ? `<span class="text-gray-500 text-xs ml-1">${(c.relevance_score * 100).toFixed(0)}%</span>` : '';
-        return `<li class="text-xs text-gray-400 bg-gray-800 rounded p-2">${text.substring(0, 200)}…${score}</li>`;
+        const score = c.relevance_score != null ? `<span class="text-gray-500 text-xs">${(c.relevance_score * 100).toFixed(0)}%</span>` : '';
+        const source = c.source || 'Unknown';
+        const displayName = source.replace(/^PH_/, '').replace(/_/g, ' ').replace(/\.pdf$/i, '');
+        return `<li class="text-xs bg-gray-800 rounded p-2 space-y-1">
+          <div class="flex items-center justify-between">
+            <button onclick="openPdfViewer('${source.replace(/'/g, "\\'")}')" class="text-blue-400 font-medium truncate hover:underline text-left cursor-pointer" title="View ${source}">${displayName}</button>
+            ${score}
+          </div>
+          <p class="text-gray-400">${text.substring(0, 200)}…</p>
+        </li>`;
       }).join('')
     : '<li class="text-xs text-gray-600">No chunks</li>';
 
