@@ -68,20 +68,12 @@ def build_synthesis_prompt(
     if specific:
         specific = f"\nNote: {specific}\n"
 
-    return f"""Answer the question using ONLY the context below. Do not add outside knowledge.
-
+    return f"""Answer the question using ONLY the context below. Include specific details: dosages, schedules, steps, and criteria found in the context. Do not just reference document names. If context is insufficient, say so.
+{specific}
 CONTEXT:
 {context}
 
-QUESTION:
-{question}
-{specific}
-RULES:
-- Use only facts from the context
-- Cite sources as [Document Name, Section, p. Page]
-- If the context lacks enough information, say so and share what IS available
-- Do not invent dosages, drugs, or treatments not in the context
-- End with "Confidence: X.XX" (0.0-1.0)
+QUESTION: {question}
 
 ANSWER:
 """

@@ -25,7 +25,7 @@ DEFAULT_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT_SECONDS", "120"))
 
 # LLM generation parameters
 DEFAULT_TEMPERATURE = float(os.environ.get("LLM_TEMPERATURE", "0.1"))
-DEFAULT_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "512"))
+DEFAULT_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "150"))
 DEFAULT_TOP_P = float(os.environ.get("LLM_TOP_P", "0.9"))
 DEFAULT_NUM_CTX = int(os.environ.get("LLM_NUM_CTX", "2048"))
 DEFAULT_NUM_THREAD = int(os.environ.get("LLM_NUM_THREAD", "0"))

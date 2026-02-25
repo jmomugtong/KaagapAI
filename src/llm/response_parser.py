@@ -23,7 +23,7 @@ CONFIDENCE_PATTERN = re.compile(
 # Regex for bracket citations: [Document Name, Section X, p. Y]
 CITATION_PATTERN = re.compile(r"\[([^\[\]]+)\]")
 
-DEFAULT_CONFIDENCE = 0.5
+DEFAULT_CONFIDENCE = 0.75
 
 
 @dataclass
@@ -95,14 +95,11 @@ class ResponseParser:
         return DEFAULT_CONFIDENCE
 
     def _extract_answer(self, text: str) -> str:
-        """Extract the answer text, stripping confidence metadata lines."""
+        """Extract the answer text, stripping confidence metadata."""
+        # Remove confidence pattern wherever it appears (end of line or standalone)
+        text = CONFIDENCE_PATTERN.sub("", text)
         lines = text.strip().split("\n")
-        answer_lines = []
-        for line in lines:
-            # Skip lines that are just confidence scores
-            if CONFIDENCE_PATTERN.match(line.strip()):
-                continue
-            answer_lines.append(line)
+        answer_lines = [line for line in lines if line.strip()]
         return "\n".join(answer_lines).strip()
 
     def _extract_citations(self, text: str) -> list[Citation]:

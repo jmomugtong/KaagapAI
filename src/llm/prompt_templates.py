@@ -12,20 +12,12 @@ from typing import Any
 class PromptTemplate:
     """Builds prompts for clinical question answering."""
 
-    TEMPLATE = """Answer the question using ONLY the context below. Do not add outside knowledge.
+    TEMPLATE = """Answer the question using ONLY the context below. Include specific details: dosages, schedules, steps, and criteria found in the context. Do not just reference document names. If context is insufficient, say so.
 
 CONTEXT:
 {context}
 
-QUESTION:
-{question}
-
-RULES:
-- Use only facts from the context above
-- Cite sources as [Document Name, Section, p. Page]
-- If the context lacks enough information, say so
-- Do not invent dosages, drugs, or treatments not in the context
-- End with "Confidence: X.XX" (0.0-1.0) based on how well the context supports your answer
+QUESTION: {question}
 
 ANSWER:
 """
@@ -36,10 +28,10 @@ ANSWER:
         max_chunk_chars: int | None = None,
     ) -> None:
         self.max_chunks = max_chunks or int(
-            os.environ.get("LLM_MAX_CONTEXT_CHUNKS", "5")
+            os.environ.get("LLM_MAX_CONTEXT_CHUNKS", "3")
         )
         self.max_chunk_chars = max_chunk_chars or int(
-            os.environ.get("LLM_MAX_CHUNK_CHARS", "800")
+            os.environ.get("LLM_MAX_CHUNK_CHARS", "500")
         )
 
     def build(
