@@ -88,6 +88,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             "/docs",
             "/redoc",
             "/openapi.json",
+            "/metrics/reset",
         ):
             return await call_next(request)
 

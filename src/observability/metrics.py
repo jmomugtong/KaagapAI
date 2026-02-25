@@ -105,6 +105,14 @@ def get_metrics_text() -> str:
         return "\n".join(lines) + "\n"
 
 
+def reset_metrics() -> None:
+    """Reset all metrics to zero."""
+    with _lock:
+        for key in _metrics:
+            _metrics[key] = 0
+        _latencies.clear()
+
+
 def _percentile(sorted_data: list[float], percentile: int) -> float:
     """Compute the given percentile from sorted data."""
     if not sorted_data:

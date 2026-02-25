@@ -239,6 +239,16 @@ async def query_endpoint(request: Request) -> dict[str, Any]:
     )
     result = await pipeline.run(question, max_results, confidence_threshold)
 
+    # Record metrics
+    from src.observability.metrics import record_query
+
+    record_query(
+        latency_ms=result.processing_time_ms,
+        success=True,
+        cache_hit=bool(result.cached),
+        hallucination=bool(result.hallucination_flagged),
+    )
+
     # Convert PipelineResult to backward-compatible response dict
     response: dict[str, Any] = {
         "answer": result.answer,
@@ -420,6 +430,15 @@ async def agent_query_endpoint(request: Request) -> dict[str, Any]:
     )
     result = await pipeline.run(question, max_results, confidence_threshold)
 
+    from src.observability.metrics import record_query
+
+    record_query(
+        latency_ms=result.processing_time_ms,
+        success=True,
+        cache_hit=False,
+        hallucination=bool(result.hallucination_flagged),
+    )
+
     return {
         "answer": result.answer,
         "confidence": result.confidence,
@@ -529,6 +548,26 @@ async def compare_endpoint(request: Request) -> dict[str, Any]:
             "agentic_chunks_used": len(a_dict.get("retrieved_chunks", [])),
         },
     }
+
+
+@app.get("/api/v1/documents/{filename}", tags=["Documents"])
+async def download_document(filename: str):
+    """Serve an uploaded document PDF."""
+    upload_dir = Path(os.environ.get("UPLOAD_DIR", "uploads")).resolve()
+    file_path = (upload_dir / filename).resolve()
+    # Ensure the resolved path stays within upload_dir (path traversal protection)
+    if not str(file_path).startswith(str(upload_dir)):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    if not file_path.exists() or not file_path.name.endswith(".pdf"):
+        raise HTTPException(status_code=404, detail="Document not found")
+    from starlette.responses import Response
+
+    content = file_path.read_bytes()
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 @app.post("/api/v1/upload", tags=["Documents"])
@@ -680,6 +719,15 @@ async def metrics_endpoint():
     from src.observability.metrics import get_metrics_text
 
     return PlainTextResponse(content=get_metrics_text(), media_type="text/plain")
+
+
+@app.post("/metrics/reset", tags=["Monitoring"])
+async def reset_metrics_endpoint():
+    """Reset all metrics counters (for testing/demo)."""
+    from src.observability.metrics import reset_metrics
+
+    reset_metrics()
+    return {"status": "metrics_reset"}
 
 
 # ============================================
