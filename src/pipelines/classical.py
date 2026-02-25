@@ -14,6 +14,7 @@ Enhanced with:
 """
 
 import logging
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -169,9 +170,13 @@ class ClassicalPipeline:
             generate_query_variants,
         )
 
-        query_variants = await generate_query_variants(
-            question, self.ollama_client, n=2
-        )
+        use_multi_query = os.environ.get("MULTI_QUERY_ENABLED", "0") == "1"
+        if use_multi_query:
+            query_variants = await generate_query_variants(
+                question, self.ollama_client, n=2
+            )
+        else:
+            query_variants = [question]
         steps.append(
             {
                 "name": "multi_query",
@@ -300,6 +305,7 @@ class ClassicalPipeline:
         )
 
         # --- Format chunks ---
+        min_relevance = float(os.environ.get("MIN_CHUNK_RELEVANCE", "0.60"))
         retrieved_chunks: list[dict[str, Any]] = []
         prompt_chunks: list[dict[str, Any]] = []
         for r in search_results:
@@ -314,16 +320,18 @@ class ClassicalPipeline:
                     "source": doc_display,
                 }
             )
-            prompt_chunks.append(
-                {
-                    "text": r.content,
-                    "metadata": {
-                        "source": doc_display,
-                        "chunk_index": r.chunk_index,
-                        "document_id": r.document_id,
-                    },
-                }
-            )
+            # Only feed high-relevance chunks to the LLM to avoid noise
+            if r.score >= min_relevance:
+                prompt_chunks.append(
+                    {
+                        "text": r.content,
+                        "metadata": {
+                            "source": doc_display,
+                            "chunk_index": r.chunk_index,
+                            "document_id": r.document_id,
+                        },
+                    }
+                )
 
         if not search_results:
             # --- Web search fallback ---

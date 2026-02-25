@@ -15,6 +15,7 @@ Enhanced with:
 """
 
 import logging
+import os
 import re
 import time
 import uuid
@@ -88,9 +89,9 @@ class AgenticPipeline:
                 steps=steps,
             )
 
-        # --- Step 1: Classify ---
+        # --- Step 1: Classify (fast heuristic) ---
         step_start = time.time()
-        query_type = await self._classify(question)
+        query_type = self._classify_fast(question)
         steps.append(
             {
                 "name": "classify",
@@ -184,10 +185,13 @@ class AgenticPipeline:
                 for i, sq in enumerate(sub_queries):
                     step_start = time.time()
                     try:
-                        # Generate multi-query variants for each sub-query
-                        variants = await generate_query_variants(
-                            sq, self.ollama_client, n=2
-                        )
+                        use_multi_query = os.environ.get("MULTI_QUERY_ENABLED", "0") == "1"
+                        if use_multi_query:
+                            variants = await generate_query_variants(
+                                sq, self.ollama_client, n=2
+                            )
+                        else:
+                            variants = [sq]
 
                         for variant in variants:
                             embeddings = await self.embedding_generator.generate_embeddings(
@@ -521,6 +525,22 @@ class AgenticPipeline:
             0.0,
         )
 
+    @staticmethod
+    def _classify_fast(question: str) -> str:
+        """Classify query type using keyword heuristic (no LLM call)."""
+        q = question.lower()
+        compare_words = {"compare", "vs", "versus", "difference", "differ", "between"}
+        temporal_words = {"changed", "updated", "evolution", "over time", "history of changes"}
+        general_words = {"what is", "define", "definition of", "meaning of"}
+
+        if any(w in q for w in compare_words):
+            return "COMPARATIVE"
+        if any(w in q for w in temporal_words):
+            return "TEMPORAL"
+        if "and" in q and "?" in q and q.count(",") >= 1:
+            return "MULTI_STEP"
+        return "SIMPLE"
+
     async def _classify(self, question: str) -> str:
         """Classify the query type using the LLM."""
         if not self.ollama_client:
@@ -574,12 +594,17 @@ class AgenticPipeline:
         """
         from src.llm.response_parser import ResponseParser
 
-        # Build context string
+        # Build context string (filter low-relevance chunks)
+        min_relevance = float(os.environ.get("MIN_CHUNK_RELEVANCE", "0.60"))
+        max_chunk_chars = int(os.environ.get("LLM_MAX_CHUNK_CHARS", "500"))
         context_parts = []
         for i, chunk in enumerate(chunks, 1):
+            if chunk.score < min_relevance:
+                continue
             doc_name = getattr(chunk, "document_name", "") or f"Document {getattr(chunk, 'document_id', i)}"
-            context_parts.append(f"[Source {i}: {doc_name}]\n{chunk.content}")
-        context = "\n\n".join(context_parts)
+            text = chunk.content[:max_chunk_chars]
+            context_parts.append(f"[Source {i}: {doc_name}]\n{text}")
+        context = "\n\n".join(context_parts) if context_parts else chunks[0].content[:max_chunk_chars] if chunks else ""
 
         if not self.ollama_client:
             confidence = chunks[0].score if chunks else 0.0
