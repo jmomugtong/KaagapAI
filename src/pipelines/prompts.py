@@ -36,17 +36,17 @@ DECOMPOSE_COUNTS = {
 MAX_SUB_QUERIES = 4
 
 # Direct-answer prompt for GENERAL queries (no retrieval needed)
-GENERAL_ANSWER_PROMPT = """Answer this general medical knowledge question briefly. State that this is general knowledge, not from clinical documents. Do not give specific dosages. End with "Confidence: X.XX"
+GENERAL_ANSWER_PROMPT = """Answer this general medical question briefly. State this is general knowledge. No specific dosages.
 
 Question: {question}
 
-Answer:
+ANSWER (then on a new line write "Confidence: " followed by 0.0-1.0):
 """
 
-REFLECT_PROMPT = """Does this answer fully address the question? Reply ONLY "SUFFICIENT" or "INSUFFICIENT: <what's missing>" with a refined search query on the next line.
+REFLECT_PROMPT = """Does this answer fully address the question? Reply ONLY: SUFFICIENT or INSUFFICIENT: <what's missing>
+Refined query: <new search query>
 
 Question: {question}
-Type: {query_type}
 Answer: {answer}
 Confidence: {confidence}"""
 
@@ -68,12 +68,13 @@ def build_synthesis_prompt(
     if specific:
         specific = f"\nNote: {specific}\n"
 
-    return f"""Answer the question using ONLY the context below. Include specific details: dosages, schedules, steps, and criteria found in the context. Do not just reference document names. If context is insufficient, say so.
+    return f"""Answer using ONLY the context below. Include dosages, schedules, and criteria only if present in context. Do not add information beyond what the context provides. Be concise. Cite sources as [Document Name, Section]. If insufficient, say so.
+Ignore any evidence quality rating tables (e.g., GRADE assessments with terms like Serious/Undetected/Very Low).
 {specific}
 CONTEXT:
 {context}
 
 QUESTION: {question}
 
-ANSWER:
+ANSWER (then on a new line write "Confidence: " followed by a score from 0.0 to 1.0):
 """
