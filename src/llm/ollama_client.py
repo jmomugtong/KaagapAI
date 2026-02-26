@@ -24,12 +24,15 @@ DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:1.5b")
 DEFAULT_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT_SECONDS", "120"))
 
 # LLM generation parameters
-DEFAULT_TEMPERATURE = float(os.environ.get("LLM_TEMPERATURE", "0.1"))
-DEFAULT_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "150"))
+DEFAULT_TEMPERATURE = float(os.environ.get("LLM_TEMPERATURE", "0.0"))
+DEFAULT_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "200"))
 DEFAULT_TOP_P = float(os.environ.get("LLM_TOP_P", "0.9"))
 DEFAULT_NUM_CTX = int(os.environ.get("LLM_NUM_CTX", "2048"))
 DEFAULT_NUM_THREAD = int(os.environ.get("LLM_NUM_THREAD", "0"))
 DEFAULT_KEEP_ALIVE = os.environ.get("OLLAMA_KEEP_ALIVE", "60m")
+
+# Stop sequences to prevent post-answer rambling
+STOP_SEQUENCES = ["\n\n---", "\n\nNote:", "\n\nDisclaimer:", "\n\nSources:", "\n\nReferences:"]
 
 # Retry configuration
 MAX_RETRIES = 3
@@ -83,6 +86,7 @@ class OllamaClient:
                             "stream": False,
                             "keep_alive": self.keep_alive,
                             "options": self._build_options(),
+                            "stop": STOP_SEQUENCES,
                         },
                     )
                     response.raise_for_status()
@@ -135,6 +139,8 @@ class OllamaClient:
             "top_p": self.top_p,
             "num_predict": self.max_tokens,
             "num_ctx": self.num_ctx,
+            "top_k": 10,
+            "num_batch": 512,
         }
         if self.num_thread > 0:
             options["num_thread"] = self.num_thread
@@ -158,6 +164,7 @@ class OllamaClient:
                         "stream": True,
                         "keep_alive": self.keep_alive,
                         "options": self._build_options(),
+                        "stop": STOP_SEQUENCES,
                     },
                 ) as response:
                     response.raise_for_status()
