@@ -161,6 +161,20 @@ checkStatus();
 setInterval(checkStatus, 30000);
 
 // ============================================================
+// Sample question chips
+// ============================================================
+
+document.querySelectorAll('.sample-q').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = document.getElementById(btn.dataset.target);
+    if (target) {
+      target.value = btn.textContent.trim();
+      target.focus();
+    }
+  });
+});
+
+// ============================================================
 // Query tab (Classical RAG)
 // ============================================================
 
@@ -387,12 +401,18 @@ async function uploadSingle(file, docType, meta) {
   fd.append('file', file);
   fd.append('document_type', docType);
   fd.append('metadata', meta);
-  const res = await fetch(`${API}/api/v1/upload`, { method: 'POST', body: fd });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || res.statusText);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 300000); // 5 min
+  try {
+    const res = await fetch(`${API}/api/v1/upload`, { method: 'POST', body: fd, signal: controller.signal });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || res.statusText);
+    }
+    return res.json();
+  } finally {
+    clearTimeout(timeout);
   }
-  return res.json();
 }
 
 document.getElementById('upload-form').addEventListener('submit', async e => {

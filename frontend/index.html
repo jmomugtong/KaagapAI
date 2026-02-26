@@ -76,6 +76,17 @@
                   <label class="block text-xs text-gray-400 mb-1">Clinical Question</label>
                   <textarea id="q-question" rows="4" placeholder="What is the first-line treatment for hypertension?"
                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
+                  <div class="flex flex-wrap gap-1.5 mt-2">
+                    <span class="text-xs text-gray-500 w-full mb-0.5">Try:</span>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="q-question">First-line treatment for hypertension</button>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="q-question">Warning signs of severe dengue</button>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="q-question">Blood pressure targets for adults</button>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="q-question">TB treatment regimen for new patients</button>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="q-question">Contraindications for metformin use</button>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="q-question">Antibiotic choice for community-acquired pneumonia</button>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="q-question">Post-exposure prophylaxis for rabies</button>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="q-question">Recommended vaccines for children under 5</button>
+                  </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
@@ -124,6 +135,17 @@
                   <label class="block text-xs text-gray-400 mb-1">Clinical Question</label>
                   <textarea id="a-question" rows="4" placeholder="Compare hypertension vs diabetes first-line treatments"
                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
+                  <div class="flex flex-wrap gap-1.5 mt-2">
+                    <span class="text-xs text-gray-500 w-full mb-0.5">Try:</span>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="a-question">Warning signs of severe dengue and when to hospitalize</button>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="a-question">Compare adult vs pediatric pneumonia treatment guidelines</button>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="a-question">For a patient with diabetes and hypertension, what are the treatment considerations?</button>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="a-question">What is the complete immunization schedule for infants?</button>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="a-question">Compare WHO vs Philippine guidelines for malaria treatment</button>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="a-question">Acute stroke assessment and management within the first 24 hours</button>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="a-question">How does leptospirosis treatment differ between children and adults?</button>
+                    <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="a-question">COVID-19 management for patients with mild vs severe symptoms</button>
+                  </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
@@ -168,17 +190,28 @@
       <section id="tab-compare" class="tab-pane hidden">
         <div class="bg-gray-900 rounded-xl border border-gray-800 p-5 mb-6">
           <h2 class="text-base font-semibold text-gray-200 mb-4">Compare Classical vs Agentic</h2>
-          <form id="compare-form" class="flex flex-col sm:flex-row gap-3">
-            <textarea id="c-question" rows="2" placeholder="What are the contraindications for ACE inhibitors?"
-              class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
-            <button type="submit" id="c-btn"
-              class="sm:self-start bg-teal-700 hover:bg-teal-600 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap">
-              <span id="c-btn-text">Compare</span>
-              <svg id="c-spinner" class="hidden w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
-            </button>
+          <form id="compare-form" class="space-y-3">
+            <div class="flex flex-col sm:flex-row gap-3">
+              <textarea id="c-question" rows="2" placeholder="What are the contraindications for ACE inhibitors?"
+                class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
+              <button type="submit" id="c-btn"
+                class="sm:self-start bg-teal-700 hover:bg-teal-600 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap">
+                <span id="c-btn-text">Compare</span>
+                <svg id="c-spinner" class="hidden w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+              </button>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              <span class="text-xs text-gray-500 w-full mb-0.5">Try:</span>
+              <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="c-question">Fluid management for dengue shock syndrome</button>
+              <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="c-question">First-line antihypertensive medications</button>
+              <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="c-question">TB drug regimen and duration for new cases</button>
+              <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="c-question">Insulin initiation criteria for type 2 diabetes</button>
+              <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="c-question">Antimalarial drug choice for pregnant women</button>
+              <button type="button" class="sample-q text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-full px-2.5 py-1 transition-colors" data-target="c-question">Stroke thrombolysis eligibility and time window</button>
+            </div>
           </form>
         </div>
 
