@@ -245,11 +245,12 @@ class ClassicalPipeline:
                 if entities:
                     search_results = boost_entity_matches(search_results, entities)
 
-                # --- Context window expansion ---
-                search_results = await expand_context_window(
-                    search_results[:max_results], session, window=1,
-                    doc_name_map=self.doc_name_map,
-                )
+                # --- Context window expansion (skipped by default for speed) ---
+                if os.environ.get("SKIP_CONTEXT_EXPANSION", "1") != "1":
+                    search_results = await expand_context_window(
+                        search_results[:max_results], session, window=1,
+                        doc_name_map=self.doc_name_map,
+                    )
 
         except Exception as e:
             logger.warning("Database query failed: %s", e)
@@ -305,7 +306,7 @@ class ClassicalPipeline:
         )
 
         # --- Format chunks ---
-        min_relevance = float(os.environ.get("MIN_CHUNK_RELEVANCE", "0.60"))
+        min_relevance = float(os.environ.get("MIN_CHUNK_RELEVANCE", "0.35"))
         retrieved_chunks: list[dict[str, Any]] = []
         prompt_chunks: list[dict[str, Any]] = []
         for r in search_results:
@@ -329,6 +330,7 @@ class ClassicalPipeline:
                             "source": doc_display,
                             "chunk_index": r.chunk_index,
                             "document_id": r.document_id,
+                            "relevance_score": round(r.score, 4),
                         },
                     }
                 )
@@ -413,12 +415,14 @@ class ClassicalPipeline:
 
                 if raw_response:
                     parser = ResponseParser()
+                    top_score = search_results[0].score if search_results else None
                     parsed = parser.parse(
                         raw_response,
                         retrieved_chunks=[
                             {"text": c["text"], "source": c["source"]}
                             for c in retrieved_chunks
                         ],
+                        fallback_confidence=top_score,
                     )
 
                     if parsed.confidence < confidence_threshold:

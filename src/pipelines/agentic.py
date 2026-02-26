@@ -75,6 +75,44 @@ class AgenticPipeline:
             }
         )
 
+        # --- Cache check ---
+        step_start = time.time()
+        from src.rag.cache import CacheManager
+
+        cache = CacheManager()
+        try:
+            cached = await cache.get_query_result(question)
+            if cached is not None:
+                elapsed = (time.time() - start_time) * 1000
+                steps.append(
+                    {
+                        "name": "cache_hit",
+                        "duration_ms": round((time.time() - step_start) * 1000, 1),
+                        "detail": "Cache hit — returning cached result",
+                    }
+                )
+                return PipelineResult(
+                    answer=cached.get("answer", ""),
+                    confidence=cached.get("confidence", 0.0),
+                    citations=cached.get("citations", []),
+                    retrieved_chunks=cached.get("retrieved_chunks", []),
+                    query_id=cached.get("query_id", "cached"),
+                    processing_time_ms=round(elapsed, 1),
+                    hallucination_flagged=cached.get("hallucination_flagged", False),
+                    cached=True,
+                    pipeline="agentic",
+                    steps=steps,
+                )
+        except Exception as e:
+            logger.warning("Agentic query cache lookup failed: %s", e)
+        steps.append(
+            {
+                "name": "cache_check",
+                "duration_ms": round((time.time() - step_start) * 1000, 1),
+                "detail": "Cache miss",
+            }
+        )
+
         # --- Check prerequisites ---
         if not self.embedding_generator:
             elapsed = (time.time() - start_time) * 1000
@@ -206,27 +244,6 @@ class AgenticPipeline:
                                 variant, query_embedding, top_k=max_results
                             )
 
-                            # Rerank
-                            if self.reranker and search_results:
-                                try:
-                                    reranked = await self.reranker.rerank(
-                                        variant, search_results, top_k=max_results
-                                    )
-                                    search_results = [
-                                        ScoredChunk(
-                                            chunk_id=r.chunk_id,
-                                            content=r.content,
-                                            document_id=r.document_id,
-                                            chunk_index=r.chunk_index,
-                                            score=r.final_score,
-                                            source=r.source,
-                                            document_name=r.document_name,
-                                        )
-                                        for r in reranked
-                                    ]
-                                except Exception as e:
-                                    logger.warning("Reranking failed for variant: %s", e)
-
                             all_chunks.extend(search_results)
                     except Exception as e:
                         logger.warning("Retrieval failed for sub-query '%s': %s", sq, e)
@@ -243,11 +260,12 @@ class AgenticPipeline:
                 if entities:
                     all_chunks = boost_entity_matches(all_chunks, entities)
 
-                # Context window expansion
-                all_chunks = await expand_context_window(
-                    all_chunks[:max_results * 2], session, window=1,
-                    doc_name_map=self.doc_name_map,
-                )
+                # Context window expansion (skipped by default for speed)
+                if os.environ.get("SKIP_CONTEXT_EXPANSION", "1") != "1":
+                    all_chunks = await expand_context_window(
+                        all_chunks[:max_results * 2], session, window=1,
+                        doc_name_map=self.doc_name_map,
+                    )
 
         except Exception as e:
             logger.warning("Database query failed: %s", e)
@@ -277,6 +295,35 @@ class AgenticPipeline:
                 ),
             }
         )
+
+        # --- Single reranking pass after deduplication ---
+        if self.reranker and final_chunks:
+            step_start = time.time()
+            try:
+                reranked = await self.reranker.rerank(
+                    question, final_chunks, top_k=max_results * 2
+                )
+                final_chunks = [
+                    ScoredChunk(
+                        chunk_id=r.chunk_id,
+                        content=r.content,
+                        document_id=r.document_id,
+                        chunk_index=r.chunk_index,
+                        score=r.final_score,
+                        source=r.source,
+                        document_name=r.document_name,
+                    )
+                    for r in reranked
+                ]
+            except Exception as e:
+                logger.warning("Post-dedup reranking failed: %s", e)
+            steps.append(
+                {
+                    "name": "rerank",
+                    "duration_ms": round((time.time() - step_start) * 1000, 1),
+                    "detail": f"Reranked {len(final_chunks)} chunks",
+                }
+            )
 
         if not final_chunks:
             # --- Web search fallback ---
@@ -366,109 +413,23 @@ class AgenticPipeline:
         )
 
         # --- Step 6: Self-reflect ---
-        if confidence < confidence_threshold:
-            step_start = time.time()
-            reflection = await self._reflect(question, answer, query_type, confidence)
+        # Skip reflection when extractive fallback was already used (confidence < threshold).
+        # The extractive answer is the safest output — reflecting and retrying just wastes
+        # 2 extra LLM calls (~11s) to arrive at the same extractive result.
+        if confidence >= confidence_threshold:
             steps.append(
                 {
                     "name": "reflect",
-                    "duration_ms": round((time.time() - step_start) * 1000, 1),
-                    "detail": reflection,
+                    "duration_ms": 0,
+                    "detail": "SUFFICIENT — confidence above threshold",
                 }
             )
-
-            # If reflection says insufficient, do one more retrieval pass
-            if (
-                reflection.startswith("INSUFFICIENT")
-                and len(sub_queries) < MAX_ITERATIONS
-            ):
-                refined_query = self._extract_refined_query(reflection, question)
-                step_start = time.time()
-                try:
-                    async with AsyncSessionLocal() as session:
-                        if self.cached_chunks is not None:
-                            db_chunks = self.cached_chunks
-                        else:
-                            result = await session.execute(select(DocumentChunk))
-                            db_chunks = result.scalars().all()
-                        if db_chunks:
-                            embeddings = (
-                                await self.embedding_generator.generate_embeddings(
-                                    [refined_query], is_query=True
-                                )
-                            )
-                            retriever = HybridRetriever(
-                                db_chunks, session, doc_name_map=self.doc_name_map
-                            )
-                            extra = await retriever.search(
-                                refined_query, embeddings[0], top_k=max_results
-                            )
-                            if self.reranker and extra:
-                                try:
-                                    reranked = await self.reranker.rerank(
-                                        refined_query, extra, top_k=max_results
-                                    )
-                                    extra = [
-                                        ScoredChunk(
-                                            chunk_id=r.chunk_id,
-                                            content=r.content,
-                                            document_id=r.document_id,
-                                            chunk_index=r.chunk_index,
-                                            score=r.final_score,
-                                            source=r.source,
-                                            document_name=r.document_name,
-                                        )
-                                        for r in reranked
-                                    ]
-                                except Exception:
-                                    pass
-
-                            # Merge with existing
-                            combined = self._deduplicate(final_chunks + extra)
-                            final_chunks = combined[: max_results * 2]
-
-                            # Re-synthesize
-                            (
-                                answer,
-                                confidence,
-                                citations,
-                                hallucination_flagged,
-                            ) = await self._synthesize(
-                                question,
-                                final_chunks,
-                                query_type,
-                                confidence_threshold,
-                                redactor,
-                            )
-
-                            # Update retrieved_chunks_dicts
-                            retrieved_chunks_dicts = [
-                                {
-                                    "chunk_id": r.chunk_id,
-                                    "text": r.content,
-                                    "document_id": r.document_id,
-                                    "chunk_index": r.chunk_index,
-                                    "relevance_score": round(r.score, 4),
-                                    "source": r.document_name or f"Document {r.document_id}",
-                                }
-                                for r in final_chunks
-                            ]
-                except Exception as e:
-                    logger.warning("Reflection retrieval failed: %s", e)
-
-                steps.append(
-                    {
-                        "name": "retry_retrieve",
-                        "duration_ms": round((time.time() - step_start) * 1000, 1),
-                        "detail": f"Refined query: {refined_query}",
-                    }
-                )
         else:
             steps.append(
                 {
                     "name": "reflect",
                     "duration_ms": 0,
-                    "detail": "SUFFICIENT",
+                    "detail": "SKIPPED — extractive fallback already used",
                 }
             )
 
@@ -476,7 +437,7 @@ class AgenticPipeline:
         steps.append({"name": "complete", "duration_ms": 0, "detail": "Done"})
 
         elapsed = (time.time() - start_time) * 1000
-        return PipelineResult(
+        result = PipelineResult(
             answer=answer,
             confidence=confidence,
             citations=citations,
@@ -487,6 +448,25 @@ class AgenticPipeline:
             pipeline="agentic",
             steps=steps,
         )
+
+        # --- Cache the response ---
+        try:
+            await cache.set_query_result(
+                question,
+                {
+                    "answer": result.answer,
+                    "confidence": result.confidence,
+                    "citations": result.citations,
+                    "retrieved_chunks": result.retrieved_chunks,
+                    "query_id": result.query_id,
+                    "processing_time_ms": result.processing_time_ms,
+                    "hallucination_flagged": result.hallucination_flagged,
+                },
+            )
+        except Exception as e:
+            logger.warning("Failed to cache agentic query result: %s", e)
+
+        return result
 
     # ------------------------------------------------------------------
     # Internal methods
@@ -595,15 +575,20 @@ class AgenticPipeline:
         from src.llm.response_parser import ResponseParser
 
         # Build context string (filter low-relevance chunks)
-        min_relevance = float(os.environ.get("MIN_CHUNK_RELEVANCE", "0.60"))
-        max_chunk_chars = int(os.environ.get("LLM_MAX_CHUNK_CHARS", "500"))
+        from src.llm.prompt_templates import clean_chunk_text, truncate_at_sentence
+
+        min_relevance = float(os.environ.get("MIN_CHUNK_RELEVANCE", "0.35"))
+        max_chunk_chars = int(os.environ.get("LLM_MAX_CHUNK_CHARS", "400"))
+        max_context_chunks = int(os.environ.get("LLM_MAX_CONTEXT_CHUNKS", "3"))
+        chunks = chunks[:max_context_chunks]
         context_parts = []
         for i, chunk in enumerate(chunks, 1):
             if chunk.score < min_relevance:
                 continue
             doc_name = getattr(chunk, "document_name", "") or f"Document {getattr(chunk, 'document_id', i)}"
-            text = chunk.content[:max_chunk_chars]
-            context_parts.append(f"[Source {i}: {doc_name}]\n{text}")
+            text = clean_chunk_text(chunk.content)
+            text = truncate_at_sentence(text, max_chunk_chars)
+            context_parts.append(f"[Source {i}: {doc_name}, relevance {chunk.score:.0%}]\n{text}")
         context = "\n\n".join(context_parts) if context_parts else chunks[0].content[:max_chunk_chars] if chunks else ""
 
         if not self.ollama_client:
@@ -629,7 +614,8 @@ class AgenticPipeline:
                     }
                     for c in chunks
                 ]
-                parsed = parser.parse(raw_response, retrieved_for_validation)
+                top_score = chunks[0].score if chunks else None
+                parsed = parser.parse(raw_response, retrieved_for_validation, fallback_confidence=top_score)
 
                 if parsed.confidence < confidence_threshold:
                     # Extractive fallback: return key sentences from docs
@@ -688,13 +674,16 @@ class AgenticPipeline:
         self, question: str, answer: str, query_type: str, confidence: float
     ) -> str:
         """Self-reflect on answer completeness."""
+        # Force INSUFFICIENT for very low confidence regardless of LLM opinion
+        if confidence < 0.40:
+            return f"INSUFFICIENT: Low confidence ({confidence:.2f}). Refined query: {question}"
+
         if not self.ollama_client:
             return "SUFFICIENT"
 
         try:
             prompt = REFLECT_PROMPT.format(
                 question=question,
-                query_type=query_type,
                 answer=answer,
                 confidence=confidence,
             )
