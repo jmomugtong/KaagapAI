@@ -10,7 +10,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688.svg)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/tests-366_passing-brightgreen.svg)](#test-suite)
+[![Tests](https://img.shields.io/badge/tests-365_passing-brightgreen.svg)](#test-suite)
 [![Coverage](https://img.shields.io/badge/coverage-88%25-brightgreen.svg)](#test-suite)
 
 </div>
@@ -90,21 +90,20 @@ The retrieval pipeline incorporates techniques from **10 open-source RAG project
                        │
           ┌────────────┴────────────┐
           ▼                         ▼
-┌─────────────────┐     ┌─────────────────────────────────────────────┐
-│  Celery Queue   │     │  Enhanced RAG Pipeline                      │
-│  - Embedding    │     │  1. Multi-Query Generation (LLM variants)   │
-│  - Indexing     │     │  2. Hybrid Retrieval (BM25 + pgvector)      │
-│  - Evaluation   │     │  3. Entity-Aware Boosting                   │
-│                 │     │  4. Context Window Expansion (adjacent ±1)  │
-│                 │     │  5. FlashRank Reranking                     │
-│                 │     │  6. Sentence-Level Extraction                │
-│                 │     │  7. LLM Synthesis (strict grounding)        │
-│                 │     │  8. Extractive Fallback (low confidence)    │
-│                 │     │  9. Web Search Fallback (DuckDuckGo)        │
-└────────┬────────┘     └────────────────┬────────────────────────────┘
-         │                               │
-         └──────────┬────────────────────┘
-                    ▼
+┌─────────────────────────────────────────────┐
+│  Enhanced RAG Pipeline                      │
+│  1. Multi-Query Generation (LLM variants)   │
+│  2. Hybrid Retrieval (BM25 + pgvector)      │
+│  3. Entity-Aware Boosting                   │
+│  4. Context Window Expansion (adjacent ±1)  │
+│  5. FlashRank Reranking                     │
+│  6. Sentence-Level Extraction                │
+│  7. LLM Synthesis (strict grounding)        │
+│  8. Extractive Fallback (low confidence)    │
+│  9. Web Search Fallback (DuckDuckGo)        │
+└────────────────┬────────────────────────────┘
+                 │
+                 ▼
 ┌──────────────────────────────────────────────────────────────────────┐
 │                      DATA LAYER                                      │
 │  PostgreSQL + pgvector  │  Redis Cache  │  Ollama LLM  │  DuckDuckGo│
@@ -463,17 +462,17 @@ kaagapai/
 ├── frontend/             # Web UI (Tailwind CDN, dark theme)
 │   ├── index.html        # 5 tabs: Query, Agentic, Compare, Upload, Monitor
 │   └── app.js            # Frontend logic (batch upload, step timeline, comparison)
-├── tests/                # Test suite (366 tests, 88% coverage)
+├── tests/                # Test suite (365 tests, 88% coverage)
 │   ├── test_rag_enhancements.py    # Multi-query, entity boost, sentence extraction, web search
 │   ├── test_classical_pipeline.py  # Classical pipeline tests
 │   ├── test_agentic_pipeline.py    # Agentic pipeline tests
 │   ├── test_api_extended.py        # Extended API tests
-│   └── ...                         # Other tests (retriever, reranker, security, worker, etc.)
+│   └── ...                         # Other tests (retriever, reranker, security, etc.)
 ├── k6/                   # Load testing (k6 scripts with auth flow, staged ramp-up)
 ├── scripts/              # Utility scripts
 ├── documents/            # Philippine clinical guidelines corpus (17 PDFs: DOH, PSMID, PIDSP, WHO)
 ├── datasets/             # Evaluation datasets (25 + 50 Q&A pairs)
-├── docker-compose.yml    # 7 Docker services
+├── docker-compose.yml    # 6 Docker services
 ├── Dockerfile            # Container build
 ├── Makefile              # Development commands
 ├── pyproject.toml        # Project configuration
@@ -489,7 +488,7 @@ kaagapai/
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| Test Suite | 366 passing, 88% coverage | Verified |
+| Test Suite | 365 passing, 88% coverage | Verified |
 | Cached Query Latency | < 10ms | Verified |
 | Cold Query Latency (CPU) | 6-12s (no GPU) | Verified |
 | Cache Hit Rate | > 70% target | Verified |
@@ -529,7 +528,7 @@ Key variables:
 ## Test Suite
 
 ```
-366 tests passing | 88% code coverage | 0 failures
+365 tests passing | 88% code coverage | 0 failures
 ```
 
 | Test Area | Tests | What's Covered |
@@ -615,7 +614,6 @@ Full API documentation available at:
 | POST | `/api/v1/compare` | Compare both pipelines side-by-side |
 | POST | `/api/v1/upload` | Upload document (batch-capable) |
 | GET | `/api/v1/documents/{filename}` | Get document metadata |
-| GET | `/api/v1/jobs/{id}` | Check job status |
 | GET | `/api/v1/evals` | Run evaluation |
 | GET | `/health` | Health check |
 | GET | `/ready` | Readiness check |

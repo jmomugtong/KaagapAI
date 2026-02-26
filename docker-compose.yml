@@ -22,8 +22,6 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DATABASE_URL=postgresql+asyncpg://${DB_USER:-kaagapai_user}:${DB_PASSWORD:-kaagapai_password}@postgres:5432/${DB_NAME:-kaagapai}
       - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - OLLAMA_URL=http://ollama:11434
       - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:1.5b}
       - LLM_NUM_CTX=${LLM_NUM_CTX:-2048}
@@ -64,35 +62,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  # ==========================================
-  # Celery Worker for Async Tasks
-  # ==========================================
-  celery-worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: production
-    container_name: kaagapai-celery-worker
-    command: celery -A src.worker worker --loglevel=info --concurrency=2
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-kaagapai_user}:${DB_PASSWORD:-kaagapai_password}@postgres:5432/${DB_NAME:-kaagapai}
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - OLLAMA_URL=http://ollama:11434
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text}
-    depends_on:
-      - api
-      - redis
-      - postgres
-    volumes:
-      - ./src:/app/src:ro
-      - ./uploads:/app/uploads
-      - model_cache:/app/.cache
-    networks:
-      - kaagapai-network
-    restart: unless-stopped
 
   # ==========================================
   # PostgreSQL with pgvector Extension

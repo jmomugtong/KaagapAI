@@ -46,7 +46,7 @@ help:
 	@echo "  db-downgrade   Rollback last migration"
 	@echo ""
 	@echo "AI/ML:"
-	@echo "  ollama-pull    Download Ollama model (alibayram/medgemma)"
+	@echo "  ollama-pull    Download Ollama model (qwen2.5:1.5b)"
 	@echo "  eval           Run evaluation suite"
 	@echo ""
 	@echo "Utilities:"
@@ -172,7 +172,7 @@ db-current:
 # ============================================
 
 ollama-pull:
-	docker-compose exec ollama ollama pull alibayram/medgemma
+	docker-compose exec ollama ollama pull qwen2.5:1.5b
 
 ollama-list:
 	docker-compose exec ollama ollama list

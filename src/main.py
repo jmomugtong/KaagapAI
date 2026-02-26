@@ -690,14 +690,6 @@ async def upload_endpoint(
     }
 
 
-@app.get("/api/v1/jobs/{job_id}", tags=["Jobs"])
-async def job_status_endpoint(job_id: str) -> dict[str, Any]:
-    """Check the status of an async job."""
-    from src.worker import get_job_status
-
-    return get_job_status(job_id)
-
-
 @app.get("/api/v1/evals", tags=["Evaluation"])
 async def evaluation_endpoint() -> dict[str, Any]:
     """Run the evaluation suite and return results."""
