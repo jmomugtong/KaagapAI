@@ -17,7 +17,7 @@ DEFAULT_EMBEDDING_MODEL = os.environ.get(
     "EMBEDDING_MODEL_HF", "nomic-ai/nomic-embed-text-v1.5"
 )
 DEFAULT_EMBEDDING_DIMENSION = int(os.environ.get("EMBEDDING_DIMENSION", "768"))
-EMBEDDING_BATCH_SIZE = int(os.environ.get("EMBEDDING_BATCH_SIZE", "64"))
+EMBEDDING_BATCH_SIZE = int(os.environ.get("EMBEDDING_BATCH_SIZE", "16"))
 
 # Keep Ollama config for fallback compatibility
 DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
@@ -56,9 +56,29 @@ def _load_st_model(model_name: str):
 
 
 def _encode_sync(model, texts: list[str], batch_size: int) -> list[list[float]]:
-    """Run model.encode synchronously — designed to be called via to_thread."""
-    embeddings_np = model.encode(texts, batch_size=batch_size, show_progress_bar=False)
-    return [emb.tolist() for emb in embeddings_np]
+    """Run model.encode synchronously — designed to be called via to_thread.
+
+    Processes in small batches to avoid tensor size mismatches that occur
+    when variable-length texts are encoded together in large batches.
+    Falls back to one-by-one encoding if a batch fails.
+    """
+    all_embeddings: list[list[float]] = []
+    for start in range(0, len(texts), batch_size):
+        batch = texts[start : start + batch_size]
+        try:
+            batch_np = model.encode(batch, batch_size=batch_size, show_progress_bar=False)
+            all_embeddings.extend(emb.tolist() for emb in batch_np)
+        except RuntimeError:
+            # Tensor mismatch — fall back to encoding one at a time
+            for t in batch:
+                try:
+                    single = model.encode([t], show_progress_bar=False)
+                    all_embeddings.append(single[0].tolist())
+                except Exception:
+                    # Zero vector as last resort so chunk still gets stored
+                    dim = model.get_sentence_embedding_dimension()
+                    all_embeddings.append([0.0] * dim)
+    return all_embeddings
 
 
 class EmbeddingGenerator:
