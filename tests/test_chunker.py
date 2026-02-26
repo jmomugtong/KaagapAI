@@ -34,7 +34,7 @@ def test_chunk_metadata_structure():
     assert meta.chunk_index == 0
 
 
-@patch("PyPDF2.PdfReader")
+@patch("pypdf.PdfReader")
 def test_pdf_parsing_strategy(mock_reader, mock_pdf_path):
     # Setup mock
     mock_page = MagicMock()

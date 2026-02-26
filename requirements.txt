@@ -6,7 +6,7 @@
 # ============================================
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-python-multipart==0.0.6
+python-multipart==0.0.22
 pydantic==2.5.2
 pydantic-settings==2.1.0
 # starlette version managed by fastapi
@@ -29,33 +29,29 @@ hiredis==2.3.2
 # ============================================
 # AI/ML - Embeddings & Retrieval
 # ============================================
-sentence-transformers==2.7.0
-torch==2.2.2
-transformers==4.35.2
-tokenizers==0.15.2
-huggingface-hub==0.19.4
-safetensors==0.4.5
-einops==0.7.0
+sentence-transformers==5.2.3
+torch==2.10.0
+transformers==5.2.0
+# tokenizers, huggingface-hub, safetensors, einops versions managed by transformers/sentence-transformers
 rank-bm25==0.2.2
 flashrank==0.2.10
-scikit-learn==1.3.2
-scipy==1.11.4
+scikit-learn==1.8.0
+# scipy version managed by scikit-learn/sentence-transformers
 
 # ============================================
-# LangChain
+# LangChain (text splitting only)
 # ============================================
-langchain==0.0.350
-langchain-community==0.0.10
-langchain-experimental==0.0.43
-# langchain-core version managed by langchain dependencies
+langchain-text-splitters==1.1.1
+langchain-experimental==0.3.4
+# langchain-core version managed by langchain-text-splitters
 
 # ============================================
 # Document Processing
 # ============================================
-PyPDF2==3.0.1
+pypdf==6.7.3
 pdfplumber==0.10.3
 # pdfminer.six version managed by pdfplumber
-Pillow==10.1.0
+Pillow==12.1.1
 
 # ============================================
 # LLM Client (for Ollama)
@@ -72,7 +68,7 @@ duckduckgo-search>=4.0
 # ============================================
 # Security
 # ============================================
-cryptography==41.0.7
+cryptography==46.0.5
 
 # ============================================
 # Observability & Monitoring
@@ -91,7 +87,7 @@ structlog==23.2.0
 # ============================================
 rouge-score==0.1.2
 numpy==1.26.2
-nltk==3.8.1
+nltk==3.9.3
 
 # ============================================
 # Utilities
@@ -102,7 +98,6 @@ click==8.1.7
 rich==13.7.0
 pyyaml==6.0.1
 aiofiles==23.2.1
-orjson==3.9.10
 python-dateutil==2.8.2
 
 # ============================================
@@ -114,7 +109,7 @@ pytest-cov==4.1.0
 pytest-mock==3.12.0
 faker==21.0.0
 ruff==0.1.6
-black==23.11.0
+black==26.1.0
 mypy==1.7.1
 isort==5.12.0
 pre-commit==3.6.0
