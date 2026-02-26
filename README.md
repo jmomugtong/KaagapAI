@@ -10,7 +10,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688.svg)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/tests-381_passing-brightgreen.svg)](#test-suite)
+[![Tests](https://img.shields.io/badge/tests-366_passing-brightgreen.svg)](#test-suite)
 [![Coverage](https://img.shields.io/badge/coverage-88%25-brightgreen.svg)](#test-suite)
 
 </div>
@@ -23,7 +23,7 @@ KaagapAI is a production-grade Retrieval-Augmented Generation (RAG) system built
 
 Built 100% with open-source models, KaagapAI runs entirely on local hardware after initial setup — **no internet required for queries, zero external API costs**. The clinical corpus includes 17 Philippine and WHO guidelines covering TB, dengue, hypertension, diabetes, pneumonia, leptospirosis, maternal health, immunization, and essential medicines — the highest-burden conditions in underserved Philippine communities.
 
-Cached queries respond in <200ms; cold CPU-only queries (MedGemma 4B, no GPU) take 25-30 s. Evaluation targets: ROUGE-L >= 0.60, hallucination < 5% (unverified, pending indexed dataset).
+Cached queries respond in <10ms; cold CPU-only queries (Qwen 2.5 1.5B, no GPU) take 6-12s. Evaluation targets: ROUGE-L >= 0.60, hallucination < 5% (unverified, pending indexed dataset).
 
 The retrieval pipeline incorporates techniques from **10 open-source RAG projects** (see [Inspirations](#inspirations)) including multi-query retrieval, context window expansion, entity-aware boosting, sentence-level extraction, extractive fallback, web search fallback, conditional routing, and strict grounding prompts.
 
@@ -42,10 +42,29 @@ The retrieval pipeline incorporates techniques from **10 open-source RAG project
 - **Strict Grounding**: Prompts enforce context-only answering with mandatory citations and "I don't know" when unsupported
 - **Comparison Mode**: Side-by-side comparison of Classical vs Agentic pipeline results
 - **Batch Document Upload**: Multi-file upload with concurrent processing (3 parallel workers)
-- **HIPAA Compliant**: PII redaction, audit logging, row-level security
+- **Security**: PII redaction, audit logging, input validation
 - **Zero API Cost**: 100% open-source stack (local embeddings, Ollama, FlashRank, pgvector, DuckDuckGo)
-- **Medical-Domain LLM**: MedGemma 4B fine-tuned on clinical QA and FHIR EHR data
+- **Lightweight LLM**: Qwen 2.5 1.5B via Ollama — fast inference on CPU-only hardware (986 MB)
 - **Full Observability**: Prometheus metrics, Grafana dashboards, OpenTelemetry tracing
+
+---
+
+## Screenshots
+
+### Classical RAG Query
+![Classical RAG Query](docs/assets/screenshot-query.png)
+
+### Agentic RAG with Reasoning Steps
+![Agentic RAG](docs/assets/screenshot-agentic.png)
+
+### Pipeline Comparison (Classical vs Agentic)
+![Compare Pipelines](docs/assets/screenshot-compare.png)
+
+### Batch Document Upload
+![Batch Upload](docs/assets/screenshot-upload.png)
+
+### Service Health Monitor
+![Monitor](docs/assets/screenshot-monitor.png)
 
 ---
 
@@ -56,7 +75,7 @@ The retrieval pipeline incorporates techniques from **10 open-source RAG project
 │                        CLIENT LAYER                                  │
 │  Tailwind Dark Theme UI: Query / Agentic / Compare / Upload / Monitor│
 └──────────────────────┬───────────────────────────────────────────────┘
-                       │ REST API + JWT Authentication
+                       │ REST API
                        ▼
 ┌──────────────────────────────────────────────────────────────────────┐
 │                        API GATEWAY LAYER                             │
@@ -111,7 +130,7 @@ KaagapAI provides two RAG pipeline implementations for different query complexit
 6. **Entity-Aware Boosting** → extract medical entities from query, boost matching chunks
 7. **Context Window Expansion** → fetch adjacent chunks (index ±1) from same document
 8. **FlashRank Reranking** (<100ms batch cross-encoder)
-9. **LLM Synthesis** (MedGemma 4B via Ollama, strict grounding prompt)
+9. **LLM Synthesis** (Qwen 2.5 1.5B via Ollama, strict grounding prompt)
 10. **Confidence Routing**:
     - High confidence (>= 0.70): return synthesized answer with citations
     - Low confidence (< 0.70): **extractive fallback** — return key sentences from documents
@@ -123,7 +142,7 @@ KaagapAI provides two RAG pipeline implementations for different query complexit
 - "What are the dengue warning signs in children?"
 - "What is the first-line antihypertensive drug per Philippine CPG?"
 
-**Performance**: <200ms cached; 25-30 s cold on CPU-only (no GPU)
+**Performance**: <10ms cached; 6-12s cold on CPU-only (no GPU)
 
 ### Agentic RAG Pipeline
 
@@ -195,10 +214,7 @@ cd KaagapAI
 # Copy environment template
 cp .env.example .env
 
-# Generate a secure secret key
-python -c "import secrets; print(secrets.token_hex(32))"
-
-# Update .env with your values (especially SECRET_KEY, DB_PASSWORD)
+# Update .env with your values (especially DB_PASSWORD)
 ```
 
 ### 3. Start All Services
@@ -217,8 +233,8 @@ docker-compose ps
 ### 4. Download AI Models
 
 ```bash
-# Download MedGemma model for Ollama (one-time, ~2.5GB)
-docker-compose exec ollama ollama pull alibayram/medgemma
+# Download Qwen 2.5 1.5B model for Ollama (one-time, ~986MB)
+docker-compose exec ollama ollama pull qwen2.5:1.5b
 
 # Embedding model (nomic-embed-text-v1.5) runs locally via sentence-transformers
 # and is downloaded automatically on first use — no Ollama pull needed.
@@ -447,12 +463,11 @@ kaagapai/
 ├── frontend/             # Web UI (Tailwind CDN, dark theme)
 │   ├── index.html        # 5 tabs: Query, Agentic, Compare, Upload, Monitor
 │   └── app.js            # Frontend logic (batch upload, step timeline, comparison)
-├── tests/                # Test suite (381 tests, 88% coverage)
+├── tests/                # Test suite (366 tests, 88% coverage)
 │   ├── test_rag_enhancements.py    # Multi-query, entity boost, sentence extraction, web search
 │   ├── test_classical_pipeline.py  # Classical pipeline tests
 │   ├── test_agentic_pipeline.py    # Agentic pipeline tests
 │   ├── test_api_extended.py        # Extended API tests
-│   ├── test_auth.py                 # JWT auth, register/login, password hashing
 │   └── ...                         # Other tests (retriever, reranker, security, worker, etc.)
 ├── k6/                   # Load testing (k6 scripts with auth flow, staged ramp-up)
 ├── scripts/              # Utility scripts
@@ -474,9 +489,9 @@ kaagapai/
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| Test Suite | 381 passing, 88% coverage | Verified |
-| Cached Query Latency | < 200ms | Verified |
-| Cold Query Latency (CPU) | 25–30 s (no GPU) | Verified |
+| Test Suite | 366 passing, 88% coverage | Verified |
+| Cached Query Latency | < 10ms | Verified |
+| Cold Query Latency (CPU) | 6-12s (no GPU) | Verified |
 | Cache Hit Rate | > 70% target | Verified |
 | Hallucination Rate | < 5% target | Pending verification |
 | ROUGE-L Score | ≥ 0.60 target | Pending verification |
@@ -485,7 +500,9 @@ kaagapai/
 
 Access Grafana at http://localhost:3000 (default: admin/admin)
 
-- **Query Performance**: Latency percentiles, throughput
+![Grafana Dashboard](docs/assets/grafana-dashboard.png)
+
+- **Query Performance**: Latency percentiles (p50/p95/p99), throughput
 - **Cache Analytics**: Hit rates, memory usage
 - **Quality Metrics**: Hallucination rate, confidence scores
 - **System Health**: Error rates, resource utilization
@@ -502,10 +519,9 @@ Key variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SECRET_KEY` | JWT signing key | (generate) |
 | `DATABASE_URL` | PostgreSQL connection | postgresql+asyncpg://... |
 | `REDIS_URL` | Redis connection | redis://redis:6379/0 |
-| `OLLAMA_MODEL` | LLM model name | alibayram/medgemma |
+| `OLLAMA_MODEL` | LLM model name | qwen2.5:1.5b |
 | `RATE_LIMIT_PER_MINUTE` | API rate limit | 10 |
 
 ---
@@ -513,12 +529,11 @@ Key variables:
 ## Test Suite
 
 ```
-381 tests passing | 88% code coverage | 0 failures
+366 tests passing | 88% code coverage | 0 failures
 ```
 
 | Test Area | Tests | What's Covered |
 |-----------|-------|----------------|
-| Auth (JWT, register/login, password) | 16 | Token lifecycle, bcrypt hashing, endpoint auth, optional auth |
 | RAG Enhancements | 55 | Multi-query, entity boost, context expansion, sentence extraction, web search |
 | Classical Pipeline | 30+ | End-to-end RAG flow, caching, fallback, hallucination detection |
 | Agentic Pipeline | 40+ | Query classification, decomposition, reflection, conditional routing |
@@ -575,11 +590,8 @@ Located at `datasets/clinical_qa_50.json`:
 - **Row-Level Security**: Hospital data isolation in PostgreSQL
 - **Encryption**: TLS 1.3 in transit, AES-256 at rest
 
-### Authentication
+### Access Control
 
-- JWT tokens (HS256) with register/login endpoints (`/api/v1/auth/register`, `/api/v1/auth/login`)
-- bcrypt password hashing via passlib
-- Optional Bearer token on all protected routes (unauthenticated access still allowed)
 - Rate limiting per user (10 req/min)
 - Input validation and sanitization
 
@@ -591,19 +603,22 @@ Full API documentation available at:
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 
+![Swagger API Docs](docs/assets/screenshot-swagger.png)
+
 ### Main Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/auth/register` | Register user, return JWT token |
-| POST | `/api/v1/auth/login` | Authenticate user, return JWT token |
 | POST | `/api/v1/query` | Submit clinical query (Classical RAG) |
+| POST | `/api/v1/query/stream` | Submit query with streaming response |
 | POST | `/api/v1/agent/query` | Submit clinical query (Agentic RAG) |
 | POST | `/api/v1/compare` | Compare both pipelines side-by-side |
 | POST | `/api/v1/upload` | Upload document (batch-capable) |
+| GET | `/api/v1/documents/{filename}` | Get document metadata |
 | GET | `/api/v1/jobs/{id}` | Check job status |
 | GET | `/api/v1/evals` | Run evaluation |
 | GET | `/health` | Health check |
+| GET | `/ready` | Readiness check |
 | GET | `/metrics` | Prometheus metrics |
 
 ---
@@ -632,7 +647,7 @@ Every component is open-source and runs locally with zero API cost. Choices were
 
 | Component | Technology | Why |
 |-----------|-----------|-----|
-| **LLM** | [MedGemma 4B](https://ollama.com/alibayram/medgemma) via Ollama | Google's medical-domain model (clinical QA + FHIR EHR data), 40% less RAM than 7B |
+| **LLM** | [Qwen 2.5 1.5B](https://ollama.com/library/qwen2.5:1.5b) via Ollama | Lightweight model (986 MB), practical for CPU-only deployment in resource-constrained environments |
 | **Embedding** | [sentence-transformers](https://sbert.net/) (nomic-embed-text-v1.5) | 60x faster than Ollama HTTP (10s to 0.16s per batch), local inference, 768-dim vectors |
 | **Reranker** | [FlashRank](https://github.com/PrithivirajDamodaran/FlashRank) | <100ms batch cross-encoder on CPU, 4MB model |
 | **Sentence Extraction** | rank-bm25 (sentence-level) | Two-stage: chunk reranking then BM25 sentence ranking for focused context |
@@ -724,7 +739,7 @@ Query Input
 
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
 - [Ollama](https://ollama.ai/) - Local LLM inference
-- [MedGemma](https://ollama.com/alibayram/medgemma) - Medical-domain LLM
+- [Qwen 2.5](https://ollama.com/library/qwen2.5:1.5b) - Lightweight LLM for CPU-only deployment
 - [nomic-embed-text-v1.5](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) - Embedding model (local, via sentence-transformers)
 - [FlashRank](https://github.com/PrithivirajDamodaran/FlashRank) - Lightweight cross-encoder reranker
 - [pgvector](https://github.com/pgvector/pgvector) - Vector similarity search for PostgreSQL

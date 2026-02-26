@@ -1,5 +1,7 @@
-# Docs (PRD and prompts - private)
-docs/
+# Docs (keep assets and architecture, ignore everything else)
+docs/*
+!docs/assets/
+!docs/architecture/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
