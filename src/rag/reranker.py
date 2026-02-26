@@ -84,8 +84,8 @@ class Reranker:
             reranked = []
             for chunk in chunks:
                 rr_score = rerank_scores.get(chunk.chunk_id, 0.5)
-                # Blend: 0.3 * retrieval + 0.7 * rerank
-                final_score = 0.3 * chunk.score + 0.7 * rr_score
+                # Blend: 0.5 * retrieval + 0.5 * rerank (equal weight — FlashRank is general-purpose, not clinical-specific)
+                final_score = 0.5 * chunk.score + 0.5 * rr_score
                 reranked.append(
                     RerankedChunk(
                         chunk_id=chunk.chunk_id,
@@ -148,37 +148,54 @@ SENTENCE_BOUNDARY = re.compile(
     r"|(?<=\n)\s*(?=\S)"
 )
 
+# Common abbreviations that should NOT trigger sentence splits
+_ABBREVIATIONS = ["Dr.", "Mr.", "Mrs.", "Ms.", "vs.", "etc.", "e.g.", "i.e.", "al.", "approx.", "dept.", "vol."]
+_ABBR_PLACEHOLDER = "\x00"
+
 
 def _split_sentences(text: str) -> list[str]:
     """Split text into sentences, handling medical text patterns."""
-    # First split on clear boundaries
-    sentences = SENTENCE_BOUNDARY.split(text.strip())
-    # Filter out tiny fragments
-    return [s.strip() for s in sentences if len(s.strip()) > 20]
+    # Protect abbreviations from being treated as sentence boundaries
+    protected = text.strip()
+    for abbr in _ABBREVIATIONS:
+        protected = protected.replace(abbr, abbr.replace(".", _ABBR_PLACEHOLDER))
+
+    sentences = SENTENCE_BOUNDARY.split(protected)
+
+    # Restore abbreviations and filter out tiny fragments
+    result = []
+    for s in sentences:
+        restored = s.strip().replace(_ABBR_PLACEHOLDER, ".")
+        if len(restored) > 20:
+            result.append(restored)
+    return result
 
 
 def extract_key_sentences(
     chunks: list[RerankedChunk],
     query: str,
     max_sentences: int = 10,
-) -> list[str]:
+) -> list[tuple[str, str]]:
     """Extract the most relevant sentences from reranked chunks.
 
     Uses BM25 at the sentence level to pick the most query-relevant
-    sentences from across all top chunks. Returns up to max_sentences.
+    sentences from across all top chunks.
+
+    Returns list of (sentence, document_name) tuples.
     """
     if not chunks:
         return []
 
-    # Collect all sentences with their source chunk score
-    all_sentences: list[tuple[str, float]] = []
+    # Collect all sentences with their source chunk score and document name
+    all_sentences: list[tuple[str, float, str]] = []
     for chunk in chunks:
+        doc_name = chunk.document_name or f"Document {chunk.document_id}"
         sentences = _split_sentences(chunk.content)
         for sent in sentences:
-            all_sentences.append((sent, chunk.final_score))
+            all_sentences.append((sent, chunk.final_score, doc_name))
 
     if not all_sentences:
-        return [c.content for c in chunks[:3]]
+        return [(c.content, c.document_name or f"Document {c.document_id}") for c in chunks[:3]]
 
     # Use BM25 to rank sentences by relevance to query
     try:
@@ -186,7 +203,7 @@ def extract_key_sentences(
 
         corpus = [s[0].lower().split() for s in all_sentences]
         if not corpus or all(len(doc) == 0 for doc in corpus):
-            return [s[0] for s in all_sentences[:max_sentences]]
+            return [(s[0], s[2]) for s in all_sentences[:max_sentences]]
 
         bm25 = BM25Okapi(corpus)
         query_tokens = query.lower().split()
@@ -194,15 +211,15 @@ def extract_key_sentences(
 
         # Combine BM25 sentence score with chunk-level score
         scored = []
-        for i, (sent, chunk_score) in enumerate(all_sentences):
+        for i, (sent, chunk_score, doc_name) in enumerate(all_sentences):
             combined = 0.4 * (scores[i] / max(max(scores), 1.0)) + 0.6 * chunk_score
-            scored.append((sent, combined))
+            scored.append((sent, combined, doc_name))
 
         scored.sort(key=lambda x: x[1], reverse=True)
-        return [s[0] for s in scored[:max_sentences]]
+        return [(s[0], s[2]) for s in scored[:max_sentences]]
     except Exception as e:
         logger.warning("Sentence-level extraction failed: %s", e)
-        return [s[0] for s in all_sentences[:max_sentences]]
+        return [(s[0], s[2]) for s in all_sentences[:max_sentences]]
 
 
 def build_extractive_answer(
@@ -220,8 +237,8 @@ def build_extractive_answer(
         return "No relevant information found in the indexed documents."
 
     parts = []
-    for i, sent in enumerate(sentences, 1):
-        parts.append(f"{i}. {sent}")
+    for i, (sent, doc_name) in enumerate(sentences, 1):
+        parts.append(f"{i}. {sent} [{doc_name}]")
 
     return (
         "Based on the most relevant passages from indexed documents:\n\n"
