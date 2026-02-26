@@ -1,5 +1,5 @@
 """
-Reranker for MedQuery
+Reranker for KaagapAI
 
 Dedicated cross-encoder reranking using FlashRank for sub-100ms
 reranking on CPU. Falls back to retrieval ordering if FlashRank

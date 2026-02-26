@@ -1,5 +1,5 @@
 """
-Response Parser for MedQuery
+Response Parser for KaagapAI
 
 Parses LLM output to extract:
 - Answer text (without metadata lines)

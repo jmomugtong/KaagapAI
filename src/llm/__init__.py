@@ -1,5 +1,5 @@
 """
-MedQuery LLM Module
+KaagapAI LLM Module
 
 LLM integration components:
 - OllamaClient: Async HTTP client for Ollama API

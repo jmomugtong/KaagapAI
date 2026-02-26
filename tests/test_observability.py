@@ -1,5 +1,5 @@
 """
-Tests for MedQuery Observability (Phase 13)
+Tests for KaagapAI Observability (Phase 13)
 """
 
 import pytest

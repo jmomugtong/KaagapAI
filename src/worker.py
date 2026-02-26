@@ -1,5 +1,5 @@
 """
-Celery Worker for MedQuery (Phase 9)
+Celery Worker for KaagapAI (Phase 9)
 
 Async task processing for:
 - Document upload and chunking
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize Celery app
 celery_app = Celery(
-    "medquery",
+    "kaagapai",
     broker=os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/1"),
     backend=os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/2"),
 )

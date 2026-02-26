@@ -1,5 +1,5 @@
 """
-MedQuery Observability Module
+KaagapAI Observability Module
 
 Monitoring and logging components:
 - Prometheus metrics

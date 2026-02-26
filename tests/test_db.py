@@ -9,7 +9,7 @@ from src.db.models import Base, ClinicalDoc, DocumentChunk
 
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://medquery_user:medquery_password@localhost:5432/medquery_test",
+    "postgresql+asyncpg://kaagapai_user:kaagapai_password@localhost:5432/kaagapai_test",
 )
 
 pytestmark = [pytest.mark.requires_db, pytest.mark.integration]

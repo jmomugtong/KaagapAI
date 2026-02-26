@@ -1,5 +1,5 @@
 -- ============================================
--- MedQuery Database Initialization Script
+-- KaagapAI Database Initialization Script
 -- ============================================
 -- Run automatically by PostgreSQL Docker container on first start.
 -- Only creates extensions and grants permissions.
@@ -17,21 +17,21 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================
 
 -- Create a separate database for tests so pytest never touches production data
-SELECT 'CREATE DATABASE medquery_test OWNER medquery_user'
-WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'medquery_test')\gexec
+SELECT 'CREATE DATABASE kaagapai_test OWNER kaagapai_user'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'kaagapai_test')\gexec
 
 -- Enable pgvector in the test database
-\c medquery_test
+\c kaagapai_test
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-\c medquery
+\c kaagapai
 
 -- ============================================
 -- Grants
 -- ============================================
 
 -- Grant permissions to the application user
--- Note: Replace 'medquery_user' with your actual DB user if different
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO medquery_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO medquery_user;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO medquery_user;
+-- Note: Replace 'kaagapai_user' with your actual DB user if different
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO kaagapai_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO kaagapai_user;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO kaagapai_user;

@@ -28,7 +28,7 @@ config = context.config
 # Set database URL from environment
 database_url = os.environ.get(
     "DATABASE_URL",
-    "postgresql+asyncpg://medquery_user:medquery_password@localhost:5432/medquery"
+    "postgresql+asyncpg://kaagapai_user:kaagapai_password@localhost:5432/kaagapai"
 )
 config.set_main_option("sqlalchemy.url", database_url)
 

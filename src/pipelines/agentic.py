@@ -1,5 +1,5 @@
 """
-Agentic RAG Pipeline for MedQuery
+Agentic RAG Pipeline for KaagapAI
 
 ReAct-style agent loop that classifies queries, decomposes complex ones
 into sub-queries, performs iterative retrieval, and self-reflects on

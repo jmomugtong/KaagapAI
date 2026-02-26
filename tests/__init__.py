@@ -1,3 +1,3 @@
 """
-MedQuery Tests Package
+KaagapAI Tests Package
 """

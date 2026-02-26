@@ -1,5 +1,5 @@
 """
-Input Validation for MedQuery (Phase 7)
+Input Validation for KaagapAI (Phase 7)
 
 Validates and sanitizes user input to prevent:
 - SQL injection

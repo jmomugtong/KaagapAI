@@ -1,5 +1,5 @@
 """
-Integration Tests for MedQuery (Phase 11)
+Integration Tests for KaagapAI (Phase 11)
 
 End-to-end flow tests covering the full pipeline.
 These test the components together without external services.

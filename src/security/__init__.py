@@ -1,5 +1,5 @@
 """
-MedQuery Security Module
+KaagapAI Security Module
 
 Security components:
 - PII detection and redaction

@@ -1,5 +1,5 @@
 """
-MedQuery Evaluation Module
+KaagapAI Evaluation Module
 
 Evaluation metrics and automated testing:
 - ROUGE-L scoring

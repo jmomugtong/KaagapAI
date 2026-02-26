@@ -1,5 +1,5 @@
 """
-Prompt Templates for MedQuery
+Prompt Templates for KaagapAI
 
 Clinical QA prompt template that injects retrieved context chunks
 and instructs the LLM to produce cited, confidence-scored answers.

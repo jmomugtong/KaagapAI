@@ -1,5 +1,5 @@
 """
-Tests for MedQuery Celery Worker (Phase 9)
+Tests for KaagapAI Celery Worker (Phase 9)
 """
 
 import pytest

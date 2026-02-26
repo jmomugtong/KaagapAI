@@ -1,5 +1,5 @@
 """
-Tests for MedQuery Reranker (FlashRank-based)
+Tests for KaagapAI Reranker (FlashRank-based)
 """
 
 import pytest

@@ -34,7 +34,7 @@ def download_file(url: str, dest: Path) -> None:
     print(f"  Downloading: {url}")
     print(f"  Destination: {dest}")
 
-    req = urllib.request.Request(url, headers={"User-Agent": "MedQuery/0.1"})
+    req = urllib.request.Request(url, headers={"User-Agent": "KaagapAI/0.1"})
     with urllib.request.urlopen(req, timeout=120) as response:
         total = response.headers.get("Content-Length")
         data = response.read()

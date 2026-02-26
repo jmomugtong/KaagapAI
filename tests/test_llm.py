@@ -1,5 +1,5 @@
 """
-Tests for MedQuery LLM Integration (Phase 5)
+Tests for KaagapAI LLM Integration (Phase 5)
 
 Tests for:
 - OllamaClient: async HTTP client with retries, timeouts, health checks

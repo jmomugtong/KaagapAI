@@ -1,5 +1,5 @@
 # ============================================
-# MedQuery Docker Compose Configuration
+# KaagapAI Docker Compose Configuration
 # ============================================
 # Production RAG System for Clinical Documentation
 # ============================================
@@ -13,14 +13,14 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
-    container_name: medquery-api
+    container_name: kaagapai-api
     ports:
       - "8000:8000"
     environment:
       - APP_ENV=${APP_ENV:-development}
       - DEBUG=${DEBUG:-true}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-medquery_user}:${DB_PASSWORD:-medquery_password}@postgres:5432/${DB_NAME:-medquery}
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-kaagapai_user}:${DB_PASSWORD:-kaagapai_password}@postgres:5432/${DB_NAME:-kaagapai}
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
@@ -56,7 +56,7 @@ services:
       - ./frontend:/app/frontend:ro
       - model_cache:/app/.cache
     networks:
-      - medquery-network
+      - kaagapai-network
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
@@ -73,10 +73,10 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
-    container_name: medquery-celery-worker
+    container_name: kaagapai-celery-worker
     command: celery -A src.worker worker --loglevel=info --concurrency=2
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-medquery_user}:${DB_PASSWORD:-medquery_password}@postgres:5432/${DB_NAME:-medquery}
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-kaagapai_user}:${DB_PASSWORD:-kaagapai_password}@postgres:5432/${DB_NAME:-kaagapai}
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
@@ -91,7 +91,7 @@ services:
       - ./uploads:/app/uploads
       - model_cache:/app/.cache
     networks:
-      - medquery-network
+      - kaagapai-network
     restart: unless-stopped
 
   # ==========================================
@@ -99,21 +99,21 @@ services:
   # ==========================================
   postgres:
     image: ankane/pgvector:latest
-    container_name: medquery-postgres
+    container_name: kaagapai-postgres
     environment:
-      - POSTGRES_DB=${DB_NAME:-medquery}
-      - POSTGRES_USER=${DB_USER:-medquery_user}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-medquery_password}
+      - POSTGRES_DB=${DB_NAME:-kaagapai}
+      - POSTGRES_USER=${DB_USER:-kaagapai_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-kaagapai_password}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
     networks:
-      - medquery-network
+      - kaagapai-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-medquery_user} -d ${DB_NAME:-medquery}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-kaagapai_user} -d ${DB_NAME:-kaagapai}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -124,14 +124,14 @@ services:
   # ==========================================
   redis:
     image: redis:7-alpine
-    container_name: medquery-redis
+    container_name: kaagapai-redis
     ports:
       - "6379:6379"
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     networks:
-      - medquery-network
+      - kaagapai-network
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
@@ -144,7 +144,7 @@ services:
   # ==========================================
   ollama:
     image: ollama/ollama:latest
-    container_name: medquery-ollama
+    container_name: kaagapai-ollama
     ports:
       - "11434:11434"
     environment:
@@ -154,7 +154,7 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     networks:
-      - medquery-network
+      - kaagapai-network
     restart: unless-stopped
     # Uncomment for GPU support (NVIDIA)
     # deploy:
@@ -170,7 +170,7 @@ services:
     # ==========================================
   prometheus:
     image: prom/prometheus:latest
-    container_name: medquery-prometheus
+    container_name: kaagapai-prometheus
     ports:
       - "9090:9090"
     command:
@@ -184,7 +184,7 @@ services:
       - ./alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     networks:
-      - medquery-network
+      - kaagapai-network
     restart: unless-stopped
     depends_on:
       - api
@@ -194,7 +194,7 @@ services:
   # ==========================================
   grafana:
     image: grafana/grafana:latest
-    container_name: medquery-grafana
+    container_name: kaagapai-grafana
     ports:
       - "3000:3000"
     environment:
@@ -206,7 +206,7 @@ services:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     networks:
-      - medquery-network
+      - kaagapai-network
     restart: unless-stopped
     depends_on:
       - prometheus
@@ -215,23 +215,23 @@ services:
 # Networks
 # ============================================
 networks:
-  medquery-network:
+  kaagapai-network:
     driver: bridge
-    name: medquery-network
+    name: kaagapai-network
 
 # ============================================
 # Volumes
 # ============================================
 volumes:
   postgres_data:
-    name: medquery-postgres-data
+    name: kaagapai-postgres-data
   redis_data:
-    name: medquery-redis-data
+    name: kaagapai-redis-data
   ollama_data:
-    name: medquery-ollama-data
+    name: kaagapai-ollama-data
   prometheus_data:
-    name: medquery-prometheus-data
+    name: kaagapai-prometheus-data
   grafana_data:
-    name: medquery-grafana-data
+    name: kaagapai-grafana-data
   model_cache:
-    name: medquery-model-cache
+    name: kaagapai-model-cache

@@ -1,4 +1,4 @@
-# MedQuery Requirements - Pinned Versions
+# KaagapAI Requirements - Pinned Versions
 # Generated for Python 3.10+
 
 # ============================================

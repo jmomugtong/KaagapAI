@@ -1,5 +1,5 @@
 """
-Tests for MedQuery Evaluation Framework (Phase 10)
+Tests for KaagapAI Evaluation Framework (Phase 10)
 """
 
 import pytest

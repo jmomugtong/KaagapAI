@@ -12,7 +12,7 @@ from src.db.models import Base
 
 # Using the password from .env
 DATABASE_URL = (
-    "postgresql+asyncpg://medquery_user:medquery_password@localhost:5432/medquery"
+    "postgresql+asyncpg://kaagapai_user:kaagapai_password@localhost:5432/kaagapai"
 )
 
 

@@ -1,5 +1,5 @@
 """
-Extended tests for MedQuery API endpoints — covering lines not reached by test_api.py.
+Extended tests for KaagapAI API endpoints — covering lines not reached by test_api.py.
 
 Target coverage: /ready degraded paths, /api/v1/agent/query, /api/v1/compare,
 /api/v1/upload (success + bad type), /api/v1/jobs (unknown), /api/v1/evals.

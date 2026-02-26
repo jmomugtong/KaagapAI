@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Run MedQuery Evaluation Suite
+Run KaagapAI Evaluation Suite
 
 Usage: python scripts/run_evals.py
 """
@@ -12,7 +12,7 @@ from src.evaluation.runner import EvaluationRunner
 
 
 def main() -> int:
-    print("Running MedQuery Evaluation Suite...")
+    print("Running KaagapAI Evaluation Suite...")
     runner = EvaluationRunner()
     results = runner.run()
 

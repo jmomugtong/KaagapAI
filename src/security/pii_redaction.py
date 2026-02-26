@@ -1,5 +1,5 @@
 """
-PII Redaction for MedQuery (Phase 7)
+PII Redaction for KaagapAI (Phase 7)
 
 Detects and redacts personally identifiable information from text.
 Targets >95% accuracy on common PII patterns found in clinical documents.

@@ -1,12 +1,12 @@
 # ============================================
-# Prometheus Configuration for MedQuery
+# Prometheus Configuration for KaagapAI
 # ============================================
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    monitor: 'medquery-monitor'
+    monitor: 'kaagapai-monitor'
 
 # ============================================
 # Alertmanager Configuration
@@ -27,8 +27,8 @@ rule_files:
 # Scrape Configurations
 # ============================================
 scrape_configs:
-  # MedQuery API
-  - job_name: 'medquery-api'
+  # KaagapAI API
+  - job_name: 'kaagapai-api'
     static_configs:
       - targets: ['host.docker.internal:8000']
     metrics_path: '/metrics'

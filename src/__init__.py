@@ -1,5 +1,5 @@
 """
-MedQuery - Production RAG System for Clinical Documentation
+KaagapAI - Production RAG System for Clinical Documentation
 
 A production-grade Retrieval-Augmented Generation (RAG) system designed to
 surface evidence-based clinical answers from medical documentation.
@@ -13,4 +13,4 @@ Features:
 """
 
 __version__ = "0.1.0"
-__author__ = "MedQuery Team"
+__author__ = "KaagapAI Team"

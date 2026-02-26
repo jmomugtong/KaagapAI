@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Download open-source clinical documents for MedQuery RAG corpus
+# Download open-source clinical documents for KaagapAI RAG corpus
 # Philippine clinical guidelines from DOH, PSMID, PIDSP, PhilHealth + WHO international references
 set -euo pipefail
 

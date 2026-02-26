@@ -1,5 +1,5 @@
 """
-Hybrid Retrieval System for MedQuery
+Hybrid Retrieval System for KaagapAI
 
 Combines BM25 keyword search with pgvector cosine similarity search
 using a weighted fusion strategy: 0.4 * BM25 + 0.6 * cosine.

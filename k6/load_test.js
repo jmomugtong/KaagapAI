@@ -1,7 +1,7 @@
 /**
- * MedQuery Load Test
+ * KaagapAI Load Test
  *
- * k6 load testing script for the MedQuery API.
+ * k6 load testing script for the KaagapAI API.
  * Tests the query endpoint under various load conditions.
  *
  * Run with: k6 run k6/load_test.js

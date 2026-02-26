@@ -1,5 +1,5 @@
 """
-MedQuery Test Configuration
+KaagapAI Test Configuration
 
 Pytest fixtures and configuration for the test suite.
 """
@@ -90,7 +90,7 @@ async def async_session():
 
     database_url = os.environ.get(
         "TEST_DATABASE_URL",
-        "postgresql+asyncpg://medquery_user:medquery_password@localhost:5432/medquery_test",
+        "postgresql+asyncpg://kaagapai_user:kaagapai_password@localhost:5432/kaagapai_test",
     )
 
     from src.db.models import Base

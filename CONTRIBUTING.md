@@ -1,14 +1,14 @@
-# Contributing to MedQuery
+# Contributing to KaagapAI
 
-Thank you for your interest in contributing to MedQuery! This guide will help you get started.
+Thank you for your interest in contributing to KaagapAI! This guide will help you get started.
 
 ## Getting Started
 
 1. **Fork** the repository
 2. **Clone** your fork:
    ```bash
-   git clone https://github.com/<your-username>/MedQuery.git
-   cd MedQuery
+   git clone https://github.com/<your-username>/KaagapAI.git
+   cd KaagapAI
    ```
 3. **Set up** the development environment:
    ```bash

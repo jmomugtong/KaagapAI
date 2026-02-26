@@ -1,5 +1,5 @@
 """
-Prometheus Metrics for MedQuery (Phase 13)
+Prometheus Metrics for KaagapAI (Phase 13)
 
 Tracks:
 - query_latency_seconds: Histogram of query response times

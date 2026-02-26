@@ -1,5 +1,5 @@
 """
-Ollama LLM Client for MedQuery
+Ollama LLM Client for KaagapAI
 
 Async HTTP client for the Ollama API with:
 - Retry logic with exponential backoff

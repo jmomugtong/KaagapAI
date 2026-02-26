@@ -1,5 +1,5 @@
 """
-MedQuery - FastAPI Application Entry Point
+KaagapAI - FastAPI Application Entry Point
 
 Production RAG System for Clinical Documentation
 """
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup/shutdown events."""
     # Startup
-    logger.info("Starting MedQuery API v%s", __version__)
+    logger.info("Starting KaagapAI API v%s", __version__)
 
     # Initialize database tables
     try:
@@ -118,12 +118,12 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
-    logger.info("Shutting down MedQuery API")
+    logger.info("Shutting down KaagapAI API")
 
 
 # Create FastAPI application
 app = FastAPI(
-    title="MedQuery",
+    title="KaagapAI",
     description="Production RAG System for Clinical Documentation",
     version=__version__,
     docs_url="/docs",
@@ -173,7 +173,7 @@ async def health_check() -> dict[str, Any]:
     return {
         "status": "healthy",
         "version": __version__,
-        "service": "medquery-api",
+        "service": "kaagapai-api",
     }
 
 

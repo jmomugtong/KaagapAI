@@ -1,5 +1,5 @@
 # ============================================
-# MedQuery Makefile
+# KaagapAI Makefile
 # ============================================
 # Common commands for development and deployment
 # ============================================
@@ -11,7 +11,7 @@
 
 # Default target
 help:
-	@echo "MedQuery - Production RAG System for Clinical Documentation"
+	@echo "KaagapAI - Production RAG System for Clinical Documentation"
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""
@@ -203,7 +203,7 @@ init: docker-up
 	make ollama-pull
 	make embedding-warmup
 	make db-upgrade
-	@echo "MedQuery initialized successfully!"
+	@echo "KaagapAI initialized successfully!"
 
 health:
 	curl -s http://localhost:8000/health | python -m json.tool

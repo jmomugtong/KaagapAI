@@ -1,8 +1,8 @@
-# MedQuery
+# KaagapAI
 
 <div align="center">
 
-![MedQuery Logo](docs/assets/logo.png)
+![KaagapAI Logo](docs/assets/logo.png)
 
 **Offline-First RAG System for Philippine Clinical Documentation**
 
@@ -19,9 +19,9 @@
 
 ## Overview
 
-MedQuery is a production-grade Retrieval-Augmented Generation (RAG) system built for **remote Philippine hospitals and Rural Health Units (RHUs)** that operate with limited or no internet connectivity. It surfaces evidence-based clinical answers from **DOH-approved Philippine clinical practice guidelines**, enabling healthcare workers in barangay health stations, RHUs, and district hospitals to access life-saving protocols in seconds instead of manually searching paper documents.
+KaagapAI is a production-grade Retrieval-Augmented Generation (RAG) system built for **remote Philippine hospitals and Rural Health Units (RHUs)** that operate with limited or no internet connectivity. It surfaces evidence-based clinical answers from **DOH-approved Philippine clinical practice guidelines**, enabling healthcare workers in barangay health stations, RHUs, and district hospitals to access life-saving protocols in seconds instead of manually searching paper documents.
 
-Built 100% with open-source models, MedQuery runs entirely on local hardware after initial setup — **no internet required for queries, zero external API costs**. The clinical corpus includes 17 Philippine and WHO guidelines covering TB, dengue, hypertension, diabetes, pneumonia, leptospirosis, maternal health, immunization, and essential medicines — the highest-burden conditions in underserved Philippine communities.
+Built 100% with open-source models, KaagapAI runs entirely on local hardware after initial setup — **no internet required for queries, zero external API costs**. The clinical corpus includes 17 Philippine and WHO guidelines covering TB, dengue, hypertension, diabetes, pneumonia, leptospirosis, maternal health, immunization, and essential medicines — the highest-burden conditions in underserved Philippine communities.
 
 Cached queries respond in <200ms; cold CPU-only queries (MedGemma 4B, no GPU) take 25-30 s. Evaluation targets: ROUGE-L >= 0.60, hallucination < 5% (unverified, pending indexed dataset).
 
@@ -96,7 +96,7 @@ The retrieval pipeline incorporates techniques from **10 open-source RAG project
 
 ## RAG Pipelines
 
-MedQuery provides two RAG pipeline implementations for different query complexity levels, both enhanced with techniques drawn from 10 open-source RAG projects.
+KaagapAI provides two RAG pipeline implementations for different query complexity levels, both enhanced with techniques drawn from 10 open-source RAG projects.
 
 ### Classical RAG Pipeline
 
@@ -185,8 +185,8 @@ Detailed architecture diagrams and pipeline flows:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/jmomugtong/MedQuery.git
-cd MedQuery
+git clone https://github.com/jmomugtong/KaagapAI.git
+cd KaagapAI
 ```
 
 ### 2. Environment Setup
@@ -236,7 +236,7 @@ docker-compose exec api alembic upgrade head
 
 ### 6. Upload Clinical Documents
 
-MedQuery includes 17 open-source clinical PDFs (14 Philippine-specific + 3 WHO international):
+KaagapAI includes 17 open-source clinical PDFs (14 Philippine-specific + 3 WHO international):
 
 ```bash
 # Download clinical documents (one-time, ~100MB)
@@ -415,7 +415,7 @@ make check
 ## Project Structure
 
 ```
-medquery/
+kaagapai/
 ├── src/
 │   ├── pipelines/        # RAG pipeline implementations
 │   │   ├── classical.py  # Classical RAG (multi-query + entity boost + extractive fallback)
@@ -668,9 +668,9 @@ Model and architecture decisions were guided by recommendations from these AI pr
 
 ## Inspirations
 
-MedQuery's enhanced retrieval pipeline draws techniques from **10 open-source RAG projects** curated by [Chorouk Malmoum](https://www.linkedin.com/in/chorouk-malmoum). Each project contributed specific techniques that were adapted for clinical document retrieval:
+KaagapAI's enhanced retrieval pipeline draws techniques from **10 open-source RAG projects** curated by [Chorouk Malmoum](https://www.linkedin.com/in/chorouk-malmoum). Each project contributed specific techniques that were adapted for clinical document retrieval:
 
-| # | Project | Technique Adopted | How It's Used in MedQuery |
+| # | Project | Technique Adopted | How It's Used in KaagapAI |
 |---|---------|-------------------|---------------------------|
 | 1 | **Multi-Modal Document Comprehension** | Multi-model pipeline design | Architecture pattern for chaining embedding, retrieval, and synthesis stages |
 | 2 | **Self-RAG with Self-Grading** | Self-reflection + grounding | Strict grounding prompts ("answer ONLY from context"), agentic self-reflection step |
@@ -731,7 +731,7 @@ Query Input
 - [LangChain](https://python.langchain.com/) - Document processing & text splitting
 - [DuckDuckGo Search](https://pypi.org/project/duckduckgo-search/) - Zero-cost web search fallback
 - [rank-bm25](https://github.com/dorianbrown/rank_bm25) - BM25 keyword search (chunk + sentence level)
-- [Chorouk Malmoum](https://www.linkedin.com/in/chorouk-malmoum) - Curated the 10 RAG projects that inspired MedQuery's enhanced retrieval pipeline
+- [Chorouk Malmoum](https://www.linkedin.com/in/chorouk-malmoum) - Curated the 10 RAG projects that inspired KaagapAI's enhanced retrieval pipeline
 
 ---
 

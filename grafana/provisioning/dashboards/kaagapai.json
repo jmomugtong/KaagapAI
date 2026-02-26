@@ -358,12 +358,12 @@
     }
   ],
   "schemaVersion": 39,
-  "tags": ["medquery", "rag", "clinical"],
+  "tags": ["kaagapai", "rag", "clinical"],
   "templating": { "list": [] },
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "",
-  "title": "MedQuery RAG Dashboard",
-  "uid": "medquery-main",
+  "title": "KaagapAI RAG Dashboard",
+  "uid": "kaagapai-main",
   "version": 1
 }

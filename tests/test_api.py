@@ -1,5 +1,5 @@
 """
-Tests for MedQuery API endpoints.
+Tests for KaagapAI API endpoints.
 """
 
 import pytest

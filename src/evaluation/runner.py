@@ -1,5 +1,5 @@
 """
-Evaluation Runner for MedQuery (Phase 10)
+Evaluation Runner for KaagapAI (Phase 10)
 
 Runs evaluation metrics against a QA dataset:
 - ROUGE-L: Lexical overlap with ground truth (target >= 0.60)

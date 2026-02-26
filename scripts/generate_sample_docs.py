@@ -1,4 +1,4 @@
-"""Generate sample clinical PDF documents for testing MedQuery."""
+"""Generate sample clinical PDF documents for testing KaagapAI."""
 
 from pathlib import Path
 

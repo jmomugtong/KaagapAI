@@ -1,5 +1,5 @@
 # ============================================
-# MedQuery Dockerfile
+# KaagapAI Dockerfile
 # ============================================
 # Multi-stage build for production deployment
 # ============================================
@@ -38,7 +38,7 @@ RUN pip install --upgrade pip setuptools wheel && \
 FROM python:3.11-slim AS production
 
 # Labels
-LABEL maintainer="MedQuery Team" \
+LABEL maintainer="KaagapAI Team" \
     description="Production RAG System for Clinical Documentation" \
     version="0.1.0"
 
@@ -64,8 +64,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean
 
 # Create non-root user for security
-RUN groupadd --gid 1000 medquery && \
-    useradd --uid 1000 --gid medquery --shell /bin/bash --create-home medquery
+RUN groupadd --gid 1000 kaagapai && \
+    useradd --uid 1000 --gid kaagapai --shell /bin/bash --create-home kaagapai
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
@@ -75,15 +75,15 @@ WORKDIR /app
 
 # Create necessary directories
 RUN mkdir -p /app/src /app/uploads /app/logs /app/.cache && \
-    chown -R medquery:medquery /app
+    chown -R kaagapai:kaagapai /app
 
 # Copy application code
-COPY --chown=medquery:medquery src/ /app/src/
-COPY --chown=medquery:medquery scripts/ /app/scripts/
-COPY --chown=medquery:medquery datasets/ /app/datasets/
+COPY --chown=kaagapai:kaagapai src/ /app/src/
+COPY --chown=kaagapai:kaagapai scripts/ /app/scripts/
+COPY --chown=kaagapai:kaagapai datasets/ /app/datasets/
 
 # Switch to non-root user
-USER medquery
+USER kaagapai
 
 # Pre-download the embedding model (optional, can be done at runtime)
 # RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
@@ -112,10 +112,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy development requirements
-COPY --chown=medquery:medquery pyproject.toml /app/
+COPY --chown=kaagapai:kaagapai pyproject.toml /app/
 RUN pip install -e ".[dev,test]"
 
-USER medquery
+USER kaagapai
 
 # Development command with auto-reload
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

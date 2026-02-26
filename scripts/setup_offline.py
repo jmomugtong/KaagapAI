@@ -156,7 +156,7 @@ def verify_system() -> bool:
 
 def main():
     print("=" * 60)
-    print("MedQuery Offline Setup")
+    print("KaagapAI Offline Setup")
     print("=" * 60)
     print()
 
@@ -169,7 +169,7 @@ def main():
     print()
     print("=" * 60)
     if ollama_ok and embedding_ok and reranker_ok and embed_verify_ok and system_ok:
-        print("SUCCESS: MedQuery is ready for offline operation.")
+        print("SUCCESS: KaagapAI is ready for offline operation.")
         print("You can now disconnect from the internet.")
         print("=" * 60)
         sys.exit(0)

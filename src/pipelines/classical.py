@@ -1,5 +1,5 @@
 """
-Classical RAG Pipeline for MedQuery
+Classical RAG Pipeline for KaagapAI
 
 Encapsulates the standard retrieve-rerank-synthesize flow as a callable unit.
 Extracted from src/main.py to allow side-by-side comparison with the agentic pipeline.

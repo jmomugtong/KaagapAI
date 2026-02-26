@@ -1,4 +1,4 @@
-/* MedQuery Frontend — Tailwind CDN dark theme, v7 */
+/* KaagapAI Frontend — Tailwind CDN dark theme, v7 */
 
 const API = 'http://localhost:8000';
 

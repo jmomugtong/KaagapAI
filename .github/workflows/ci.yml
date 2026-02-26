@@ -1,5 +1,5 @@
 # ============================================
-# MedQuery CI/CD Pipeline
+# KaagapAI CI/CD Pipeline
 # ============================================
 # GitHub Actions workflow for testing and deployment
 # ============================================
@@ -85,7 +85,7 @@ jobs:
         env:
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: test_medquery
+          POSTGRES_DB: test_kaagapai
         ports:
           - 5432:5432
         options: >-
@@ -121,7 +121,7 @@ jobs:
 
       - name: Run tests with coverage
         env:
-          DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_medquery
+          DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_kaagapai
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci
         run: |

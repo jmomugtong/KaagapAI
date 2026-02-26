@@ -45,7 +45,7 @@ async def reindex_all():
 
     # Initialize database
     print("=" * 60)
-    print("MedQuery Document Re-indexing")
+    print("KaagapAI Document Re-indexing")
     print("=" * 60)
     print()
 

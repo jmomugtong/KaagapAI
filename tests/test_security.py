@@ -1,5 +1,5 @@
 """
-Tests for MedQuery Security Layer (Phase 7)
+Tests for KaagapAI Security Layer (Phase 7)
 
 Tests for PII redaction, input validation, and rate limiting.
 """

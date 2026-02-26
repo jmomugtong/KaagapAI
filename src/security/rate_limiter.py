@@ -1,5 +1,5 @@
 """
-Rate Limiter for MedQuery (Phase 7)
+Rate Limiter for KaagapAI (Phase 7)
 
 Redis-backed rate limiting: 10 requests/minute per user.
 Returns 429 with Retry-After header when limit exceeded.

@@ -1,5 +1,5 @@
 """
-Cache Manager for MedQuery
+Cache Manager for KaagapAI
 
 Provides async Redis caching for embeddings and query responses.
 Uses redis.asyncio for true async operations.

@@ -1,9 +1,9 @@
 # ============================================
-# Prometheus Alert Rules for MedQuery
+# Prometheus Alert Rules for KaagapAI
 # ============================================
 
 groups:
-  - name: medquery_alerts
+  - name: kaagapai_alerts
     interval: 30s
     rules:
       # ==========================================
@@ -17,7 +17,7 @@ groups:
         annotations:
           summary: "High query latency detected"
           description: "Query latency p95 is {{ $value | printf \"%.2f\" }}s, exceeding 2s threshold for 5 minutes."
-          runbook_url: "https://docs.medquery.io/runbooks/high-latency"
+          runbook_url: "https://docs.kaagapai.io/runbooks/high-latency"
 
       - alert: CriticalQueryLatency
         expr: histogram_quantile(0.95, rate(query_latency_seconds_bucket[5m])) > 5
@@ -60,7 +60,7 @@ groups:
         annotations:
           summary: "High hallucination rate detected"
           description: "Hallucination rate is {{ $value | printf \"%.1f\" }}%, exceeding 5% threshold."
-          runbook_url: "https://docs.medquery.io/runbooks/hallucinations"
+          runbook_url: "https://docs.kaagapai.io/runbooks/hallucinations"
 
       - alert: LowConfidenceResponses
         expr: avg(response_confidence_score) < 0.70
@@ -117,13 +117,13 @@ groups:
       # Availability Alerts
       # ==========================================
       - alert: APIDown
-        expr: up{job="medquery-api"} == 0
+        expr: up{job="kaagapai-api"} == 0
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "MedQuery API is down"
-          description: "The MedQuery API service is not responding."
+          summary: "KaagapAI API is down"
+          description: "The KaagapAI API service is not responding."
 
       - alert: OllamaDown
         expr: ollama_health_status == 0

@@ -4,7 +4,7 @@ Revision ID: 001_initial
 Revises: 
 Create Date: 2026-02-07
 
-Initial database schema for MedQuery RAG system.
+Initial database schema for KaagapAI RAG system.
 Creates all tables as defined in PRD Section 6.1.
 """
 from typing import Sequence, Union

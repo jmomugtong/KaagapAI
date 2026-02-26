@@ -1,5 +1,5 @@
 """
-Web Search Fallback for MedQuery
+Web Search Fallback for KaagapAI
 
 When no relevant local documents are found, falls back to DuckDuckGo
 web search for medical information. Results are clearly marked as

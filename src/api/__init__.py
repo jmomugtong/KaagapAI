@@ -1,5 +1,5 @@
 """
-MedQuery API Module
+KaagapAI API Module
 
 FastAPI routes and middleware.
 """
