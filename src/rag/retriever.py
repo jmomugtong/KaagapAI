@@ -45,6 +45,53 @@ MEDICAL_ABBREVIATIONS: dict[str, str] = {
     "ARDS": "acute respiratory distress syndrome",
     "ICU": "intensive care unit",
     "OR": "operating room",
+    "UTI": "urinary tract infection",
+    "URI": "upper respiratory infection",
+    "OPD": "outpatient department",
+    "DOH": "department of health",
+    "CPG": "clinical practice guidelines",
+    "BP": "blood pressure",
+    "HR": "heart rate",
+    "RR": "respiratory rate",
+    "ORS": "oral rehydration solution",
+    "IV": "intravenous",
+    "IM": "intramuscular",
+    "PO": "per oral",
+    "BID": "twice daily",
+    "TID": "three times daily",
+    "QID": "four times daily",
+    "PRN": "as needed",
+    "CBC": "complete blood count",
+    "ABG": "arterial blood gas",
+    "ECG": "electrocardiogram",
+    "CXR": "chest x-ray",
+}
+
+# Natural-language synonyms → clinical terms (case-insensitive expansion)
+# These are matched case-insensitively and appended to the query for broader recall
+MEDICAL_SYNONYMS: dict[str, str] = {
+    "heart attack": "myocardial infarction",
+    "high blood pressure": "hypertension",
+    "low blood pressure": "hypotension",
+    "stroke": "cerebrovascular accident",
+    "blood clot": "thrombosis embolism",
+    "kidney failure": "renal failure",
+    "liver failure": "hepatic failure",
+    "sugar": "glucose diabetes",
+    "blood sugar": "blood glucose diabetes",
+    "bone break": "fracture",
+    "broken bone": "fracture",
+    "breathing difficulty": "dyspnea respiratory distress",
+    "chest pain": "angina chest pain",
+    "water pills": "diuretics",
+    "blood thinner": "anticoagulant",
+    "pain killer": "analgesic",
+    "fever": "pyrexia febrile",
+    "dengue": "dengue hemorrhagic fever",
+    "leptospirosis": "leptospirosis leptospira",
+    "pneumonia": "pneumonia community-acquired hospital-acquired",
+    "TB": "tuberculosis",
+    "diarrhea": "diarrhea acute gastroenteritis",
 }
 
 STOP_WORDS: set[str] = {
@@ -75,12 +122,8 @@ STOP_WORDS: set[str] = {
     "its",
     "me",
     "my",
-    "no",
-    "nor",
-    "not",
     "of",
     "on",
-    "or",
     "our",
     "out",
     "own",
@@ -113,7 +156,6 @@ STOP_WORDS: set[str] = {
     "whom",
     "why",
     "will",
-    "with",
     "would",
     "you",
     "your",
@@ -143,24 +185,42 @@ class ScoredChunk:
 # ============================================
 
 
+# Pre-compiled abbreviation patterns (compiled once at module load, not per query)
+_COMPILED_ABBREVIATION_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"\b" + re.escape(abbr) + r"\b"), expansion)
+    for abbr, expansion in MEDICAL_ABBREVIATIONS.items()
+]
+
+
 class QueryPreprocessor:
     """Preprocesses queries with normalization, abbreviation expansion, and tokenization."""
 
     def __init__(self):
         self._abbreviations = MEDICAL_ABBREVIATIONS
+        self._synonyms = MEDICAL_SYNONYMS
         self._stop_words = STOP_WORDS
 
     def preprocess(self, query: str) -> str:
-        """Lowercase and expand medical abbreviations."""
+        """Lowercase, expand abbreviations, and expand medical synonyms."""
         result = self._expand_abbreviations(query)
+        result = self._expand_synonyms(result)
         return result.lower()
 
     def _expand_abbreviations(self, text: str) -> str:
         """Replace medical abbreviations with full terms."""
-        for abbr, expansion in self._abbreviations.items():
-            # Match whole word only (case-sensitive for abbreviations)
-            pattern = r"\b" + re.escape(abbr) + r"\b"
-            text = re.sub(pattern, expansion, text)
+        for pattern, expansion in _COMPILED_ABBREVIATION_PATTERNS:
+            text = pattern.sub(expansion, text)
+        return text
+
+    def _expand_synonyms(self, text: str) -> str:
+        """Append clinical synonyms for common natural-language terms."""
+        text_lower = text.lower()
+        additions = []
+        for phrase, expansion in self._synonyms.items():
+            if phrase in text_lower:
+                additions.append(expansion)
+        if additions:
+            text = text + " " + " ".join(additions)
         return text
 
     def tokenize(self, query: str) -> list[str]:
@@ -512,11 +572,11 @@ def extract_medical_entities(query: str) -> list[str]:
     """
     entities = []
 
-    # Check for known medical abbreviations
-    preprocessor = QueryPreprocessor()
-    for abbr, expansion in preprocessor._abbreviations.items():
-        if re.search(r"\b" + re.escape(abbr) + r"\b", query):
-            entities.append(abbr.lower())
+    # Check for known medical abbreviations (using pre-compiled patterns)
+    for pattern, expansion in _COMPILED_ABBREVIATION_PATTERNS:
+        match = pattern.search(query)
+        if match:
+            entities.append(match.group(0).lower())
             entities.append(expansion.lower())
 
     # Check for medical entity patterns
