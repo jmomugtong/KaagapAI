@@ -15,15 +15,17 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Regex for confidence extraction: matches "Confidence: 0.92" or "Confidence Score: 0.85"
+# Regex for confidence extraction: matches "Confidence: 0.92", "Confidence Score: 0.85",
+# "**Confidence:** 0.85", "Confidence Level: 0.80", parenthesized variants
 CONFIDENCE_PATTERN = re.compile(
-    r"[Cc]onfidence(?:\s+[Ss]core)?:\s*([\d.]+)", re.IGNORECASE
+    r"\*{0,2}[Cc]onfidence(?:\s+(?:[Ss]core|[Ll]evel))?\*{0,2}[:\s]+([\d.]+)",
+    re.IGNORECASE,
 )
 
 # Regex for bracket citations: [Document Name, Section X, p. Y]
 CITATION_PATTERN = re.compile(r"\[([^\[\]]+)\]")
 
-DEFAULT_CONFIDENCE = 0.75
+DEFAULT_CONFIDENCE = 0.50
 
 
 @dataclass
@@ -52,6 +54,7 @@ class ResponseParser:
         self,
         raw_text: str,
         retrieved_chunks: list[dict[str, Any]],
+        fallback_confidence: float | None = None,
     ) -> ParsedResponse:
         """
         Parse raw LLM output into a structured response.
@@ -59,6 +62,9 @@ class ResponseParser:
         Args:
             raw_text: Raw text from the LLM.
             retrieved_chunks: List of dicts with 'source' key for validation.
+            fallback_confidence: Confidence to use when the LLM doesn't output one.
+                Typically the top retrieval score. Falls back to DEFAULT_CONFIDENCE
+                if not provided.
 
         Returns:
             ParsedResponse with answer, confidence, citations, hallucination flag.
@@ -66,12 +72,15 @@ class ResponseParser:
         if not raw_text:
             return ParsedResponse(
                 answer="",
-                confidence=DEFAULT_CONFIDENCE,
+                confidence=fallback_confidence or DEFAULT_CONFIDENCE,
                 citations=[],
                 has_hallucinated_citations=False,
             )
 
         confidence = self._extract_confidence(raw_text)
+        # If LLM didn't output confidence, use retrieval-based fallback
+        if confidence == DEFAULT_CONFIDENCE and fallback_confidence is not None:
+            confidence = fallback_confidence
         answer = self._extract_answer(raw_text)
         citations = self._extract_citations(raw_text)
         has_hallucinated = self._check_hallucinations(citations, retrieved_chunks)
@@ -111,6 +120,10 @@ class ResponseParser:
             # Skip things that are clearly not citations
             # (e.g., "[Source 1: ...]" from prompt context is not a citation)
             if inner.startswith("Source ") and ":" in inner:
+                continue
+
+            # Skip single-word brackets like [1], [Note], [a] — not real citations
+            if "," not in inner and len(inner) <= 10:
                 continue
 
             parts = [p.strip() for p in inner.split(",")]
@@ -157,12 +170,22 @@ class ResponseParser:
         if not known_sources:
             return False
 
-        # Check each citation against known sources
+        # Check each citation against known sources using token overlap
         for citation in citations:
-            doc_lower = citation.document.lower()
-            # Check if any known source is a substring or vice versa
+            # "Source N" references are from our own context headers — always valid
+            if re.match(r"^Source\s+\d+$", citation.document, re.IGNORECASE):
+                continue
+
+            # "Document Name" is the placeholder from the prompt template — not hallucinated
+            if citation.document.lower() == "document name":
+                continue
+
+            citation_tokens = self._tokenize_name(citation.document)
+            if not citation_tokens:
+                continue
             matched = any(
-                known in doc_lower or doc_lower in known for known in known_sources
+                self._token_overlap(citation_tokens, self._tokenize_name(known)) >= 0.5
+                for known in known_sources
             )
             if not matched:
                 logger.warning(
@@ -173,3 +196,22 @@ class ResponseParser:
                 return True
 
         return False
+
+    @staticmethod
+    def _tokenize_name(name: str) -> set[str]:
+        """Tokenize a document name for fuzzy matching.
+
+        Splits on delimiters (_-./\\, space), lowercases, removes file
+        extensions and very short tokens.
+        """
+        # Remove common file extensions
+        name = re.sub(r"\.(pdf|docx?|txt|csv|xlsx?)$", "", name, flags=re.IGNORECASE)
+        tokens = re.split(r"[_\-./\\\s,]+", name.lower())
+        return {t for t in tokens if len(t) > 1}
+
+    @staticmethod
+    def _token_overlap(tokens_a: set[str], tokens_b: set[str]) -> float:
+        """Compute fraction of tokens_a that appear in tokens_b."""
+        if not tokens_a or not tokens_b:
+            return 0.0
+        return len(tokens_a & tokens_b) / len(tokens_a)
