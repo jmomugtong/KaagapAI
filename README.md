@@ -23,7 +23,7 @@ KaagapAI is a production-grade Retrieval-Augmented Generation (RAG) system built
 
 Built 100% with open-source models, KaagapAI runs entirely on local hardware after initial setup — **no internet required for queries, zero external API costs**. The clinical corpus includes 17 Philippine and WHO guidelines covering TB, dengue, hypertension, diabetes, pneumonia, leptospirosis, maternal health, immunization, and essential medicines — the highest-burden conditions in underserved Philippine communities.
 
-Cached queries respond in <10ms; cold CPU-only queries (Qwen 2.5 1.5B, no GPU) take 6-12s. Evaluation targets: ROUGE-L >= 0.60, hallucination < 5% (unverified, pending indexed dataset).
+Cached queries respond in <10ms; cold CPU-only queries (Qwen 2.5 1.5B, no GPU) take 6-12s. Evaluation targets: ROUGE-L >= 0.60, hallucination < 5%.
 
 The retrieval pipeline incorporates techniques from **10 open-source RAG projects** (see [Inspirations](#inspirations)) including multi-query retrieval, context window expansion, entity-aware boosting, sentence-level extraction, extractive fallback, web search fallback, conditional routing, and strict grounding prompts.
 
