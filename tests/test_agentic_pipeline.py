@@ -651,7 +651,7 @@ class TestAgenticFullRun:
         mocker.patch("src.rag.retriever.HybridRetriever", return_value=mock_retriever)
 
         # Web search fallback also returns nothing
-        mocker.patch("src.pipelines.agentic.search_web", return_value=[])
+        mocker.patch("src.rag.web_search.search_web", return_value=[])
 
         pipeline = AgenticPipeline(mock_emb, mock_llm, None)
         result = await pipeline.run("What is the dosage?")
