@@ -100,9 +100,9 @@ class TestRerankerWithFlashRank:
         reranker = Reranker()
         results = await reranker.rerank("query", chunks)
         assert all(r.source == "hybrid" for r in results)  # Preserves original
-        # Chunk 1: 0.3*0.3 + 0.7*0.95 = 0.755
-        # Chunk 2: 0.3*0.9 + 0.7*0.40 = 0.55
-        assert results[0].chunk_id == 1  # Higher final score after reranking
+        # Chunk 1: 0.5*0.3 + 0.5*0.95 = 0.625
+        # Chunk 2: 0.5*0.9 + 0.5*0.40 = 0.65
+        assert results[0].chunk_id == 2  # Higher final score with 50/50 blend
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -148,7 +148,7 @@ class TestRerankerWithFlashRank:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_rerank_score_blending(self, mocker):
-        """Verify the 0.3 retrieval + 0.7 rerank blending formula."""
+        """Verify the 0.5 retrieval + 0.5 rerank blending formula."""
         mock_ranker = mocker.MagicMock()
         mock_ranker.rerank.return_value = [
             {"id": "1", "text": "text", "score": 0.80},
@@ -161,8 +161,8 @@ class TestRerankerWithFlashRank:
         chunks = [_make_chunk(1, "text", 0.60)]
         reranker = Reranker()
         results = await reranker.rerank("query", chunks)
-        # Expected: 0.3 * 0.60 + 0.7 * 0.80 = 0.18 + 0.56 = 0.74
-        assert abs(results[0].final_score - 0.74) < 0.001
+        # Expected: 0.5 * 0.60 + 0.5 * 0.80 = 0.30 + 0.40 = 0.70
+        assert abs(results[0].final_score - 0.70) < 0.001
         assert abs(results[0].retrieval_score - 0.60) < 0.001
         assert abs(results[0].rerank_score - 0.80) < 0.001
 

@@ -344,16 +344,13 @@ class TestUploadEndpointExtended:
 
 
 class TestJobStatusEndpointExtended:
-    """Extended job status endpoint tests."""
+    """Extended job status endpoint tests (removed with Celery)."""
 
     @pytest.mark.unit
-    def test_job_status_unknown_id(self, client):
-        """Unknown job_id returns a valid response (not 404 — worker returns status dict)."""
+    def test_job_status_unknown_id_returns_404(self, client):
+        """Job status endpoint was removed with Celery — returns 404."""
         response = client.get("/api/v1/jobs/nonexistent-job-id-xyz")
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        # get_job_status returns a dict with job_id even for unknown IDs
-        assert "job_id" in data
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 # ============================================

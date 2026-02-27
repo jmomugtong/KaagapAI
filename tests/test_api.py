@@ -57,13 +57,10 @@ class TestUploadEndpoint:
 
 
 class TestJobStatusEndpoint:
-    """Tests for the job status endpoint."""
+    """Tests for the job status endpoint (removed with Celery)."""
 
     @pytest.mark.unit
-    def test_job_status_endpoint(self, client):
-        """Test the job status endpoint."""
+    def test_job_status_endpoint_returns_404(self, client):
+        """Job status endpoint was removed with Celery — returns 404."""
         response = client.get("/api/v1/jobs/test-job-id")
-
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert data["job_id"] == "test-job-id"
+        assert response.status_code == status.HTTP_404_NOT_FOUND

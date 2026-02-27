@@ -71,7 +71,9 @@ class TestClassicalPipeline:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_no_embedding_model_returns_error(self):
+    async def test_no_embedding_model_returns_error(self, mocker):
+        # Ensure cache miss so we reach the embedding check
+        mocker.patch("src.rag.cache.CacheManager.get_query_result", return_value=None)
         pipeline = ClassicalPipeline(
             embedding_generator=None,
             ollama_client=None,
@@ -86,6 +88,8 @@ class TestClassicalPipeline:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_embedding_failure_returns_error(self, mocker):
+        # Ensure cache miss so we reach embedding generation
+        mocker.patch("src.rag.cache.CacheManager.get_query_result", return_value=None)
         mock_emb = mocker.AsyncMock()
         mock_emb.generate_embeddings.side_effect = Exception("embed fail")
 

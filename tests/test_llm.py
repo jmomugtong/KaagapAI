@@ -27,10 +27,10 @@ class TestOllamaClientInit:
         """Client initializes with sensible defaults including LLM params."""
         client = OllamaClient()
         assert client.base_url == "http://localhost:11434"
-        assert client.model == "alibayram/medgemma"
+        assert client.model == "qwen2.5:1.5b"
         assert client.timeout > 0
-        assert client.temperature == 0.1
-        assert client.max_tokens == 256
+        assert client.temperature == 0.0
+        assert client.max_tokens == 200
         assert client.top_p == 0.9
         assert client.num_ctx == 2048
         assert client.num_thread == 0

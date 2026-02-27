@@ -650,6 +650,9 @@ class TestAgenticFullRun:
         mock_retriever.search.return_value = []
         mocker.patch("src.rag.retriever.HybridRetriever", return_value=mock_retriever)
 
+        # Web search fallback also returns nothing
+        mocker.patch("src.pipelines.agentic.search_web", return_value=[])
+
         pipeline = AgenticPipeline(mock_emb, mock_llm, None)
         result = await pipeline.run("What is the dosage?")
 
@@ -729,4 +732,4 @@ class TestAgenticFullRun:
         # High confidence → reflect step should say SUFFICIENT (no LLM call for reflect)
         reflect_steps = [s for s in result.steps if s["name"] == "reflect"]
         assert len(reflect_steps) == 1
-        assert reflect_steps[0]["detail"] == "SUFFICIENT"
+        assert "SUFFICIENT" in reflect_steps[0]["detail"]

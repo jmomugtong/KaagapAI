@@ -89,15 +89,13 @@ class TestHealthEndpoints:
 
 
 class TestJobStatusEndpoint:
-    """Tests for job status tracking."""
+    """Tests for job status tracking (removed with Celery)."""
 
     @pytest.mark.unit
-    def test_job_status_returns_for_unknown_job(self, client):
+    def test_job_status_returns_404(self, client):
+        """Job status endpoint was removed with Celery — returns 404."""
         response = client.get("/api/v1/jobs/nonexistent-job-123")
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert "job_id" in data
-        assert "status" in data
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestMetricsEndpoint:
