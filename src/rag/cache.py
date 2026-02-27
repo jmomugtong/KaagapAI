@@ -26,7 +26,7 @@ class CacheManager:
     - LRU eviction policy
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
         self._redis: Redis | None = None
         self.ttl = int(os.environ.get("EMBEDDING_CACHE_TTL_SECONDS", 604800))
@@ -53,7 +53,8 @@ class CacheManager:
         redis = await self._get_redis()
         val = await redis.get(f"embedding:{key}")
         if val:
-            return json.loads(val)
+            result: list[float] = json.loads(val)
+            return result
         return None
 
     async def set_embedding(self, key: str, embedding: list[float]) -> None:
@@ -82,7 +83,8 @@ class CacheManager:
             key = self._query_cache_key(query)
             val = await redis.get(key)
             if val:
-                return json.loads(val)
+                cached: dict[str, object] = json.loads(val)
+                return cached
         except Exception as e:
             logger.warning("Query cache read failed: %s", e)
         return None

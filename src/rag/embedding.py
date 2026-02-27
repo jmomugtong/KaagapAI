@@ -3,6 +3,7 @@ import hashlib
 import logging
 import os
 from functools import lru_cache
+from typing import Any
 
 from src.rag.cache import CacheManager
 
@@ -24,7 +25,7 @@ DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 
 
 @lru_cache(maxsize=1)
-def _load_st_model(model_name: str):
+def _load_st_model(model_name: str) -> Any:
     """Load sentence-transformers model once and cache it."""
     from sentence_transformers import SentenceTransformer
 
@@ -59,7 +60,7 @@ def _load_st_model(model_name: str):
     return model
 
 
-def _encode_sync(model, texts: list[str], batch_size: int) -> list[list[float]]:
+def _encode_sync(model: Any, texts: list[str], batch_size: int) -> list[list[float]]:
     """Run model.encode synchronously — designed to be called via to_thread.
 
     Processes in small batches to avoid tensor size mismatches that occur
@@ -99,7 +100,7 @@ class EmbeddingGenerator:
         self.dimension = DEFAULT_EMBEDDING_DIMENSION
         self._st_model = None
 
-    def _get_model(self):
+    def _get_model(self) -> Any:
         """Lazy-load the sentence-transformers model."""
         if self._st_model is None:
             self._st_model = _load_st_model(self.model_name)

@@ -44,12 +44,12 @@ class ClassicalPipeline:
 
     def __init__(
         self,
-        embedding_generator,
-        ollama_client,
-        reranker,
-        cached_chunks=None,
-        doc_name_map=None,
-    ):
+        embedding_generator: Any,
+        ollama_client: Any,
+        reranker: Any,
+        cached_chunks: list[Any] | None = None,
+        doc_name_map: dict[int, str] | None = None,
+    ) -> None:
         self.embedding_generator = embedding_generator
         self.ollama_client = ollama_client
         self.reranker = reranker
@@ -205,7 +205,7 @@ class ClassicalPipeline:
                 logger.info("Loading chunks from database (cache not available)")
                 async with AsyncSessionLocal() as session:
                     result = await session.execute(select(DocumentChunk))
-                    chunks = result.scalars().all()
+                    chunks = list(result.scalars().all())
 
             if not chunks:
                 elapsed = (time.time() - start_time) * 1000

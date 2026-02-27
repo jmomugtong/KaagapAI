@@ -111,8 +111,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     vim \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy development requirements
-COPY --chown=kaagapai:kaagapai pyproject.toml /app/
+# Copy development requirements (README.md needed by hatchling metadata)
+COPY --chown=kaagapai:kaagapai pyproject.toml README.md /app/
 RUN pip install -e ".[dev,test]"
 
 USER kaagapai

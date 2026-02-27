@@ -97,7 +97,7 @@ class OllamaClient:
                     )
                     response.raise_for_status()
                     data = response.json()
-                    return data.get("response", "")
+                    return str(data.get("response", ""))
 
             except (httpx.ConnectTimeout, httpx.ReadTimeout) as e:
                 logger.warning(

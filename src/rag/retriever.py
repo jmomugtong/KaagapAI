@@ -13,6 +13,7 @@ Enhanced with:
 import logging
 import re
 from dataclasses import dataclass
+from typing import Any
 
 from rank_bm25 import BM25Okapi
 from sqlalchemy import text
@@ -195,7 +196,7 @@ _COMPILED_ABBREVIATION_PATTERNS: list[tuple[re.Pattern, str]] = [
 class QueryPreprocessor:
     """Preprocesses queries with normalization, abbreviation expansion, and tokenization."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._abbreviations = MEDICAL_ABBREVIATIONS
         self._synonyms = MEDICAL_SYNONYMS
         self._stop_words = STOP_WORDS
@@ -438,7 +439,7 @@ Query: {query}"""
 
 async def generate_query_variants(
     query: str,
-    ollama_client,
+    ollama_client: Any,
     n: int = 3,
 ) -> list[str]:
     """Generate query reformulations via LLM for multi-query retrieval.
@@ -580,8 +581,8 @@ def extract_medical_entities(query: str) -> list[str]:
             entities.append(expansion.lower())
 
     # Check for medical entity patterns
-    for pattern in MEDICAL_ENTITY_PATTERNS:
-        for match in re.finditer(pattern, query, re.IGNORECASE):
+    for entity_pattern in MEDICAL_ENTITY_PATTERNS:
+        for match in re.finditer(entity_pattern, query, re.IGNORECASE):
             entities.append(match.group(0).lower())
 
     # Extract capitalized multi-word terms (likely medical terms)

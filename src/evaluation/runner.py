@@ -12,6 +12,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,7 @@ def _run_pipeline_for_question(question: str) -> object | None:
             reranker=None,
         )
 
-        async def _run():
+        async def _run() -> object:
             return await pipeline.run(question)
 
         return asyncio.run(_run())
@@ -85,14 +86,15 @@ class EvaluationRunner:
             / "clinical_qa_25.json"
         )
 
-    def load_dataset(self) -> list[dict]:
+    def load_dataset(self) -> list[dict[str, Any]]:
         """Load QA dataset from JSON file."""
         if not os.path.exists(self._dataset_path):
             logger.warning("Dataset not found: %s", self._dataset_path)
             return []
         with open(self._dataset_path) as f:
             data = json.load(f)
-        return data.get("questions", [])
+        questions: list[dict[str, Any]] = data.get("questions", [])
+        return questions
 
     def run(self) -> dict:
         """Run full evaluation suite and return results."""
@@ -110,9 +112,9 @@ class EvaluationRunner:
         skipped = 0
 
         for q in questions:
-            query_text = q.get("query", q.get("question", ""))
-            ground_truth = q.get("ground_truth", "")
-            expected_sources: list[str] = q.get("expected_sources", [])
+            query_text = str(q.get("query", q.get("question", "")))
+            ground_truth = str(q.get("ground_truth", ""))
+            expected_sources = [str(s) for s in q.get("expected_sources") or []]
 
             # Run the pipeline to get a real prediction
             result = _run_pipeline_for_question(query_text)
@@ -124,17 +126,19 @@ class EvaluationRunner:
                 )
                 continue
 
-            predicted = result.answer  # type: ignore[union-attr]
+            predicted = getattr(result, "answer", "")
             score = compute_rouge_l(predicted, ground_truth)
             rouge_scores.append(score)
 
             # Hallucination: flagged by the pipeline's own detection
-            hallucination_flags.append(bool(result.hallucination_flagged))  # type: ignore[union-attr]
+            hallucination_flags.append(
+                bool(getattr(result, "hallucination_flagged", False))
+            )
 
             # Retrieval recall: any expected source found in retrieved chunks
             retrieved_sources = {
                 str(c.get("source", ""))
-                for c in (result.retrieved_chunks or [])  # type: ignore[union-attr]
+                for c in (getattr(result, "retrieved_chunks", None) or [])
             }
             hit = any(src in retrieved_sources for src in expected_sources)
             recall_hits.append(hit)

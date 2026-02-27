@@ -20,7 +20,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-async def init_db():
+async def init_db() -> None:
     from src.db.models import Base
 
     async with engine.begin() as conn:

@@ -332,7 +332,7 @@ async def query_stream_endpoint(request: Request):
             )
 
         doc_name_map = getattr(app.state, "doc_name_map", {})
-        retriever = HybridRetriever(chunks, session, doc_name_map=doc_name_map)
+        retriever = HybridRetriever(list(chunks), session, doc_name_map=doc_name_map)
         search_results = await retriever.search(
             question, query_embedding, top_k=max_results
         )
@@ -651,7 +651,7 @@ async def upload_endpoint(
                 }
                 for i, chunk in enumerate(chunks)
             ]
-            await session.execute(pg_insert(DocumentChunk.__table__), rows)
+            await session.execute(pg_insert(DocumentChunk.__table__), rows)  # type: ignore[arg-type]
 
         await session.commit()
         doc_id = doc.id

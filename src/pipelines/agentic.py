@@ -43,12 +43,12 @@ class AgenticPipeline:
 
     def __init__(
         self,
-        embedding_generator,
-        ollama_client,
-        reranker,
-        doc_name_map=None,
-        cached_chunks=None,
-    ):
+        embedding_generator: Any,
+        ollama_client: Any,
+        reranker: Any,
+        doc_name_map: dict[int, str] | None = None,
+        cached_chunks: list[Any] | None = None,
+    ) -> None:
         self.embedding_generator = embedding_generator
         self.ollama_client = ollama_client
         self.reranker = reranker
@@ -204,8 +204,8 @@ class AgenticPipeline:
             else:
                 logger.info("Loading chunks from database (cache not available)")
                 async with AsyncSessionLocal() as session:
-                    result = await session.execute(select(DocumentChunk))
-                    db_chunks = result.scalars().all()
+                    db_result = await session.execute(select(DocumentChunk))
+                    db_chunks = list(db_result.scalars().all())
 
             if not db_chunks:
                 elapsed = (time.time() - start_time) * 1000
@@ -579,10 +579,10 @@ class AgenticPipeline:
     async def _synthesize(
         self,
         question: str,
-        chunks: list,
+        chunks: list[Any],
         query_type: str,
         confidence_threshold: float,
-        redactor,
+        redactor: Any,
     ) -> tuple[str, float, list[dict[str, Any]], bool]:
         """Synthesize an answer from retrieved chunks.
 
@@ -721,7 +721,7 @@ class AgenticPipeline:
             if result.upper().startswith("SUFFICIENT"):
                 return "SUFFICIENT"
             if result.upper().startswith("INSUFFICIENT"):
-                return result
+                return str(result)
             return "SUFFICIENT"
         except Exception as e:
             logger.warning("Reflection failed: %s", e)
