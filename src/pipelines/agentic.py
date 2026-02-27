@@ -612,9 +612,7 @@ class AgenticPipeline:
         context = (
             "\n\n".join(context_parts)
             if context_parts
-            else chunks[0].content[:max_chunk_chars]
-            if chunks
-            else ""
+            else chunks[0].content[:max_chunk_chars] if chunks else ""
         )
 
         if not self.ollama_client:
