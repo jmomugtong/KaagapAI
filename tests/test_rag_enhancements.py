@@ -32,7 +32,6 @@ from src.rag.web_search import (
     web_results_to_chunks,
 )
 
-
 # ============================================
 # Helpers
 # ============================================

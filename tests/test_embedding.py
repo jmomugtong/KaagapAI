@@ -112,9 +112,8 @@ async def test_model_name_passed_to_loader(embedding_generator, mock_st_model):
 
     with patch(
         "src.rag.embedding._load_st_model", return_value=mock_st_model
-    ) as mock_load:
-        with patch("src.rag.embedding._encode_sync", return_value=fake_embs):
-            await embedding_generator.generate_embeddings(["test"])
+    ) as mock_load, patch("src.rag.embedding._encode_sync", return_value=fake_embs):
+        await embedding_generator.generate_embeddings(["test"])
 
     mock_load.assert_called_with("nomic-embed-text")
 

@@ -213,6 +213,9 @@ ignore = [
     "ARG002", # unused method argument (common in test fixtures)
     "ARG005", # unused lambda argument
     "B904",   # raise from within except (minor)
+    "SIM105", # contextlib.suppress — try/except/pass is clearer
+    "SIM117", # nested with — often more readable than combined
+    "C408",   # dict() vs literal — dict() reads better with .update()
 ]
 
 [tool.mypy]

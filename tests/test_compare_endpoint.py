@@ -3,7 +3,6 @@ Tests for the Compare endpoint (/api/v1/compare)
 """
 
 import pytest
-from fastapi.testclient import TestClient
 
 
 class TestCompareEndpoint:

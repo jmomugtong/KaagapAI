@@ -137,7 +137,7 @@ class ClassicalPipeline:
             embeddings = await self.embedding_generator.generate_embeddings(
                 [question], is_query=True
             )
-            query_embedding = embeddings[0]
+            _ = embeddings[0]  # Validate embedding generation works
         except Exception as e:
             logger.warning("Embedding generation failed: %s", e)
             elapsed = (time.time() - start_time) * 1000
@@ -427,7 +427,10 @@ class ClassicalPipeline:
 
                     if parsed.confidence < confidence_threshold:
                         # Extractive fallback: return key sentences from docs
-                        from src.rag.reranker import RerankedChunk, build_extractive_answer
+                        from src.rag.reranker import (
+                            RerankedChunk,
+                            build_extractive_answer,
+                        )
 
                         extractive_chunks = [
                             RerankedChunk(

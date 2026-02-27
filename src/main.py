@@ -402,7 +402,6 @@ async def agent_query_endpoint(request: Request) -> dict[str, Any]:
     Classifies the query, decomposes complex queries into sub-queries,
     performs iterative retrieval, and self-reflects on answer completeness.
     """
-    import asyncio
 
     body = await request.json()
     question = body.get("question", "")

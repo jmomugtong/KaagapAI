@@ -55,7 +55,7 @@ def clean_chunk_text(text: str) -> str:
     """
     lines = text.split("\n")
     kept = [line for line in lines if not _is_table_line(line)]
-    if not kept or all(not l.strip() for l in kept):
+    if not kept or all(not line.strip() for line in kept):
         return text
     return "\n".join(kept)
 

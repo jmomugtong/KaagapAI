@@ -414,7 +414,7 @@ class TestPromptConstants:
 
     @pytest.mark.unit
     def test_valid_query_types(self):
-        assert VALID_QUERY_TYPES == {"SIMPLE", "COMPARATIVE", "MULTI_STEP", "TEMPORAL", "GENERAL"}
+        assert {"SIMPLE", "COMPARATIVE", "MULTI_STEP", "TEMPORAL", "GENERAL"} == VALID_QUERY_TYPES
 
     @pytest.mark.unit
     def test_decompose_counts_for_all_types(self):

@@ -511,8 +511,6 @@ class AgenticPipeline:
         q = question.lower()
         compare_words = {"compare", "vs", "versus", "difference", "differ", "between"}
         temporal_words = {"changed", "updated", "evolution", "over time", "history of changes"}
-        general_words = {"what is", "define", "definition of", "meaning of"}
-
         if any(w in q for w in compare_words):
             return "COMPARATIVE"
         if any(w in q for w in temporal_words):
@@ -572,10 +570,9 @@ class AgenticPipeline:
 
         Returns (answer, confidence, citations, hallucination_flagged).
         """
-        from src.llm.response_parser import ResponseParser
-
         # Build context string (filter low-relevance chunks)
         from src.llm.prompt_templates import clean_chunk_text, truncate_at_sentence
+        from src.llm.response_parser import ResponseParser
 
         min_relevance = float(os.environ.get("MIN_CHUNK_RELEVANCE", "0.35"))
         max_chunk_chars = int(os.environ.get("LLM_MAX_CHUNK_CHARS", "400"))

@@ -42,8 +42,9 @@ scikit-learn==1.8.0
 # LangChain (text splitting only)
 # ============================================
 langchain-text-splitters==1.1.1
-langchain-experimental==0.3.4
 # langchain-core version managed by langchain-text-splitters
+# Note: langchain-experimental removed due to dependency conflict with langchain-core
+# SemanticChunker falls back to SmartChunker when unavailable
 
 # ============================================
 # Document Processing
