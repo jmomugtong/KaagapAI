@@ -29,16 +29,16 @@ flowchart TD
 
     Dedup --> Rerank[FlashRank Cross-Encoder<br/>Batch reranking &lt;100ms]
 
-    Rerank --> TopK[Select Top-5 Chunks]
+    Rerank --> TopK[Select Top-3 Chunks]
 
-    TopK --> Synthesize[LLM Synthesis<br/>MedGemma 4B via Ollama<br/>With citations]
+    TopK --> Synthesize[LLM Synthesis<br/>Qwen 2.5 1.5B via Ollama<br/>With citations]
 
     Synthesize --> Confidence[Confidence Scoring<br/>0.0-1.0 scale]
 
     Confidence --> Threshold{Confidence<br/>&gt;= 0.70?}
 
     Threshold -->|Yes| Hallucination[Hallucination Detection<br/>Validate citations exist]
-    Threshold -->|No| Snippets[Return Snippets Only<br/>No synthesis]
+    Threshold -->|No| Snippets[Extractive Fallback<br/>Key sentences from docs]
 
     Hallucination --> PII2[Output PII Redaction<br/>Re-scan response]
     Snippets --> PII2
@@ -91,21 +91,23 @@ flowchart TD
 - **Deduplication**: By chunk_id, keeping highest-scoring version
 
 ### 5. Reranking
-- **Model**: FlashRank (ms-marco-MultiBERT-L-12)
-- **Method**: Cross-encoder batch reranking
+- **Model**: FlashRank (ms-marco-TinyBERT-L-2-v2, auto-downloaded)
+- **Method**: Cross-encoder batch reranking with sentence-level extraction
 - **Performance**: <100ms for batch of 20 chunks
-- **Output**: Top-5 re-scored chunks
+- **Output**: Top-3 re-scored chunks (configurable via `max_results`)
 
 ### 6. LLM Synthesis
-- **Model**: MedGemma 4B via Ollama
-- **Context**: Top-5 chunks + metadata
+- **Model**: Qwen 2.5 1.5B via Ollama (configurable via `OLLAMA_MODEL`)
+- **Context**: Top-3 chunks + metadata (max 400 chars each, configurable)
 - **Output**: Answer with inline citations `[Document Name, Section X]`
-- **Timeout**: 30 seconds
+- **Timeout**: 120 seconds (configurable via `OLLAMA_TIMEOUT_SECONDS`)
+- **Params**: temperature=0.0, max_tokens=200, top_p=0.9
 
 ### 7. Quality Assurance
 - **Confidence Scoring**: 0.0-1.0 based on retrieval scores and LLM certainty
-- **Threshold**: ≥0.70 required for synthesis, else return snippets only
-- **Hallucination Detection**: Validates all citations exist in retrieval set
+- **Threshold**: ≥0.70 required for synthesis, else extractive fallback (key sentences from docs)
+- **Hallucination Detection**: Token-overlap validation of citations against retrieval set
+- **Minimum Chunk Relevance**: Chunks below `MIN_CHUNK_RELEVANCE` (default 0.35) are excluded from LLM context
 
 ### 8. Output & Logging
 - **Output PII Redaction**: Re-scan synthesized response
@@ -123,17 +125,26 @@ flowchart TD
 | Reranking | <200ms | 50-100ms |
 | LLM Synthesis | <3s | 1-2s |
 
+## Enhancements
+
+- **Multi-Query Retrieval**: Generates query reformulations for broader recall (opt-in via `MULTI_QUERY_ENABLED=1`)
+- **Entity-Aware Boosting**: Boosts chunks containing medical entities from the query
+- **Context Window Expansion**: Fetches adjacent chunks for richer context (opt-in, off by default via `SKIP_CONTEXT_EXPANSION=1`)
+- **Extractive Fallback**: Returns key sentences from documents when LLM confidence is below threshold
+- **Web Search Fallback**: Searches DuckDuckGo when no local documents match (discounted confidence)
+- **Document Name Resolution**: `doc_name_map` resolves `document_id` to actual filenames for citation accuracy
+- **Table/Noise Filtering**: GRADE evidence tables and pipe-delimited rows are stripped from chunk text before prompting
+
 ## Error Handling
 
 - **Vector Search Failure**: Falls back to BM25-only retrieval
 - **Ollama Unavailable**: Returns snippets without synthesis
-- **No Results Found**: Returns "Insufficient information" message
-- **Timeout**: 30s timeout on LLM, returns partial results
+- **No Results Found**: Web search fallback, then "No relevant results" message
+- **Timeout**: 120s timeout on LLM, returns partial results
+- **Embedding Failure**: Returns error message with 0% confidence
 
 ## Source Annotations
 
-Retrieved chunks are annotated with source:
-- `"bm25"`: Found by BM25 only
-- `"vector"`: Found by vector search only
-- `"hybrid"`: Found by both, fusion scoring applied
-- `"fallback"`: Vector search failed, BM25-only used
+Retrieved chunks carry both retrieval method and document name:
+- `source` field: `"bm25"`, `"vector"`, `"hybrid"`, or `"fallback"`
+- `document_name` field: Actual filename from `clinical_docs` table (resolved via `doc_name_map`)

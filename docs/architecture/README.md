@@ -21,7 +21,7 @@ KaagapAI implements dual RAG (Retrieval-Augmented Generation) pipelines optimize
 graph TB
     subgraph Input["User Layer"]
         User[Clinical User]
-        Frontend[Web UI<br/>4 tabs: Classical, Agentic, Compare, Upload]
+        Frontend[Web UI<br/>5 tabs: Query, Agentic, Compare, Upload, Monitor]
     end
 
     subgraph API["API Gateway Layer"]
@@ -45,14 +45,14 @@ graph TB
     end
 
     subgraph LLM["LLM Layer"]
-        Ollama["Ollama<br/>MedGemma 4B"]
+        Ollama["Ollama<br/>Qwen 2.5 1.5B"]
         Synthesis["Answer Generation<br/>With citations"]
     end
 
     subgraph Data["Data Layer"]
         Postgres["PostgreSQL<br/>+ pgvector<br/>768-dim vectors"]
-        Redis["Redis<br/>Cache + Queue"]
-        Docs["Clinical Documents<br/>17 PDFs<br/>6,303 chunks"]
+        Redis["Redis<br/>Cache"]
+        Docs["Clinical Documents<br/>PDFs<br/>~2,000 chunks"]
     end
 
     User --> Frontend
@@ -97,7 +97,8 @@ graph TB
 
 **Classical RAG Pipeline** (`src/pipelines/classical.py`)
 - **Purpose**: Fast, single-concept clinical queries
-- **Flow**: Linear retrieval → rerank → synthesize
+- **Flow**: PII redact → cache check → embed → hybrid retrieve → entity boost → rerank → synthesize → extractive fallback
+- **Enhancements**: Multi-query retrieval (opt-in), entity-aware boosting, context window expansion (opt-in), extractive fallback, web search fallback
 - **Performance**: <2s (p95), <200ms cached
 - **Use Cases**: Simple fact lookups, single contraindications, dosage queries
 
@@ -122,18 +123,20 @@ graph TB
 - **Fallback**: BM25-only if vector search fails
 
 **Reranking** (`src/rag/reranker.py`)
-- Model: FlashRank ms-marco-MultiBERT-L-12
-- Method: Cross-encoder batch reranking
+- Model: FlashRank ms-marco-TinyBERT-L-2-v2 (auto-downloaded)
+- Method: Cross-encoder batch reranking with sentence-level extraction
 - Performance: <100ms for 20 chunks
-- Output: Top-5 re-scored results
+- Output: Top-3 re-scored results (configurable via `max_results`)
+- Extractive fallback: Builds answer from key sentences when LLM confidence is low
 
 ### 3. LLM Layer
 
 **Ollama Client** (`src/llm/ollama_client.py`)
-- Model: MedGemma 4B (Google's medical-domain LLM)
-- Context: 4096 tokens
-- Features: Async HTTP client, retry logic, timeout handling
-- Performance: 1-2s synthesis time
+- Model: Qwen 2.5 1.5B (default, configurable via `OLLAMA_MODEL`)
+- Context: 2048 tokens (configurable via `LLM_NUM_CTX`)
+- Timeout: 120s (configurable via `OLLAMA_TIMEOUT_SECONDS`)
+- Features: Async HTTP client, retry logic, streaming support, stop sequences
+- Generation params: temperature=0.0, max_tokens=200, top_p=0.9 (all configurable)
 
 **Prompt Engineering** (`src/pipelines/prompts.py`)
 - Classification prompts (SIMPLE/COMPARATIVE/MULTI_STEP/TEMPORAL)
@@ -154,10 +157,10 @@ graph TB
 - Target hit rate: >70%
 
 **Document Corpus**
-- 17 clinical PDFs (6 guidelines, 6 protocols, 5 references)
-- Sources: VA/DoD, WHO, CDC, NIH, NICE
-- Total: 6,303 chunks with embeddings
-- Processing: ~4 minutes per document with 3 concurrent uploads
+- Clinical PDFs (guidelines, protocols, references)
+- Sources: VA/DoD, WHO, DOH, PSMID, PIDSP (Philippine clinical guidelines)
+- Processing: Synchronous inline upload with chunking + embedding
+- Document name resolution via `doc_name_map` for citation accuracy
 
 ### 5. Security Layer
 
@@ -181,9 +184,13 @@ graph TB
 | Endpoint | Pipeline | Description |
 |----------|----------|-------------|
 | `POST /api/v1/query` | Classical | Fast single-concept queries |
+| `POST /api/v1/query/stream` | Classical | Streaming SSE response |
 | `POST /api/v1/agent/query` | Agentic | Complex multi-part queries |
 | `POST /api/v1/compare` | Both | Side-by-side comparison |
-| `POST /api/v1/upload` | N/A | Batch document upload (3 concurrent) |
+| `POST /api/v1/upload` | N/A | Document upload with inline processing |
+| `GET /api/v1/documents/{filename}` | N/A | Serve uploaded PDF |
+| `GET /metrics` | N/A | Prometheus metrics |
+| `POST /metrics/reset` | N/A | Reset metrics counters |
 
 ## Performance Metrics
 
@@ -211,8 +218,8 @@ Query: "What is the first-line treatment for hypertension?"
    - BM25: Find 10 chunks with keywords "first-line", "treatment", "hypertension"
    - Vector: Find 10 chunks with semantic similarity
    - Fusion: Merge with 0.4/0.6 weighting → 15 unique chunks
-6. Rerank: Cross-encoder re-scores → Top-5 chunks (80ms)
-7. LLM Synthesis: MedGemma generates answer with citations (1500ms)
+6. Rerank: Cross-encoder re-scores → Top-3 chunks (80ms)
+7. LLM Synthesis: Qwen 2.5 generates answer with citations (variable)
 8. Confidence: 0.92 (high)
 9. Hallucination Check: All citations valid
 10. Cache: Store result for 1 hour
@@ -237,7 +244,7 @@ Query: "Compare first-line treatments for hypertension vs diabetes"
    - Sub-query 2: 10 chunks (diabetes treatments)
    - Total: 20 chunks retrieved (600ms)
 6. Global Dedup: Remove 5 overlapping chunks → 15 unique (50ms)
-7. Rerank: Top-5 across both topics (80ms)
+7. Rerank: Top-3 across both topics (80ms)
 8. LLM Synthesis: Multi-query context (1500ms)
 9. Reflect: LLM checks sufficiency = SUFFICIENT (400ms)
 10. Hallucination Check: All citations valid
@@ -251,12 +258,12 @@ Total: ~3.9s
 | Component | Technology | Version | Why |
 |-----------|-----------|---------|-----|
 | Framework | FastAPI | 0.104.1 | Async Python, auto docs |
-| Database | PostgreSQL + pgvector | 16.0 | Vector similarity, ACID |
-| Cache | Redis | 7.2 | Fast key-value, pub/sub |
-| LLM | MedGemma 4B via Ollama | - | Medical-domain, local |
-| Embeddings | sentence-transformers | 2.2.2 | 60× faster than HTTP |
-| Reranker | FlashRank | 0.2.8 | <100ms, 4MB model |
-| Chunking | LangChain | 0.1.20 | Medical separators |
+| Database | PostgreSQL + pgvector | latest | Vector similarity, ACID |
+| Cache | Redis | 7-alpine | Fast key-value, LRU eviction |
+| LLM | Qwen 2.5 1.5B via Ollama | - | Lightweight, CPU-friendly |
+| Embeddings | sentence-transformers | 5.2.3 | Local inference, 768-dim |
+| Reranker | FlashRank | 0.2.10 | <100ms, auto-downloaded model |
+| Chunking | langchain-text-splitters | 1.1.1 | Medical separators |
 
 ## Development
 
@@ -268,10 +275,10 @@ See [CLAUDE.md](../../CLAUDE.md) for:
 
 ## Monitoring
 
-- **Prometheus**: Metrics at `/metrics`
-- **Grafana**: Dashboards at http://localhost:3000
-- **Logs**: Structured JSON logging with correlation IDs
-- **Traces**: OpenTelemetry (planned)
+- **Prometheus**: Metrics at `GET /metrics`, reset via `POST /metrics/reset`
+- **Grafana**: Dashboards at http://localhost:3000 (admin/admin)
+- **Logs**: Structured logging via Python logging module
+- **Metrics tracked**: Query latency, cache hits, hallucination rate, success rate
 
 ## Further Reading
 

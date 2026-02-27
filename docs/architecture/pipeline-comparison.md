@@ -11,7 +11,7 @@ flowchart LR
         C4 --> C5[Embed Query]
         C5 --> C6[Hybrid Retrieval<br/>BM25 + Vector]
         C6 --> C7[Fusion 0.4/0.6]
-        C7 --> C8[Rerank Top-5]
+        C7 --> C8[Rerank Top-3]
         C8 --> C9[LLM Synthesis]
         C9 --> C10[Confidence + Hallucination]
         C10 --> C11[Response]
@@ -27,7 +27,7 @@ flowchart LR
         A6 --> A7
         A7 --> A8[Parallel Hybrid<br/>Retrieval]
         A8 --> A9[Global Dedup]
-        A9 --> A10[Rerank Top-5]
+        A9 --> A10[Rerank Top-3]
         A10 --> A11[LLM Synthesis<br/>Multi-Query Context]
         A11 --> A12[Self-Reflect]
         A12 --> A13{Sufficient?}
@@ -47,7 +47,7 @@ flowchart LR
 | **Query Complexity** | Single-concept queries | Complex, multi-part queries |
 | **Query Processing** | Direct preprocessing | Classification → Decomposition |
 | **Retrieval** | Single hybrid search | Per-sub-query hybrid search |
-| **Context Assembly** | Top-5 chunks | Deduplicated across sub-queries |
+| **Context Assembly** | Top-3 chunks | Deduplicated across sub-queries |
 | **LLM Calls** | 1 (synthesis only) | 2-4 (classify, decompose, synthesize, reflect) |
 | **Self-Correction** | None | Self-reflection with retry loop |
 | **Latency** | <2s (p95) | 3-5s (complex queries) |
@@ -62,7 +62,7 @@ flowchart LR
 ✅ **Input Validation** - SQL/XSS prevention
 ✅ **Hybrid Retrieval** - BM25 + pgvector fusion (0.4/0.6)
 ✅ **FlashRank Reranking** - Cross-encoder <100ms
-✅ **LLM Synthesis** - MedGemma 4B via Ollama
+✅ **LLM Synthesis** - Qwen 2.5 1.5B via Ollama
 ✅ **Confidence Scoring** - 0.0-1.0 scale
 ✅ **Hallucination Detection** - Citation validation
 ✅ **Audit Logging** - Full query/response logging

@@ -38,9 +38,9 @@ flowchart TD
 
     GlobalDedup --> Rerank[FlashRank Reranking<br/>Cross-encoder batch &lt;100ms]
 
-    Rerank --> TopK[Select Top-5 Chunks<br/>From all sub-queries]
+    Rerank --> TopK[Select Top-3 Chunks<br/>From all sub-queries]
 
-    TopK --> Synthesize[LLM Synthesis<br/>MedGemma 4B via Ollama<br/>Context: All sub-queries + chunks]
+    TopK --> Synthesize[LLM Synthesis<br/>Qwen 2.5 1.5B via Ollama<br/>Context: All sub-queries + chunks]
 
     Synthesize --> Confidence[Confidence Scoring<br/>0.0-1.0 scale]
 
@@ -115,7 +115,7 @@ flowchart TD
 - **Benefit**: Avoids redundant chunks, maximizes context diversity
 
 ### 5. LLM Synthesis with Multi-Query Context
-- **Context Assembly**: All sub-queries + top-5 deduplicated chunks
+- **Context Assembly**: All sub-queries + top-3 deduplicated chunks
 - **Prompt Engineering**: Instructions to synthesize holistic answer addressing all sub-queries
 - **Citations**: Must reference specific documents
 
@@ -140,14 +140,15 @@ All intermediate steps are recorded and returned:
 ```json
 {
   "steps": [
-    {"step": "classify", "type": "COMPARATIVE", "timestamp": "..."},
-    {"step": "decompose", "sub_queries": ["...", "..."], "timestamp": "..."},
-    {"step": "retrieve_sub_0", "chunks": 10, "timestamp": "..."},
-    {"step": "retrieve_sub_1", "chunks": 10, "timestamp": "..."},
-    {"step": "deduplicate", "before": 20, "after": 15, "timestamp": "..."},
-    {"step": "rerank", "chunks": 5, "timestamp": "..."},
-    {"step": "synthesize", "confidence": 0.92, "timestamp": "..."},
-    {"step": "reflect", "sufficient": true, "timestamp": "..."}
+    {"name": "pii_redact_input", "duration_ms": 1.2, "detail": "Redacted PII from query"},
+    {"name": "classify", "duration_ms": 300, "detail": "COMPARATIVE"},
+    {"name": "decompose", "duration_ms": 700, "detail": "Generated 2 sub-queries"},
+    {"name": "embed", "duration_ms": 160, "detail": "Generated query embedding"},
+    {"name": "retrieve", "duration_ms": 400, "detail": "Retrieved 10 chunks"},
+    {"name": "deduplicate", "duration_ms": 5, "detail": "15 unique chunks after dedup"},
+    {"name": "rerank", "duration_ms": 80, "detail": "Reranked to top 3 chunks"},
+    {"name": "synthesize", "duration_ms": 1500, "detail": "LLM synthesis complete"},
+    {"name": "reflect", "duration_ms": 400, "detail": "SUFFICIENT"}
   ]
 }
 ```
