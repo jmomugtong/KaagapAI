@@ -134,7 +134,9 @@ class TestCacheFlushAndClose:
 
         count = await cache.flush_embeddings()
         assert count == 2
-        mock_redis.delete.assert_called_once_with("embedding:abc123", "embedding:def456")
+        mock_redis.delete.assert_called_once_with(
+            "embedding:abc123", "embedding:def456"
+        )
 
     @pytest.mark.unit
     @pytest.mark.asyncio

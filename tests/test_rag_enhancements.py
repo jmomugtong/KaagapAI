@@ -502,7 +502,9 @@ class TestExtractKeySentences:
                 0.9,
             ),
         ]
-        sentences = extract_key_sentences(chunks, "acetaminophen dosage", max_sentences=2)
+        sentences = extract_key_sentences(
+            chunks, "acetaminophen dosage", max_sentences=2
+        )
         assert len(sentences) > 0
         assert len(sentences) <= 2
 
@@ -528,7 +530,10 @@ class TestExtractKeySentences:
     def test_respects_max_sentences(self):
         """Returns at most max_sentences results."""
         content = ". ".join(
-            [f"This is test sentence number {i} with enough characters to pass the filter" for i in range(20)]
+            [
+                f"This is test sentence number {i} with enough characters to pass the filter"
+                for i in range(20)
+            ]
         )
         chunks = [_make_reranked_chunk(1, content, 0.9)]
         sentences = extract_key_sentences(chunks, "test sentence", max_sentences=3)
@@ -549,7 +554,9 @@ class TestExtractKeySentences:
                 0.8,
             ),
         ]
-        sentences = extract_key_sentences(chunks, "acetaminophen pain relief", max_sentences=5)
+        sentences = extract_key_sentences(
+            chunks, "acetaminophen pain relief", max_sentences=5
+        )
         assert len(sentences) > 0
 
 
@@ -572,7 +579,9 @@ class TestBuildExtractiveAnswer:
                 0.9,
             ),
         ]
-        answer = build_extractive_answer(chunks, "acetaminophen dosage", max_sentences=3)
+        answer = build_extractive_answer(
+            chunks, "acetaminophen dosage", max_sentences=3
+        )
         assert "Based on the most relevant passages" in answer
         assert "1." in answer
 
@@ -586,7 +595,10 @@ class TestBuildExtractiveAnswer:
     def test_respects_max_sentences(self):
         """Output contains at most max_sentences numbered items."""
         content = ". ".join(
-            [f"This is a long sentence number {i} that should pass the length filter easily" for i in range(10)]
+            [
+                f"This is a long sentence number {i} that should pass the length filter easily"
+                for i in range(10)
+            ]
         )
         chunks = [_make_reranked_chunk(1, content, 0.9)]
         answer = build_extractive_answer(chunks, "sentence", max_sentences=2)
@@ -787,7 +799,15 @@ class TestWebResultsToChunks:
             WebResult(title="T", snippet="S", url="https://u.com"),
         ]
         chunk = web_results_to_chunks(results)[0]
-        expected_keys = {"chunk_id", "text", "document_id", "chunk_index", "relevance_score", "source", "url"}
+        expected_keys = {
+            "chunk_id",
+            "text",
+            "document_id",
+            "chunk_index",
+            "relevance_score",
+            "source",
+            "url",
+        }
         assert set(chunk.keys()) == expected_keys
 
 

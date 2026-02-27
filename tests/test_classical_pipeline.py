@@ -359,9 +359,7 @@ class TestClassicalPipelineLLMSynthesis:
     async def test_low_confidence_returns_extractive_answer(self, mocker):
         """When LLM confidence < threshold, answer uses extractive fallback."""
         mock_llm = mocker.AsyncMock()
-        mock_llm.generate.return_value = (
-            "I am not sure about this.\nConfidence: 0.30"
-        )
+        mock_llm.generate.return_value = "I am not sure about this.\nConfidence: 0.30"
         pipeline = self._make_pipeline(mocker, mock_llm)
         result = await pipeline.run(
             "What is the first-line for hypertension?",

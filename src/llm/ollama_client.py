@@ -32,7 +32,13 @@ DEFAULT_NUM_THREAD = int(os.environ.get("LLM_NUM_THREAD", "0"))
 DEFAULT_KEEP_ALIVE = os.environ.get("OLLAMA_KEEP_ALIVE", "60m")
 
 # Stop sequences to prevent post-answer rambling
-STOP_SEQUENCES = ["\n\n---", "\n\nNote:", "\n\nDisclaimer:", "\n\nSources:", "\n\nReferences:"]
+STOP_SEQUENCES = [
+    "\n\n---",
+    "\n\nNote:",
+    "\n\nDisclaimer:",
+    "\n\nSources:",
+    "\n\nReferences:",
+]
 
 # Retry configuration
 MAX_RETRIES = 3

@@ -414,7 +414,13 @@ class TestPromptConstants:
 
     @pytest.mark.unit
     def test_valid_query_types(self):
-        assert {"SIMPLE", "COMPARATIVE", "MULTI_STEP", "TEMPORAL", "GENERAL"} == VALID_QUERY_TYPES
+        assert {
+            "SIMPLE",
+            "COMPARATIVE",
+            "MULTI_STEP",
+            "TEMPORAL",
+            "GENERAL",
+        } == VALID_QUERY_TYPES
 
     @pytest.mark.unit
     def test_decompose_counts_for_all_types(self):
@@ -570,7 +576,7 @@ class TestAgenticFullRun:
 
         mock_llm = mocker.AsyncMock()
         mock_llm.generate.side_effect = [
-            "SIMPLE",                             # classify
+            "SIMPLE",  # classify
             "The dosage is 500mg.\nConfidence: 0.90",  # synthesize
         ]
 
@@ -660,9 +666,9 @@ class TestAgenticFullRun:
 
         mock_llm = mocker.AsyncMock()
         mock_llm.generate.side_effect = [
-            "COMPARATIVE",          # classify
+            "COMPARATIVE",  # classify
             "1. knee protocol\n2. hip protocol",  # decompose
-            "The answer.\nConfidence: 0.85",       # synthesize
+            "The answer.\nConfidence: 0.85",  # synthesize
         ]
 
         mock_db_chunk = mocker.MagicMock()

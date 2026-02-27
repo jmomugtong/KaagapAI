@@ -318,7 +318,9 @@ class TestUploadEndpointExtended:
             pdf_bytes = b"%PDF-1.4 fake content"
             response = client.post(
                 "/api/v1/upload",
-                files={"file": ("report.pdf", io.BytesIO(pdf_bytes), "application/pdf")},
+                files={
+                    "file": ("report.pdf", io.BytesIO(pdf_bytes), "application/pdf")
+                },
                 data={"document_type": "protocol", "metadata": "{}"},
             )
             assert response.status_code == status.HTTP_200_OK

@@ -33,7 +33,9 @@ def _load_st_model(model_name: str):
     # Try direct load first (sentence-transformers >= 2.3 forwards trust_remote_code)
     try:
         model = SentenceTransformer(model_name, trust_remote_code=True)
-        logger.info("Model loaded — dimension: %d", model.get_sentence_embedding_dimension())
+        logger.info(
+            "Model loaded — dimension: %d", model.get_sentence_embedding_dimension()
+        )
         return model
     except TypeError:
         pass  # older sentence-transformers doesn't accept the kwarg
@@ -51,7 +53,9 @@ def _load_st_model(model_name: str):
     )
     pooling = st_models.Pooling(word_embedding.get_word_embedding_dimension())
     model = SentenceTransformer(modules=[word_embedding, pooling])
-    logger.info("Model loaded — dimension: %d", model.get_sentence_embedding_dimension())
+    logger.info(
+        "Model loaded — dimension: %d", model.get_sentence_embedding_dimension()
+    )
     return model
 
 
@@ -66,7 +70,9 @@ def _encode_sync(model, texts: list[str], batch_size: int) -> list[list[float]]:
     for start in range(0, len(texts), batch_size):
         batch = texts[start : start + batch_size]
         try:
-            batch_np = model.encode(batch, batch_size=batch_size, show_progress_bar=False)
+            batch_np = model.encode(
+                batch, batch_size=batch_size, show_progress_bar=False
+            )
             all_embeddings.extend(emb.tolist() for emb in batch_np)
         except RuntimeError:
             # Tensor mismatch — fall back to encoding one at a time

@@ -43,7 +43,11 @@ class ClassicalPipeline:
     """Standard retrieve-rerank-synthesize RAG pipeline."""
 
     def __init__(
-        self, embedding_generator, ollama_client, reranker, cached_chunks=None,
+        self,
+        embedding_generator,
+        ollama_client,
+        reranker,
+        cached_chunks=None,
         doc_name_map=None,
     ):
         self.embedding_generator = embedding_generator
@@ -220,8 +224,10 @@ class ClassicalPipeline:
             async with AsyncSessionLocal() as session:
                 for variant in query_variants:
                     try:
-                        variant_embeddings = await self.embedding_generator.generate_embeddings(
-                            [variant], is_query=True
+                        variant_embeddings = (
+                            await self.embedding_generator.generate_embeddings(
+                                [variant], is_query=True
+                            )
                         )
                         retriever = HybridRetriever(
                             chunks, session, doc_name_map=self.doc_name_map
@@ -231,14 +237,21 @@ class ClassicalPipeline:
                         )
                         all_results.extend(variant_results)
                     except Exception as e:
-                        logger.warning("Retrieval failed for variant '%s': %s", variant, e)
+                        logger.warning(
+                            "Retrieval failed for variant '%s': %s", variant, e
+                        )
 
                 # Deduplicate by chunk_id, keeping highest score
                 seen: dict[int, ScoredChunk] = {}
                 for chunk in all_results:
-                    if chunk.chunk_id not in seen or chunk.score > seen[chunk.chunk_id].score:
+                    if (
+                        chunk.chunk_id not in seen
+                        or chunk.score > seen[chunk.chunk_id].score
+                    ):
                         seen[chunk.chunk_id] = chunk
-                search_results = sorted(seen.values(), key=lambda x: x.score, reverse=True)
+                search_results = sorted(
+                    seen.values(), key=lambda x: x.score, reverse=True
+                )
 
                 # --- Entity-aware boosting ---
                 entities = extract_medical_entities(question)
@@ -248,7 +261,9 @@ class ClassicalPipeline:
                 # --- Context window expansion (skipped by default for speed) ---
                 if os.environ.get("SKIP_CONTEXT_EXPANSION", "1") != "1":
                     search_results = await expand_context_window(
-                        search_results[:max_results], session, window=1,
+                        search_results[:max_results],
+                        session,
+                        window=1,
                         doc_name_map=self.doc_name_map,
                     )
 
@@ -366,7 +381,9 @@ class ClassicalPipeline:
                             {"text": r.snippet, "metadata": {"source": r.title}}
                             for r in web_results
                         ]
-                        prompt = template.build(question=question, chunks=web_prompt_chunks)
+                        prompt = template.build(
+                            question=question, chunks=web_prompt_chunks
+                        )
                         raw_response = await self.ollama_client.generate(prompt)
                         if raw_response:
                             from src.llm.response_parser import ResponseParser
@@ -379,7 +396,9 @@ class ClassicalPipeline:
                                     "**Note: Answer based on web sources, not indexed clinical documents.**\n\n"
                                     + parsed.answer
                                 ),
-                                confidence=round(parsed.confidence * 0.7, 4),  # Discount web confidence
+                                confidence=round(
+                                    parsed.confidence * 0.7, 4
+                                ),  # Discount web confidence
                                 citations=[],
                                 retrieved_chunks=web_chunk_dicts,
                                 query_id=str(uuid.uuid4())[:8],

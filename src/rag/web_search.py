@@ -74,9 +74,7 @@ def format_web_results_as_context(results: list[WebResult]) -> str:
     sections = []
     for i, r in enumerate(results, 1):
         sections.append(
-            f"[Web Source {i}: {r.title}]\n"
-            f"URL: {r.url}\n"
-            f"{r.snippet}"
+            f"[Web Source {i}: {r.title}]\n" f"URL: {r.url}\n" f"{r.snippet}"
         )
 
     return "\n\n".join(sections)

@@ -10,12 +10,23 @@ import re
 from typing import Any
 
 # GRADE evidence-assessment vocabulary (case-insensitive match)
-_GRADE_WORDS = frozenset({
-    "serious", "not serious", "very serious",
-    "low", "very low", "moderate", "high", "critical",
-    "undetected", "not detected", "none",
-    "important", "not important",
-})
+_GRADE_WORDS = frozenset(
+    {
+        "serious",
+        "not serious",
+        "very serious",
+        "low",
+        "very low",
+        "moderate",
+        "high",
+        "critical",
+        "undetected",
+        "not detected",
+        "none",
+        "important",
+        "not important",
+    }
+)
 
 
 def _is_table_line(line: str) -> bool:

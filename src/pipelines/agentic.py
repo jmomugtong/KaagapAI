@@ -42,8 +42,12 @@ class AgenticPipeline:
     """ReAct-style agentic RAG pipeline with classify/decompose/reflect."""
 
     def __init__(
-        self, embedding_generator, ollama_client, reranker,
-        doc_name_map=None, cached_chunks=None,
+        self,
+        embedding_generator,
+        ollama_client,
+        reranker,
+        doc_name_map=None,
+        cached_chunks=None,
     ):
         self.embedding_generator = embedding_generator
         self.ollama_client = ollama_client
@@ -223,7 +227,9 @@ class AgenticPipeline:
                 for i, sq in enumerate(sub_queries):
                     step_start = time.time()
                     try:
-                        use_multi_query = os.environ.get("MULTI_QUERY_ENABLED", "0") == "1"
+                        use_multi_query = (
+                            os.environ.get("MULTI_QUERY_ENABLED", "0") == "1"
+                        )
                         if use_multi_query:
                             variants = await generate_query_variants(
                                 sq, self.ollama_client, n=2
@@ -232,8 +238,10 @@ class AgenticPipeline:
                             variants = [sq]
 
                         for variant in variants:
-                            embeddings = await self.embedding_generator.generate_embeddings(
-                                [variant], is_query=True
+                            embeddings = (
+                                await self.embedding_generator.generate_embeddings(
+                                    [variant], is_query=True
+                                )
                             )
                             query_embedding = embeddings[0]
 
@@ -263,7 +271,9 @@ class AgenticPipeline:
                 # Context window expansion (skipped by default for speed)
                 if os.environ.get("SKIP_CONTEXT_EXPANSION", "1") != "1":
                     all_chunks = await expand_context_window(
-                        all_chunks[:max_results * 2], session, window=1,
+                        all_chunks[: max_results * 2],
+                        session,
+                        window=1,
                         doc_name_map=self.doc_name_map,
                     )
 
@@ -348,7 +358,9 @@ class AgenticPipeline:
 
                     if self.ollama_client:
                         web_context = format_web_results_as_context(web_results)
-                        prompt = build_synthesis_prompt(question, web_context, query_type)
+                        prompt = build_synthesis_prompt(
+                            question, web_context, query_type
+                        )
                         raw = await self.ollama_client.generate(prompt)
                         if raw:
                             from src.llm.response_parser import ResponseParser
@@ -510,7 +522,13 @@ class AgenticPipeline:
         """Classify query type using keyword heuristic (no LLM call)."""
         q = question.lower()
         compare_words = {"compare", "vs", "versus", "difference", "differ", "between"}
-        temporal_words = {"changed", "updated", "evolution", "over time", "history of changes"}
+        temporal_words = {
+            "changed",
+            "updated",
+            "evolution",
+            "over time",
+            "history of changes",
+        }
         if any(w in q for w in compare_words):
             return "COMPARATIVE"
         if any(w in q for w in temporal_words):
@@ -582,11 +600,22 @@ class AgenticPipeline:
         for i, chunk in enumerate(chunks, 1):
             if chunk.score < min_relevance:
                 continue
-            doc_name = getattr(chunk, "document_name", "") or f"Document {getattr(chunk, 'document_id', i)}"
+            doc_name = (
+                getattr(chunk, "document_name", "")
+                or f"Document {getattr(chunk, 'document_id', i)}"
+            )
             text = clean_chunk_text(chunk.content)
             text = truncate_at_sentence(text, max_chunk_chars)
-            context_parts.append(f"[Source {i}: {doc_name}, relevance {chunk.score:.0%}]\n{text}")
-        context = "\n\n".join(context_parts) if context_parts else chunks[0].content[:max_chunk_chars] if chunks else ""
+            context_parts.append(
+                f"[Source {i}: {doc_name}, relevance {chunk.score:.0%}]\n{text}"
+            )
+        context = (
+            "\n\n".join(context_parts)
+            if context_parts
+            else chunks[0].content[:max_chunk_chars]
+            if chunks
+            else ""
+        )
 
         if not self.ollama_client:
             confidence = chunks[0].score if chunks else 0.0
@@ -607,12 +636,17 @@ class AgenticPipeline:
                 retrieved_for_validation = [
                     {
                         "text": c.content,
-                        "source": getattr(c, "document_name", "") or f"Document {getattr(c, 'document_id', 0)}",
+                        "source": getattr(c, "document_name", "")
+                        or f"Document {getattr(c, 'document_id', 0)}",
                     }
                     for c in chunks
                 ]
                 top_score = chunks[0].score if chunks else None
-                parsed = parser.parse(raw_response, retrieved_for_validation, fallback_confidence=top_score)
+                parsed = parser.parse(
+                    raw_response,
+                    retrieved_for_validation,
+                    fallback_confidence=top_score,
+                )
 
                 if parsed.confidence < confidence_threshold:
                     # Extractive fallback: return key sentences from docs

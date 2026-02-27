@@ -143,13 +143,23 @@ def assess_confidence(confidence: float) -> str:
 # ============================================
 
 # Sentence boundary regex (handles abbreviations better than split("."))
-SENTENCE_BOUNDARY = re.compile(
-    r"(?<=[.!?])\s+(?=[A-Z])"
-    r"|(?<=\n)\s*(?=\S)"
-)
+SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+(?=[A-Z])" r"|(?<=\n)\s*(?=\S)")
 
 # Common abbreviations that should NOT trigger sentence splits
-_ABBREVIATIONS = ["Dr.", "Mr.", "Mrs.", "Ms.", "vs.", "etc.", "e.g.", "i.e.", "al.", "approx.", "dept.", "vol."]
+_ABBREVIATIONS = [
+    "Dr.",
+    "Mr.",
+    "Mrs.",
+    "Ms.",
+    "vs.",
+    "etc.",
+    "e.g.",
+    "i.e.",
+    "al.",
+    "approx.",
+    "dept.",
+    "vol.",
+]
 _ABBR_PLACEHOLDER = "\x00"
 
 
@@ -195,7 +205,10 @@ def extract_key_sentences(
             all_sentences.append((sent, chunk.final_score, doc_name))
 
     if not all_sentences:
-        return [(c.content, c.document_name or f"Document {c.document_id}") for c in chunks[:3]]
+        return [
+            (c.content, c.document_name or f"Document {c.document_id}")
+            for c in chunks[:3]
+        ]
 
     # Use BM25 to rank sentences by relevance to query
     try:
