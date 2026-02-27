@@ -44,7 +44,6 @@ dependencies = [
     "transformers==5.2.0",
     "rank-bm25==0.2.2",
     "langchain-text-splitters==1.1.1",
-    "langchain-experimental==0.3.4",
 
     # Document Processing
     "pypdf==6.7.3",

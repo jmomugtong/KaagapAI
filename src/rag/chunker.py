@@ -114,7 +114,7 @@ class SemanticDocChunker:
 
             splitter = SemanticChunker(
                 self._embedding_model,
-                breakpoint_threshold_type=self._breakpoint_type,  # type: ignore[arg-type]
+                breakpoint_threshold_type=self._breakpoint_type,
                 breakpoint_threshold_amount=self._breakpoint_amount,
             )
             documents = splitter.create_documents([text])
