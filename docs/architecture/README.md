@@ -267,11 +267,10 @@ Total: ~3.9s
 
 ## Development
 
-See [CLAUDE.md](../../CLAUDE.md) for:
-- Development commands (`make dev`, `make test`)
-- Code quality standards (black, isort, mypy)
-- Test-driven development approach
-- Project structure details
+- Run dev server: `make dev`
+- Run tests: `make test` / `make test-cov`
+- Code quality: `make lint` / `make format` / `make type-check`
+- TDD approach: write tests first, minimum 80% coverage
 
 ## Monitoring
 
@@ -285,5 +284,5 @@ See [CLAUDE.md](../../CLAUDE.md) for:
 - [Classical RAG Flow](./classical-rag-flow.md) - Detailed Classical pipeline
 - [Agentic RAG Flow](./agentic-rag-flow.md) - Detailed Agentic pipeline
 - [Pipeline Comparison](./pipeline-comparison.md) - When to use which pipeline
-- [CLAUDE.md](../../CLAUDE.md) - Development guide
+- [Makefile](../../Makefile) - Development commands
 - [README.md](../../README.md) - Project overview and quick start

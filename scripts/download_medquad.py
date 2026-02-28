@@ -2,7 +2,7 @@
 
 Produces datasets/clinical_qa_50.json with 50 curated Q&A pairs across
 diverse medical specialties, matching the V1 evaluation dataset format
-defined in CLAUDE.md.
+defined in the evaluation framework.
 
 Requires: pip install datasets
 """
