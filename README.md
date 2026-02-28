@@ -19,9 +19,9 @@
 
 ## Overview
 
-KaagapAI is a production-grade Retrieval-Augmented Generation (RAG) system built for **remote Philippine hospitals and Rural Health Units (RHUs)** that operate with limited or no internet connectivity. It surfaces evidence-based clinical answers from **DOH-approved Philippine clinical practice guidelines**, enabling healthcare workers in barangay health stations, RHUs, and district hospitals to access life-saving protocols in seconds instead of manually searching paper documents.
+KaagapAI is a production-grade Retrieval-Augmented Generation (RAG) system built for **remote Philippine hospitals and Rural Health Units (RHUs)** that operate with limited or no internet connectivity. Users upload their own clinical documents — guidelines, protocols, and references — and KaagapAI surfaces evidence-based answers from them in seconds, enabling healthcare workers in barangay health stations, RHUs, and district hospitals to access life-saving protocols instead of manually searching paper documents.
 
-Built 100% with open-source models, KaagapAI runs entirely on local hardware after initial setup — **no internet required for queries, zero external API costs**. The clinical corpus includes 17 Philippine and WHO guidelines covering TB, dengue, hypertension, diabetes, pneumonia, leptospirosis, maternal health, immunization, and essential medicines — the highest-burden conditions in underserved Philippine communities.
+Built 100% with open-source models, KaagapAI runs entirely on local hardware after initial setup — **no internet required for queries, zero external API costs**. The system ships with 17 sample Philippine and WHO clinical PDFs for demo and evaluation purposes, but is designed for users to build their own corpus by uploading any clinical documentation relevant to their practice.
 
 Cached queries respond in <10ms; cold CPU-only queries (Qwen 2.5 1.5B, no GPU) take 6-12s. Evaluation targets: ROUGE-L >= 0.60, hallucination < 5%.
 
@@ -29,7 +29,7 @@ The retrieval pipeline incorporates techniques from **10 open-source RAG project
 
 ### Key Features
 
-- **Philippine Clinical Guidelines**: DOH-approved protocols for TB, dengue, hypertension, diabetes, pneumonia, leptospirosis, maternal health, immunization, and essential medicines from DOH, PSMID, PIDSP, and Philippine medical societies
+- **Upload Your Own Clinical Documents**: Upload any clinical guidelines, protocols, or references (PDF) and query them instantly — the system adapts to your corpus
 - **Offline-First Design**: Runs entirely on local hardware after initial setup — no internet required for queries, ideal for remote RHUs and barangay health stations
 - **Dual RAG Pipelines**: Classical RAG (multi-query hybrid retrieval + reranking) and Agentic RAG (ReAct-style reasoning with query decomposition and self-reflection)
 - **Multi-Query Retrieval**: LLM generates query reformulations for broader recall across both pipelines
@@ -251,22 +251,39 @@ docker-compose exec api alembic upgrade head
 
 ### 6. Upload Clinical Documents
 
-KaagapAI includes 17 open-source clinical PDFs (14 Philippine-specific + 3 WHO international):
+Upload your own clinical PDFs through the UI or API. Documents are parsed, chunked, embedded, and indexed automatically.
 
 ```bash
-# Download clinical documents (one-time, ~100MB)
-bash scripts/download_documents.sh
+# Upload via API
+curl -X POST http://localhost:8000/api/v1/upload \
+  -F "file=@your_guideline.pdf" \
+  -F "document_type=guideline"
 
-# Upload all documents to database (batch upload, ~30-40 minutes)
+# Or use the batch upload script for multiple files
 bash scripts/upload_all.sh
 ```
 
-**Documents included:**
-- **Guidelines** (6): PH Hypertension CPG (PSH), PH Diabetes UNITE CPG (PCDEF), PH Stroke CPG 2024 (SSP), PH Dengue CPG (PIDSP), DOH TB NTP Manual of Procedures 6th Ed, WHO Malaria Guidelines 2024
-- **Protocols** (6): PH CAP Adults (PSMID), PH CAP Pediatric (PIDSP), PH Leptospirosis (PSMID), PH Leptospirosis Children (PIDSP), WHO COVID-19 Clinical Management 2023, PH Rabies Prevention (DOH)
+Document types: `guideline`, `protocol`, `reference`
+
+**Sample documents (optional):** KaagapAI ships with 17 open-source Philippine and WHO clinical PDFs for demo and evaluation. To load them:
+
+```bash
+# Download sample documents (~100MB)
+bash scripts/download_documents.sh
+
+# Upload sample documents to database (~30-40 minutes)
+bash scripts/upload_all.sh
+```
+
+<details>
+<summary>Sample documents included</summary>
+
+- **Guidelines** (6): PH Hypertension CPG (PSH), PH Diabetes UNITE CPG (PCDEF), PH Stroke CPG 2024 (SSP), PH Dengue CPG (PIDSP), DOH TB NTP Manual 6th Ed, WHO Malaria Guidelines 2024
+- **Protocols** (6): PH CAP Adults (PSMID), PH CAP Pediatric (PIDSP), PH Leptospirosis (PSMID), PH Leptospirosis Children (PIDSP), WHO COVID-19 2023, PH Rabies Prevention (DOH)
 - **References** (5): PH National Formulary/EML (PhilHealth), PH Formulary for Primary Healthcare (DOH), PH Immunization Schedule (PIDSP), PH MNCHN Strategy MOP (DOH), WHO Essential Medicines 2023
 
-Sources: DOH, PhilHealth, PSMID, PIDSP, Philippine Society of Hypertension, Stroke Society of the Philippines, PCDEF, WHO
+Sources: DOH, PhilHealth, PSMID, PIDSP, PSH, SSP, PCDEF, WHO
+</details>
 
 ### 7. Verify Installation
 
@@ -470,7 +487,7 @@ kaagapai/
 │   └── ...                         # Other tests (retriever, reranker, security, etc.)
 ├── k6/                   # Load testing (k6 scripts with auth flow, staged ramp-up)
 ├── scripts/              # Utility scripts
-├── documents/            # Philippine clinical guidelines corpus (17 PDFs: DOH, PSMID, PIDSP, WHO)
+├── documents/            # Clinical document storage (upload your own; 17 sample PDFs included)
 ├── datasets/             # Evaluation datasets (25 + 50 Q&A pairs)
 ├── docker-compose.yml    # 6 Docker services
 ├── Dockerfile            # Container build
@@ -656,7 +673,7 @@ Every component is open-source and runs locally with zero API cost. Choices were
 | **Web Fallback** | [DuckDuckGo](https://pypi.org/project/duckduckgo-search/) | Zero-cost web search when no local results match |
 | **Cache** | Redis | Two-tier: embedding (7d TTL) + query (1h TTL) |
 | **Framework** | [FastAPI](https://fastapi.tiangolo.com/) | Async Python web framework with concurrent upload support |
-| **Clinical Corpus** | Philippine DOH/PhilHealth/PSMID/PIDSP guidelines + WHO | Locally relevant, DOH-approved protocols for high-burden PH conditions |
+| **Clinical Corpus** | User-uploaded PDFs (guidelines, protocols, references) | Upload any clinical documents; 17 Philippine/WHO sample PDFs included for demo |
 | **Frontend** | [Tailwind CSS CDN](https://tailwindcss.com/) | Dark theme, no build step, 5-tab UI |
 
 ### Research References

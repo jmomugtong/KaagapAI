@@ -157,8 +157,8 @@ graph TB
 - Target hit rate: >70%
 
 **Document Corpus**
-- Clinical PDFs (guidelines, protocols, references)
-- Sources: VA/DoD, WHO, DOH, PSMID, PIDSP (Philippine clinical guidelines)
+- User-uploaded clinical PDFs (guidelines, protocols, references)
+- 17 sample Philippine/WHO PDFs included for demo and evaluation
 - Processing: Synchronous inline upload with chunking + embedding
 - Document name resolution via `doc_name_map` for citation accuracy
 

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "description": "Philippine clinical QA evaluation dataset (25 questions) - based on DOH, PSMID, PIDSP, and Philippine medical society guidelines for conditions prevalent in remote Philippine hospitals and RHUs",
+  "description": "Philippine clinical QA evaluation dataset (25 questions) - based on the 17 sample Philippine/WHO clinical PDFs included with KaagapAI for demo and evaluation",
   "questions": [
     {
       "id": "q001",
